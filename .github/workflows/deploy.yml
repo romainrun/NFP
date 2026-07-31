@@ -1,0 +1,75 @@
+# NFP — automatic development deploy to the remote VPS Metro server.
+#
+# Trigger: every push to main
+# Flow:    GitHub Actions → SSH → scripts/deploy.sh → PM2 (nfp-metro)
+#
+# Required GitHub Secrets (Settings → Secrets and variables → Actions):
+#   HOST      — VPS hostname or IP
+#   PORT      — SSH port (usually 22)
+#   USERNAME  — SSH user (e.g. deploy)
+#   SSH_KEY   — private key (full PEM) for that user
+#
+# This is NOT a Play Store / production binary deploy.
+# It only refreshes the permanent Expo Metro development server.
+
+name: Deploy Dev Metro
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: nfp-dev-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to VPS (Metro / PM2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.HOST }}
+          port: ${{ secrets.PORT }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          # Enough headroom for npm install + Metro boot + health checks.
+          command_timeout: 15m
+          script_stop: true
+          envs: REPO_URL,APP_DIR,LOG_DIR,BRANCH
+          script: |
+            set -euo pipefail
+
+            APP_DIR="${APP_DIR:-/home/deploy/apps/nfp}"
+            LOG_DIR="${LOG_DIR:-/home/deploy/logs/nfp}"
+            REPO_URL="${REPO_URL:-https://github.com/romainrun/NFP.git}"
+            BRANCH="${BRANCH:-main}"
+
+            mkdir -p "$(dirname "$APP_DIR")" "$LOG_DIR"
+            git config --global --add safe.directory "$APP_DIR" || true
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo "[gha] Cloning repository into $APP_DIR"
+              git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
+            fi
+
+            # Sync first so we always execute the deploy script from origin/main.
+            cd "$APP_DIR"
+            git remote set-url origin "$REPO_URL"
+            git fetch --prune origin "$BRANCH"
+            git checkout -B "$BRANCH" "origin/${BRANCH}"
+            git reset --hard "origin/${BRANCH}"
+
+            chmod +x scripts/deploy.sh
+            APP_DIR="$APP_DIR" LOG_DIR="$LOG_DIR" REPO_URL="$REPO_URL" BRANCH="$BRANCH" \
+              bash scripts/deploy.sh
+        env:
+          REPO_URL: https://github.com/romainrun/NFP.git
+          APP_DIR: /home/deploy/apps/nfp
+          LOG_DIR: /home/deploy/logs/nfp
+          BRANCH: main
