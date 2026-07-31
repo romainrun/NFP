@@ -5,9 +5,9 @@
 #
 # Required GitHub Secrets (Settings → Secrets and variables → Actions):
 #   HOST      — VPS hostname or IP
-#   PORT      — SSH port (usually 22)
-#   USERNAME  — SSH user (e.g. deploy)
-#   SSH_KEY   — private key (full PEM) for that user
+#   PORT      — SSH port (optional, defaults to 22)
+#   USERNAME  — SSH user (e.g. deploy or root)
+#   SSH_KEY   — private key (full PEM / OpenSSH) for that user
 #
 # This is NOT a Play Store / production binary deploy.
 # It only refreshes the permanent Expo Metro development server.
@@ -31,11 +31,38 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      - name: Check required secrets
+        env:
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          PORT: ${{ secrets.PORT }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in HOST USERNAME SSH_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret: ${name}"
+              missing=1
+            else
+              echo "Secret ${name}: present"
+            fi
+          done
+          if [ -z "${PORT}" ]; then
+            echo "Secret PORT: missing — will default to 22"
+          else
+            echo "Secret PORT: present"
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::Add HOST, USERNAME, SSH_KEY (and optionally PORT) under Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.HOST }}
-          port: ${{ secrets.PORT }}
+          port: ${{ secrets.PORT || 22 }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           # Enough headroom for npm install + Metro boot + health checks.
