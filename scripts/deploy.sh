@@ -173,6 +173,14 @@ main() {
   log "USER=$(whoami) HOME=$HOME APP_DIR=$APP_DIR LOG_DIR=$LOG_DIR"
   log "node=$(command -v node || echo missing) npm=$(command -v npm || echo missing) pm2=$(command -v pm2 || echo missing)"
 
+  if [[ -r /proc/sys/fs/inotify/max_user_watches ]]; then
+    watches="$(cat /proc/sys/fs/inotify/max_user_watches)"
+    log "inotify max_user_watches=${watches}"
+    if (( watches < 200000 )); then
+      log "WARN: low inotify watches (${watches}). Metro may crash with ENOSPC. See docs/DEPLOYMENT.md § File watchers."
+    fi
+  fi
+
   require_cmd git
   require_cmd curl
   require_cmd node

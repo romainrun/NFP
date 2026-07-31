@@ -255,3 +255,34 @@ Do **not** clear `node_modules` on every normal deploy — only when changing No
 <!-- cicd-retrigger: 2026-07-31T10:38:27Z -->
 
 <!-- cicd-retrigger: 2026-07-31T10:41:02Z -->
+
+## 11. File watchers (ENOSPC) on the VPS
+
+If Metro crash-loops with:
+
+```text
+Error: ENOSPC: System limit for number of file watchers reached
+```
+
+the VPS `inotify` limit is too low (common when several Expo Metro apps run together).
+
+Raise it permanently:
+
+```bash
+echo fs.inotify.max_user_watches=1048576 | sudo tee /etc/sysctl.d/99-expo-inotify.conf
+echo fs.inotify.max_user_instances=1024 | sudo tee -a /etc/sysctl.d/99-expo-inotify.conf
+sudo sysctl --system
+
+# Restart Metro
+cd ~/apps/nfp
+pm2 delete nfp-metro
+pm2 start ecosystem.config.js --only nfp-metro --update-env
+pm2 save
+```
+
+Check current values:
+
+```bash
+cat /proc/sys/fs/inotify/max_user_watches
+cat /proc/sys/fs/inotify/max_user_instances
+```
