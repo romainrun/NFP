@@ -7,7 +7,10 @@ import { SalesHistoryScreen } from '@/features/checkout/presentation/screens/Sal
 import { CashClosingScreen } from '@/features/checkout/presentation/screens/CashClosingScreen';
 import { DashboardScreen } from '@/features/dashboard/presentation/screens/DashboardScreen';
 import { CategoryListScreen } from '@/features/products/presentation/screens/CategoryListScreen';
+import { InventoryScreen } from '@/features/products/presentation/screens/InventoryScreen';
 import { ProductListScreen } from '@/features/products/presentation/screens/ProductListScreen';
+import { PromotionListScreen } from '@/features/promotions/presentation/screens/PromotionListScreen';
+import { ExportsScreen } from '@/features/reports/presentation/screens/ExportsScreen';
 import { SettingsScreen } from '@/features/settings/presentation/screens/SettingsScreen';
 import { AppSideMenu } from '@/navigation/AppSideMenu';
 import { useDrawerStore } from '@/navigation/drawerStore';
@@ -42,8 +45,11 @@ export function MainDrawer() {
         <Stack.Screen name="Pos" component={PosScreen} />
         <Stack.Screen name="SalesHistory" component={SalesHistoryScreen} />
         <Stack.Screen name="CashClosing" component={CashClosingScreen} />
+        <Stack.Screen name="Exports" component={ExportsScreen} />
         <Stack.Screen name="ProductList" component={ProductListScreen} />
         <Stack.Screen name="CategoryList" component={CategoryListScreen} />
+        <Stack.Screen name="Inventory" component={InventoryScreen} />
+        <Stack.Screen name="Promotions" component={PromotionListScreen} />
         <Stack.Screen name="Members" component={MemberListScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
       </Stack.Navigator>

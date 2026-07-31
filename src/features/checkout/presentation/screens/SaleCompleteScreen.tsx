@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Share, StyleSheet, View } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -7,6 +7,7 @@ import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
+import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
 import type { AppStackParamList } from '@/navigation/types';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
@@ -30,11 +31,43 @@ export function SaleCompleteScreen({ navigation, route }: Props) {
     },
   });
 
+  const settingsQuery = useQuery({
+    queryKey: ['settings', 'receipt'],
+    queryFn: async () => {
+      const repo = container.resolve<ISettingsRepository>(TOKENS.SettingsRepository);
+      const result = await repo.getSettings();
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+  });
+
   if (orderQuery.isLoading || !orderQuery.data) {
     return <LoadingOverlay label="Préparation du ticket…" />;
   }
 
   const order = orderQuery.data;
+  const settings = settingsQuery.data;
+  const shareReceipt = async () => {
+    const lines = [
+      settings?.storeName ?? 'NFP',
+      settings?.shopInfo.address ?? '',
+      settings?.shopInfo.phone ? `Tél. ${settings.shopInfo.phone}` : '',
+      settings?.shopInfo.siret ? `SIRET ${settings.shopInfo.siret}` : '',
+      '',
+      `Duplicata ticket #${order.receiptNumber}`,
+      new Date(order.createdAt).toLocaleString('fr-FR'),
+      ...order.lines.map(
+        (line) => `${line.quantity} x ${line.productName} — ${formatMoney(line.lineTotalCents)}`,
+      ),
+      '',
+      `Total TTC: ${formatMoney(order.totalCents)}`,
+      `TVA: ${formatMoney(order.vatCents)}`,
+      ...order.payments.map(
+        (payment) => `${paymentMethodLabel(payment.method)}: ${formatMoney(payment.amountCents)}`,
+      ),
+    ].filter(Boolean);
+    await Share.share({ title: `Ticket #${order.receiptNumber}`, message: lines.join('\n') });
+  };
 
   return (
     <Screen centered>
@@ -79,6 +112,12 @@ export function SaleCompleteScreen({ navigation, route }: Props) {
             onPress={() => navigation.navigate('Main', { screen: 'Pos' })}
           >
             Nouvelle vente
+          </Button>
+          <Button
+            mode="outlined"
+            onPress={shareReceipt}
+          >
+            Partager ticket
           </Button>
           <Button
             mode="outlined"

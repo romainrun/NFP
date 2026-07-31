@@ -10,8 +10,11 @@ export type MainParamList = {
   Pos: undefined;
   SalesHistory: undefined;
   CashClosing: undefined;
+  Exports: undefined;
   ProductList: undefined;
   CategoryList: undefined;
+  Inventory: undefined;
+  Promotions: undefined;
   Members: undefined;
   Settings: undefined;
 };

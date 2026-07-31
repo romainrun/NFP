@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import {
   Button,
+  Chip,
   Dialog,
   HelperText,
   Portal,
@@ -30,6 +31,7 @@ import type { ICartRepository } from '@/features/cart/data/CartRepository';
 import { BarcodeScannerModal } from '@/features/cart/presentation/components/BarcodeScannerModal';
 import { CartLineRow } from '@/features/cart/presentation/components/CartLineRow';
 import { useSalesAccess } from '@/features/cart/presentation/hooks/useSalesAccess';
+import type { ICategoryRepository } from '@/features/products/data/CategoryRepository';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
 import type { Product } from '@/features/products/domain/types';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
@@ -60,6 +62,7 @@ export function PosScreen() {
   const { canSell, userId } = useSalesAccess();
   const { canManage: canManageCatalog, userId: catalogUserId } = useCatalogAccess();
   const [search, setSearch] = useState('');
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
@@ -83,27 +86,44 @@ export function PosScreen() {
   });
 
   const productsQuery = useQuery({
-    queryKey: ['products', 'pos', search, catalogTab],
+    queryKey: ['products', 'pos', search, catalogTab, categoryId],
     enabled: canSell,
     queryFn: async () => {
       const repo = container.resolve<IProductRepository>(TOKENS.ProductRepository);
       if (search.trim()) {
         const result = await repo.list({
           search: search.trim(),
+          categoryId,
           includeInactive: false,
         });
         if (!result.ok) throw result.error;
         return result.value;
       }
       if (catalogTab === 'favorites') {
-        const result = await repo.list({ includeInactive: false });
+        const result = await repo.list({ includeInactive: false, categoryId });
         if (!result.ok) throw result.error;
         const favorites = result.value.filter((p) => p.isFavorite || p.isQuick);
         return favorites.length ? favorites : result.value.slice(0, 24);
       }
+      if (categoryId) {
+        const result = await repo.list({ includeInactive: false, categoryId });
+        if (!result.ok) throw result.error;
+        return result.value;
+      }
       const top = await repo.listTopSelling(24);
       if (!top.ok) throw top.error;
       return top.value;
+    },
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: ['categories', 'pos-filter'],
+    enabled: canSell,
+    queryFn: async () => {
+      const repo = container.resolve<ICategoryRepository>(TOKENS.CategoryRepository);
+      const result = await repo.list(false);
+      if (!result.ok) throw result.error;
+      return result.value;
     },
   });
 
@@ -343,6 +363,30 @@ export function PosScreen() {
           style={styles.tabs}
         />
       ) : null}
+
+      <FlatList
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        data={[
+          { id: 'all', label: 'Tous' },
+          ...(categoriesQuery.data ?? []).map((category) => ({
+            id: category.id,
+            label: category.name,
+          })),
+        ]}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.categoryChips}
+        renderItem={({ item }) => (
+          <Chip
+            compact
+            selected={item.id === 'all' ? categoryId === null : categoryId === item.id}
+            onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
+            style={styles.categoryChip}
+          >
+            {item.label}
+          </Chip>
+        )}
+      />
 
       <View style={styles.manualRow}>
         <TextInput
@@ -767,6 +811,13 @@ const styles = StyleSheet.create({
   manualRow: {
     paddingHorizontal: spacing.sm,
     marginBottom: spacing.xs,
+  },
+  categoryChips: {
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  categoryChip: {
+    marginRight: spacing.xs,
   },
   grid: {
     paddingHorizontal: spacing.xs,

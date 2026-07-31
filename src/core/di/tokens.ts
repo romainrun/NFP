@@ -10,6 +10,7 @@ export const TOKENS = {
   SettingsRepository: 'SettingsRepository',
   ProductRepository: 'ProductRepository',
   CategoryRepository: 'CategoryRepository',
+  PromotionRepository: 'PromotionRepository',
   CartRepository: 'CartRepository',
   OrderRepository: 'OrderRepository',
   PaymentProvider: 'PaymentProvider',

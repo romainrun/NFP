@@ -8,6 +8,7 @@ import type {
   DashboardWidgetId,
   DashboardWidgetSetting,
   DayOpeningHours,
+  ShopInfo,
   StoreOpeningHours,
   ThemePreference,
   Weekday,
@@ -15,6 +16,7 @@ import type {
 import {
   defaultDashboardWidgets,
   defaultOpeningHours,
+  defaultShopInfo,
 } from '@/features/settings/domain/types';
 import { withWriteTransaction } from '@/database/transaction';
 
@@ -24,6 +26,7 @@ const DEFAULTS: AppSettings = {
   idleLogoutMinutes: APP_CONFIG.idleLogoutMs / 60_000,
   openingHours: defaultOpeningHours(),
   dashboardWidgets: defaultDashboardWidgets(),
+  shopInfo: defaultShopInfo(),
 };
 
 const DASHBOARD_WIDGET_IDS = defaultDashboardWidgets().map((widget) => widget.id);
@@ -73,6 +76,20 @@ function parseDashboardWidgets(raw: string | undefined): DashboardWidgetSetting[
   }
 }
 
+function parseShopInfo(raw: string | undefined): ShopInfo {
+  if (!raw) return defaultShopInfo();
+  try {
+    const parsed = JSON.parse(raw) as Partial<ShopInfo>;
+    return {
+      address: String(parsed.address ?? ''),
+      phone: String(parsed.phone ?? ''),
+      siret: String(parsed.siret ?? ''),
+    };
+  } catch {
+    return defaultShopInfo();
+  }
+}
+
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, Math.round(value)));
@@ -84,12 +101,13 @@ export class SqliteSettingsRepository implements ISettingsRepository {
   async getSettings(): Promise<Result<AppSettings>> {
     try {
       const rows = await this.db.getAllAsync<{ key: string; value: string }>(
-        `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?)`,
+        `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?, ?)`,
         'store.name',
         'theme.preference',
         'security.idle_logout_minutes',
         'store.opening_hours',
         'dashboard.widgets',
+        'store.shop_info',
       );
 
       const map = new Map(rows.map((r) => [r.key, r.value]));
@@ -104,6 +122,7 @@ export class SqliteSettingsRepository implements ISettingsRepository {
         ),
         openingHours: parseOpeningHours(map.get('store.opening_hours')),
         dashboardWidgets: parseDashboardWidgets(map.get('dashboard.widgets')),
+        shopInfo: parseShopInfo(map.get('store.shop_info')),
       });
     } catch (cause) {
       return err(AppError.database('Unable to load settings', cause));
@@ -164,6 +183,18 @@ export class SqliteSettingsRepository implements ISettingsRepository {
       'dashboard.widgets',
       JSON.stringify(normalized),
       'Unable to save dashboard widgets',
+    );
+  }
+
+  async setShopInfo(info: ShopInfo): Promise<Result<void>> {
+    return this.upsert(
+      'store.shop_info',
+      JSON.stringify({
+        address: info.address.trim(),
+        phone: info.phone.trim(),
+        siret: info.siret.trim(),
+      }),
+      'Unable to save shop info',
     );
   }
 

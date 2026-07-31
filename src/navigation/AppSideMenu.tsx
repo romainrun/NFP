@@ -26,8 +26,11 @@ const ITEMS: Item[] = [
   { key: 'pos', label: 'Caisse', icon: 'cash-register', route: 'Pos', section: 'Vente' },
   { key: 'history', label: 'Historique des ventes', icon: 'history', route: 'SalesHistory', section: 'Vente' },
   { key: 'closing', label: 'Clôture de caisse', icon: 'cash-check', route: 'CashClosing', section: 'Vente' },
+  { key: 'exports', label: 'Exports', icon: 'file-delimited-outline', route: 'Exports', section: 'Vente' },
   { key: 'products', label: 'Articles', icon: 'barcode', route: 'ProductList', section: 'Catalogue' },
   { key: 'categories', label: 'Catégories', icon: 'shape-outline', route: 'CategoryList', section: 'Catalogue' },
+  { key: 'inventory', label: 'Inventaire', icon: 'clipboard-list-outline', route: 'Inventory', section: 'Catalogue' },
+  { key: 'promos', label: 'Promotions', icon: 'tag-percent-outline', route: 'Promotions', section: 'Catalogue' },
   { key: 'members', label: 'Membres', icon: 'account-group-outline', route: 'Members', section: 'Administration' },
   { key: 'settings', label: 'Paramètres', icon: 'cog-outline', route: 'Settings', section: 'Administration' },
 ];
@@ -62,7 +65,10 @@ export function AppSideMenu() {
 
   const visible = ITEMS.filter((item) => {
     if (item.route === 'CashClosing') return canViewReports;
+    if (item.route === 'Exports') return canViewReports;
     if (item.route === 'CategoryList') return canManageCatalog;
+    if (item.route === 'Inventory') return canManageCatalog;
+    if (item.route === 'Promotions') return canManageCatalog;
     if (item.route === 'Members') return canManageUsers;
     if (item.route === 'Settings') return canManageSettings;
     return true;

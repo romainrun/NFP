@@ -1,4 +1,4 @@
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Share, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, Portal, Text, useTheme } from 'react-native-paper';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -9,6 +9,7 @@ import { hasPermission } from '@/features/authentication/domain/permissions';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
+import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
 import { Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -39,6 +40,17 @@ export function OrderDetailDialog({ orderId, visible, onDismiss }: Props) {
     },
   });
 
+  const settingsQuery = useQuery({
+    queryKey: ['settings', 'receipt'],
+    enabled: visible,
+    queryFn: async () => {
+      const repo = container.resolve<ISettingsRepository>(TOKENS.SettingsRepository);
+      const result = await repo.getSettings();
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+  });
+
   const voidMutation = useMutation({
     mutationFn: async () => {
       if (!orderId || !session) throw new Error('Session invalide');
@@ -56,6 +68,31 @@ export function OrderDetailDialog({ orderId, visible, onDismiss }: Props) {
     },
     onError: (error: Error) => Alert.alert('Erreur', error.message),
   });
+
+  const shareReceipt = async () => {
+    if (!orderQuery.data) return;
+    const order = orderQuery.data;
+    const settings = settingsQuery.data;
+    const lines = [
+      settings?.storeName ?? 'NFP',
+      settings?.shopInfo.address ?? '',
+      settings?.shopInfo.phone ? `Tél. ${settings.shopInfo.phone}` : '',
+      settings?.shopInfo.siret ? `SIRET ${settings.shopInfo.siret}` : '',
+      '',
+      `Duplicata ticket #${order.receiptNumber}`,
+      new Date(order.createdAt).toLocaleString('fr-FR'),
+      ...order.lines.map(
+        (line) => `${line.quantity} x ${line.productName} — ${formatMoney(line.lineTotalCents)}`,
+      ),
+      '',
+      `Total TTC: ${formatMoney(order.totalCents)}`,
+      `TVA: ${formatMoney(order.vatCents)}`,
+      ...order.payments.map(
+        (payment) => `${paymentMethodLabel(payment.method)}: ${formatMoney(payment.amountCents)}`,
+      ),
+    ].filter(Boolean);
+    await Share.share({ title: `Ticket #${order.receiptNumber}`, message: lines.join('\n') });
+  };
 
   return (
     <Portal>
@@ -116,6 +153,11 @@ export function OrderDetailDialog({ orderId, visible, onDismiss }: Props) {
           )}
         </Dialog.Content>
         <Dialog.Actions>
+          {orderQuery.data ? (
+            <Button onPress={shareReceipt} textColor={Colors.primary}>
+              Partager
+            </Button>
+          ) : null}
           {canVoid && orderQuery.data?.status === 'completed' ? (
             <Button
               textColor={theme.colors.error}

@@ -19,6 +19,7 @@ import type {
   DashboardWidgetId,
   DashboardWidgetSetting,
   DayOpeningHours,
+  ShopInfo,
   StoreOpeningHours,
   Weekday,
 } from '@/features/settings/domain/types';
@@ -27,6 +28,7 @@ import {
   WEEKDAY_LABELS,
   defaultDashboardWidgets,
   defaultOpeningHours,
+  defaultShopInfo,
   formatHourRange,
   type ThemePreference,
 } from '@/features/settings/domain/types';
@@ -51,6 +53,7 @@ export function SettingsScreen() {
   );
 
   const [storeName, setLocalStoreName] = useState('');
+  const [shopInfo, setShopInfo] = useState<ShopInfo>(defaultShopInfo());
   const [themePreference, setLocalThemePreference] =
     useState<ThemePreference>('system');
   const [hours, setHours] = useState<StoreOpeningHours>(defaultOpeningHours());
@@ -72,6 +75,7 @@ export function SettingsScreen() {
   useEffect(() => {
     if (!settingsQuery.data) return;
     setLocalStoreName(settingsQuery.data.storeName);
+    setShopInfo(settingsQuery.data.shopInfo);
     setLocalThemePreference(settingsQuery.data.themePreference);
     setHours(settingsQuery.data.openingHours);
     setDashboardWidgets(settingsQuery.data.dashboardWidgets);
@@ -83,13 +87,15 @@ export function SettingsScreen() {
       const repo = container.resolve<ISettingsRepository>(TOKENS.SettingsRepository);
       const nameResult = await repo.setStoreName(storeName);
       if (!nameResult.ok) throw nameResult.error;
+      const shopResult = await repo.setShopInfo(shopInfo);
+      if (!shopResult.ok) throw shopResult.error;
       const themeResult = await repo.setThemePreference(themePreference);
       if (!themeResult.ok) throw themeResult.error;
       const hoursResult = await repo.setOpeningHours(hours);
       if (!hoursResult.ok) throw hoursResult.error;
       const widgetsResult = await repo.setDashboardWidgets(dashboardWidgets);
       if (!widgetsResult.ok) throw widgetsResult.error;
-      return { storeName: storeName.trim(), themePreference, hours, dashboardWidgets };
+      return { storeName: storeName.trim(), themePreference, hours, dashboardWidgets, shopInfo };
     },
     onSuccess: async (value) => {
       setStoreName(value.storeName);
@@ -144,6 +150,29 @@ export function SettingsScreen() {
           onChangeText={setLocalStoreName}
           outlineColor={Colors.border}
           activeOutlineColor={Colors.primary}
+          style={{ backgroundColor: theme.colors.surface }}
+        />
+        <TextInput
+          mode="outlined"
+          label="Adresse"
+          value={shopInfo.address}
+          onChangeText={(address) => setShopInfo((prev) => ({ ...prev, address }))}
+          style={{ backgroundColor: theme.colors.surface }}
+        />
+        <TextInput
+          mode="outlined"
+          label="Téléphone"
+          value={shopInfo.phone}
+          onChangeText={(phone) => setShopInfo((prev) => ({ ...prev, phone }))}
+          keyboardType="phone-pad"
+          style={{ backgroundColor: theme.colors.surface }}
+        />
+        <TextInput
+          mode="outlined"
+          label="SIRET"
+          value={shopInfo.siret}
+          onChangeText={(siret) => setShopInfo((prev) => ({ ...prev, siret }))}
+          keyboardType="number-pad"
           style={{ backgroundColor: theme.colors.surface }}
         />
 

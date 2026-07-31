@@ -14,6 +14,12 @@ export type DashboardWidgetSetting = {
   isEnabled: boolean;
 };
 
+export type ShopInfo = {
+  address: string;
+  phone: string;
+  siret: string;
+};
+
 /** Monday = 0 … Sunday = 6 (French retail week). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -34,7 +40,12 @@ export type AppSettings = {
   idleLogoutMinutes: number;
   openingHours: StoreOpeningHours;
   dashboardWidgets: DashboardWidgetSetting[];
+  shopInfo: ShopInfo;
 };
+
+export function defaultShopInfo(): ShopInfo {
+  return { address: '', phone: '', siret: '' };
+}
 
 export const DASHBOARD_WIDGET_LABELS: Record<DashboardWidgetId, string> = {
   revenue_today: 'CA du jour',

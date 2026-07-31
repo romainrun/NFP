@@ -6,6 +6,7 @@ import { withWriteTransaction } from '@/database/transaction';
 import type { ICartRepository } from '@/features/cart/data/CartRepository';
 import type { Cart, CartLine } from '@/features/cart/domain/types';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
+import type { ProductPromotionRule } from '@/features/promotions/domain/types';
 import {
   applyDiscountBps,
   lineNetCents,
@@ -136,13 +137,15 @@ export class SqliteCartRepository implements ICartRepository {
     }
 
     try {
+      const discountBps = await this.promotionDiscountBps(productId);
       const now = new Date().toISOString();
       await withWriteTransaction(this.db, async (txn) => {
         const existing = await txn.getFirstAsync<{ id: string; quantity: number }>(
           `SELECT id, quantity FROM cart_lines
-           WHERE cart_id = ? AND product_id = ? AND discount_bps = 0`,
+           WHERE cart_id = ? AND product_id = ? AND discount_bps = ?`,
           cartResult.value.id,
           productId,
+          discountBps,
         );
 
         if (existing) {
@@ -156,12 +159,13 @@ export class SqliteCartRepository implements ICartRepository {
             `INSERT INTO cart_lines (
               id, cart_id, product_id, quantity, unit_price_cents,
               discount_bps, vat_rate, notes
-            ) VALUES (?, ?, ?, ?, ?, 0, ?, NULL)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
             Crypto.randomUUID(),
             cartResult.value.id,
             productId,
             quantity,
             productResult.value.priceCents,
+            discountBps,
             productResult.value.vatRate,
           );
         }
@@ -176,6 +180,24 @@ export class SqliteCartRepository implements ICartRepository {
       return this.hydrate(cartResult.value.id);
     } catch (cause) {
       return err(AppError.database('Impossible d’ajouter l’article au panier', cause));
+    }
+  }
+
+  private async promotionDiscountBps(productId: string): Promise<number> {
+    const row = await this.db.getFirstAsync<{ value: string }>(
+      `SELECT value FROM settings WHERE key = ?`,
+      'promotions.product_rules',
+    );
+    if (!row?.value) return 0;
+    try {
+      const rules = JSON.parse(row.value) as ProductPromotionRule[];
+      const rule = Array.isArray(rules)
+        ? rules.find((item) => item.productId === productId && item.isActive)
+        : null;
+      if (!rule || !Number.isFinite(rule.discountBps)) return 0;
+      return Math.min(10_000, Math.max(0, Math.round(rule.discountBps)));
+    } catch {
+      return 0;
     }
   }
 
