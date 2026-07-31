@@ -18,7 +18,8 @@ fi
 export PATH="/usr/local/bin:$HOME/.local/bin:$PATH"
 export EXPO_NO_TELEMETRY=1
 export EXPO_NO_DOCTOR=1
-export CI=
+# Expo requires CI to be a real boolean or unset — empty string crashes getenv.
+unset CI
 
 # lan = listen on network interfaces (open firewall port 2000 for remote phones).
 # Use tunnel instead if you prefer the same ngrok-style URL as json2026/xml2026:
