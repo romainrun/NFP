@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import { Button, Dialog, HelperText, Portal, Searchbar, Switch, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Chip, Dialog, HelperText, Portal, Searchbar, SegmentedButtons, Switch, Text, TextInput, useTheme } from 'react-native-paper';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
+import type { ICategoryRepository } from '@/features/products/data/CategoryRepository';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
 import type { Product } from '@/features/products/domain/types';
 import type { IPromotionRepository } from '@/features/promotions/data/PromotionRepository';
@@ -17,13 +18,17 @@ import { Screen } from '@/shared/components/Screen';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
-import { formatMoney } from '@/shared/utils/money';
+import { eurosToCents, formatMoney, parseEurosInput } from '@/shared/utils/money';
+
+const DISCOUNT_PRESETS = [5, 10, 15, 20, 25, 30] as const;
 
 export function PromotionListScreen() {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
+  const [discountMode, setDiscountMode] = useState<'percent' | 'amount'>('percent');
   const [discountPercent, setDiscountPercent] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [startsAt, setStartsAt] = useState<string | null>(null);
@@ -31,10 +36,20 @@ export function PromotionListScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const productsQuery = useQuery({
-    queryKey: ['products', 'promotions', search],
+    queryKey: ['products', 'promotions', search, categoryId],
     queryFn: async () => {
       const repo = container.resolve<IProductRepository>(TOKENS.ProductRepository);
-      const result = await repo.list({ search, includeInactive: false });
+      const result = await repo.list({ search, categoryId, includeInactive: false });
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: ['categories', 'promotions-filter'],
+    queryFn: async () => {
+      const repo = container.resolve<ICategoryRepository>(TOKENS.CategoryRepository);
+      const result = await repo.list(false);
       if (!result.ok) throw result.error;
       return result.value;
     },
@@ -59,7 +74,11 @@ export function PromotionListScreen() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!editing) throw new Error('Article invalide');
-      const percent = Number(discountPercent.trim().replace(',', '.'));
+      const raw = discountPercent.trim().replace(',', '.');
+      const percent =
+        discountMode === 'percent'
+          ? Number(raw)
+          : ((eurosToCents(parseEurosInput(raw) ?? Number.NaN) / editing.priceCents) * 100);
       if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
         throw new Error('Remise invalide');
       }
@@ -95,6 +114,41 @@ export function PromotionListScreen() {
       </View>
       <View style={styles.filters}>
         <Searchbar placeholder="Rechercher un produit" value={search} onChangeText={setSearch} />
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryFilterList}
+          data={[
+            { id: 'all', label: 'Tous', color: Colors.primary },
+            ...(categoriesQuery.data ?? []).map((category) => ({
+              id: category.id,
+              label: category.name,
+              color: category.color ?? Colors.primary,
+            })),
+          ]}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.categoryChips}
+          renderItem={({ item }) => {
+            const selected = item.id === 'all' ? categoryId === null : categoryId === item.id;
+            return (
+              <Chip
+                compact
+                selected={selected}
+                onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
+                style={[
+                  styles.categoryChip,
+                  {
+                    borderColor: item.color,
+                    backgroundColor: selected ? item.color : 'transparent',
+                  },
+                ]}
+                textStyle={{ color: selected ? Colors.white : item.color }}
+              >
+                {item.label}
+              </Chip>
+            );
+          }}
+        />
       </View>
 
       <FlatList
@@ -120,6 +174,7 @@ export function PromotionListScreen() {
                 compact
                 onPress={() => {
                   setEditing(item);
+                  setDiscountMode('percent');
                   setDiscountPercent(rule ? String(rule.discountBps / 100).replace('.', ',') : '');
                   setIsActive(rule?.isActive ?? true);
                   setStartsAt(rule?.startsAt ?? null);
@@ -140,9 +195,33 @@ export function PromotionListScreen() {
             <Text style={[typography.bodyStrong, { color: theme.colors.onSurface }]}>
               {editing?.name}
             </Text>
+            <SegmentedButtons
+              value={discountMode}
+              onValueChange={(value) => setDiscountMode(value as 'percent' | 'amount')}
+              buttons={[
+                { value: 'percent', label: '%' },
+                { value: 'amount', label: '€' },
+              ]}
+            />
+            <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+              Raccourcis fréquents
+            </Text>
+            <View style={styles.discountPresets}>
+              {DISCOUNT_PRESETS.map((preset) => (
+                <Chip
+                  key={`${discountMode}-${preset}`}
+                  compact
+                  selected={discountPercent.trim().replace(',', '.') === String(preset)}
+                  onPress={() => setDiscountPercent(String(preset))}
+                  style={styles.discountPresetChip}
+                >
+                  {discountMode === 'percent' ? `${preset}%` : `${preset} €`}
+                </Chip>
+              ))}
+            </View>
             <TextInput
               mode="outlined"
-              label="Remise (%)"
+              label={discountMode === 'percent' ? 'Remise custom (%)' : 'Remise custom (€)'}
               value={discountPercent}
               onChangeText={setDiscountPercent}
               keyboardType="decimal-pad"
@@ -185,6 +264,9 @@ export function PromotionListScreen() {
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   filters: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  categoryFilterList: { maxHeight: 42, marginTop: spacing.xs },
+  categoryChips: { paddingVertical: spacing.xs },
+  categoryChip: { marginRight: spacing.xs },
   list: { padding: spacing.md, paddingBottom: spacing.xxl },
   row: {
     flexDirection: 'row',
@@ -199,6 +281,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  discountPresets: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  discountPresetChip: {
+    marginRight: spacing.xs,
+    marginBottom: spacing.xs,
   },
   dateRow: {
     flexDirection: 'row',
