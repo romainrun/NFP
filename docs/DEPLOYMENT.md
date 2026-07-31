@@ -249,3 +249,5 @@ Do **not** clear `node_modules` on every normal deploy — only when changing No
 - Persistent (`pm2 save` + startup unit)
 
 <!-- cicd-trigger: 2026-07-31T10:30:36Z -->
+
+<!-- cicd-retrigger: 2026-07-31T10:35:23Z -->
