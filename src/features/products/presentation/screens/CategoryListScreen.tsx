@@ -19,7 +19,7 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import type { IAuditService } from '@/shared/services/audit/AuditService';
-import { palette } from '@/shared/theme/colors';
+import { Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
@@ -30,7 +30,7 @@ export function CategoryListScreen() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState('');
-  const [color, setColor] = useState<string>(palette.pine700);
+  const [color, setColor] = useState<string>(Colors.primary);
   const [error, setError] = useState<string | null>(null);
 
   const categoriesQuery = useQuery({
@@ -46,7 +46,7 @@ export function CategoryListScreen() {
   const openCreate = () => {
     setEditing(null);
     setName('');
-    setColor(palette.pine700);
+    setColor(Colors.primary);
     setError(null);
     setDialogOpen(true);
   };
@@ -54,7 +54,7 @@ export function CategoryListScreen() {
   const openEdit = (category: Category) => {
     setEditing(category);
     setName(category.name);
-    setColor(category.color ?? palette.pine700);
+    setColor(category.color ?? Colors.primary);
     setError(null);
     setDialogOpen(true);
   };

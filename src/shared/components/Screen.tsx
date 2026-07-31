@@ -2,8 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from 'react-native-paper';
-import { Colors, darkColors, lightColors } from '@/shared/theme/colors';
+import { Colors, lightColors } from '@/shared/theme/colors';
 import { spacing } from '@/shared/theme/spacing';
 
 type Props = {
@@ -22,14 +21,15 @@ export function Screen({
   centered = false,
   atmosphere = true,
 }: Props) {
-  const theme = useTheme();
-  const tokens = theme.dark ? darkColors : lightColors;
-
   return (
     <View style={styles.root}>
       {atmosphere ? (
         <LinearGradient
-          colors={[Colors.backgroundSecondary, tokens.gradientBottom, Colors.background]}
+          colors={[
+            Colors.backgroundSecondary,
+            lightColors.gradientBottom,
+            Colors.background,
+          ]}
           locations={[0, 0.55, 1]}
           start={{ x: 0.15, y: 0 }}
           end={{ x: 0.85, y: 1 }}
@@ -37,7 +37,7 @@ export function Screen({
         />
       ) : (
         <View
-          style={[StyleSheet.absoluteFill, { backgroundColor: theme.colors.background }]}
+          style={[StyleSheet.absoluteFill, { backgroundColor: Colors.background }]}
         />
       )}
       <SafeAreaView style={styles.safe}>

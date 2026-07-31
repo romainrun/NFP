@@ -1,8 +1,8 @@
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Text, useTheme } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
-import type { DrawerNavigationProp } from '@react-navigation/drawer';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { APP_CONFIG } from '@/core/config/appConfig';
@@ -12,18 +12,17 @@ import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import type { IDashboardRepository } from '@/features/dashboard/data/DashboardRepository';
 import { MetricCard } from '@/features/dashboard/presentation/components/MetricCard';
 import { SalesSparkBars } from '@/features/dashboard/presentation/components/SalesSparkBars';
-import type { DrawerParamList } from '@/navigation/types';
+import type { MainParamList } from '@/navigation/types';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
-import { brandGradient, Colors } from '@/shared/theme/colors';
+import { brandGradient, Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
 export function DashboardScreen() {
-  const theme = useTheme();
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<MainParamList>>();
   const { session } = useAuth();
   const { useSplitLayout } = useResponsiveLayout();
 
@@ -101,46 +100,31 @@ export function DashboardScreen() {
             <SalesSparkBars points={snapshot.salesPerHour} />
           </View>
 
-          <View
-            style={[
-              styles.sidePanel,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.outline,
-              },
-            ]}
-          >
-            <Text style={[typography.h3, { color: theme.colors.onSurface }]}>
-              Top produits
-            </Text>
+          <View style={[styles.sidePanel, shadows.sm]}>
+            <Text style={[typography.h3, { color: Colors.text }]}>Top produits</Text>
             {snapshot.topProducts.map((product) => (
               <Pressable key={product.id} style={styles.productRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[typography.bodyStrong, { color: theme.colors.onSurface }]}>
+                  <Text style={[typography.bodyStrong, { color: Colors.text }]}>
                     {product.name}
                   </Text>
-                  <Text style={{ color: theme.colors.onSurfaceVariant }}>
+                  <Text style={[typography.caption, { color: Colors.textSecondary }]}>
                     {product.quantitySold} vendus
                   </Text>
                 </View>
-                <Text style={[typography.money, { color: theme.colors.primary }]}>
+                <Text style={[typography.money, { color: Colors.primary }]}>
                   {product.revenueLabel}
                 </Text>
               </Pressable>
             ))}
 
-            <Text
-              style={[
-                typography.h3,
-                { color: theme.colors.onSurface, marginTop: spacing.lg },
-              ]}
-            >
+            <Text style={[typography.h3, { color: Colors.text, marginTop: spacing.lg }]}>
               Alertes stock
             </Text>
             {snapshot.inventoryAlerts.map((alert) => (
               <Text
                 key={alert}
-                style={{ color: theme.colors.error, marginTop: spacing.xs }}
+                style={[typography.caption, { color: Colors.error, marginTop: spacing.xs }]}
               >
                 {alert}
               </Text>
@@ -186,8 +170,10 @@ const styles = StyleSheet.create({
   },
   sidePanel: {
     flex: 1,
-    borderRadius: radii.lg,
+    borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
     padding: spacing.md,
     gap: spacing.sm,
   },

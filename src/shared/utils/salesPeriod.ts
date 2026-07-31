@@ -14,9 +14,7 @@ import { fr } from 'date-fns/locale';
 export type DayPreset = 'today' | 'yesterday' | 'range';
 
 /**
- * Builds an ISO period for a calendar day with open hours.
- * Default: 00:00 → midnight next day (exclusive end).
- * `endHour` of 24 means end of day (next midnight).
+ * Builds an ISO period for a full calendar day: 00:00 → next midnight.
  */
 export function buildDayPeriod(
   day: Date,
@@ -50,21 +48,28 @@ export function presetDay(preset: 'today' | 'yesterday'): Date {
   return preset === 'today' ? new Date() : subDays(new Date(), 1);
 }
 
+/** Inclusive date range as full calendar days (no hour slicing). */
 export function buildRangePeriod(
   fromDate: Date,
   toDate: Date,
-  startHour = 0,
-  endHour = 24,
 ): { fromIso: string; toIso: string } {
-  const from = buildDayPeriod(fromDate, startHour, 24).fromIso;
-  const to = buildDayPeriod(toDate, 0, endHour).toIso;
+  const from = buildDayPeriod(fromDate, 0, 24).fromIso;
+  const to = buildDayPeriod(toDate, 0, 24).toIso;
   return { fromIso: from, toIso: to };
 }
 
+/** Human label without clock times (full-day periods only). */
 export function formatPeriodLabel(fromIso: string, toIso: string): string {
   const from = new Date(fromIso);
-  const to = new Date(toIso);
-  return `${format(from, "EEE d MMM HH:mm", { locale: fr })} → ${format(to, 'HH:mm', { locale: fr })}`;
+  const lastIncluded = new Date(new Date(toIso).getTime() - 1);
+  const sameDay =
+    format(from, 'yyyy-MM-dd') === format(lastIncluded, 'yyyy-MM-dd');
+
+  if (sameDay) {
+    return format(from, 'EEEE d MMMM', { locale: fr });
+  }
+
+  return `${format(from, 'd MMM', { locale: fr })} → ${format(lastIncluded, 'd MMM yyyy', { locale: fr })}`;
 }
 
 export function formatHourLabel(hour: number): string {

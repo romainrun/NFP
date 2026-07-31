@@ -10,7 +10,6 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
-import type { DrawerNavigationProp } from '@react-navigation/drawer';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
@@ -18,14 +17,14 @@ import type { ICategoryRepository } from '@/features/products/data/CategoryRepos
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
 import { ProductListItem } from '@/features/products/presentation/components/ProductListItem';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
-import type { AppStackParamList, DrawerParamList } from '@/navigation/types';
+import type { AppStackParamList, MainParamList } from '@/navigation/types';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { spacing } from '@/shared/theme/spacing';
 
 type ProductListNavigation = CompositeNavigationProp<
-  DrawerNavigationProp<DrawerParamList, 'ProductList'>,
+  NativeStackNavigationProp<MainParamList, 'ProductList'>,
   NativeStackNavigationProp<AppStackParamList>
 >;
 

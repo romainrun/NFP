@@ -1,4 +1,9 @@
-import { buildDayPeriod, parseDateInput } from '@/shared/utils/salesPeriod';
+import {
+  buildDayPeriod,
+  buildRangePeriod,
+  formatPeriodLabel,
+  parseDateInput,
+} from '@/shared/utils/salesPeriod';
 
 describe('salesPeriod', () => {
   it('defaults a day from 00:00 to next midnight', () => {
@@ -8,6 +13,14 @@ describe('salesPeriod', () => {
     const to = new Date(toIso);
     expect(from.getHours()).toBe(0);
     expect(to.getTime() - from.getTime()).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it('builds a full-day range without hour slicing', () => {
+    const from = new Date(2026, 6, 30);
+    const to = new Date(2026, 6, 31);
+    const period = buildRangePeriod(from, to);
+    expect(new Date(period.fromIso).getHours()).toBe(0);
+    expect(formatPeriodLabel(period.fromIso, period.toIso)).not.toMatch(/\d{2}:\d{2}/);
   });
 
   it('parses YYYY-MM-DD inputs', () => {

@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { IconButton, Text, useTheme } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
-import type { DrawerNavigationProp } from '@react-navigation/drawer';
-import type { DrawerParamList } from '@/navigation/types';
+import { IconButton, Text } from 'react-native-paper';
+import { useDrawerStore } from '@/navigation/drawerStore';
+import { Colors } from '@/shared/theme/colors';
 import { spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
@@ -15,8 +14,7 @@ type Props = {
 };
 
 export function AppHeader({ title, subtitle, right, showMenu = true }: Props) {
-  const theme = useTheme();
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const open = useDrawerStore((s) => s.open);
 
   return (
     <View style={styles.row}>
@@ -24,14 +22,17 @@ export function AppHeader({ title, subtitle, right, showMenu = true }: Props) {
         <IconButton
           icon="menu"
           size={26}
-          onPress={() => navigation.openDrawer()}
+          iconColor={Colors.iconActive}
+          onPress={open}
           accessibilityLabel="Ouvrir le menu"
         />
       ) : null}
       <View style={styles.titles}>
-        <Text style={[typography.h2, { color: theme.colors.onSurface }]}>{title}</Text>
+        <Text style={[typography.h2, { color: Colors.text }]} numberOfLines={1}>
+          {title}
+        </Text>
         {subtitle ? (
-          <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+          <Text style={[typography.caption, { color: Colors.textSecondary }]} numberOfLines={2}>
             {subtitle}
           </Text>
         ) : null}

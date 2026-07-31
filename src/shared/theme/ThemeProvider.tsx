@@ -1,21 +1,16 @@
-import { useColorScheme } from 'react-native';
+import type { ReactNode } from 'react';
 import { PaperProvider } from 'react-native-paper';
 import { createPaperTheme } from '@/shared/theme/paperTheme';
-import { useSettingsStore } from '@/features/settings/presentation/store/settingsStore';
-import type { ReactNode } from 'react';
 
 type Props = {
   children: ReactNode;
 };
 
+/**
+ * NFP brand is light-first (white / warm paper + gold).
+ * Dark system preference is ignored to keep payment UI consistent with the site.
+ */
 export function AppThemeProvider({ children }: Props) {
-  const systemScheme = useColorScheme();
-  const preference = useSettingsStore((s) => s.themePreference);
-
-  const resolved: 'light' | 'dark' =
-    preference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : preference;
-
-  const theme = createPaperTheme(resolved);
-
+  const theme = createPaperTheme('light');
   return <PaperProvider theme={theme}>{children}</PaperProvider>;
 }

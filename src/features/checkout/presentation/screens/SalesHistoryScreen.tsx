@@ -2,12 +2,10 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import {
   Button,
-  Chip,
   HelperText,
   SegmentedButtons,
   Text,
   TextInput,
-  useTheme,
 } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -34,28 +32,20 @@ import {
   type DayPreset,
 } from '@/shared/utils/salesPeriod';
 
-const HOURS = Array.from({ length: 25 }, (_, i) => i);
-
 export function SalesHistoryScreen() {
-  const theme = useTheme();
   const [preset, setPreset] = useState<DayPreset>('today');
-  const [startHour, setStartHour] = useState(0);
-  const [endHour, setEndHour] = useState(24);
   const [fromDate, setFromDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
-  const showHourFilters = preset === 'range';
-
   const period = useMemo(() => {
-    // Today / yesterday: full calendar day 00h → minuit (no hour UI).
     if (preset !== 'range') {
       return buildDayPeriod(presetDay(preset), 0, 24);
     }
     const from = parseDateInput(fromDate) ?? new Date();
     const to = parseDateInput(toDate) ?? from;
-    return buildRangePeriod(from, to, startHour, endHour);
-  }, [preset, startHour, endHour, fromDate, toDate]);
+    return buildRangePeriod(from, to);
+  }, [preset, fromDate, toDate]);
 
   const historyQuery = useQuery({
     queryKey: ['sales-history', period.fromIso, period.toIso],
@@ -97,47 +87,28 @@ export function SalesHistoryScreen() {
         />
 
         {preset === 'range' ? (
-          <>
-            <View style={styles.dateRow}>
-              <TextInput
-                mode="outlined"
-                dense
-                label="Du (AAAA-MM-JJ)"
-                value={fromDate}
-                onChangeText={setFromDate}
-                style={{ flex: 1 }}
-              />
-              <TextInput
-                mode="outlined"
-                dense
-                label="Au (AAAA-MM-JJ)"
-                value={toDate}
-                onChangeText={setToDate}
-                style={{ flex: 1 }}
-              />
-            </View>
-            {showHourFilters ? (
-              <>
-                <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
-                  Horaires (défaut 00h → minuit)
-                </Text>
-                <View style={styles.hourRow}>
-                  <HourChips
-                    label="Début"
-                    value={startHour}
-                    options={HOURS.filter((h) => h < 24)}
-                    onChange={setStartHour}
-                  />
-                  <HourChips
-                    label="Fin"
-                    value={endHour}
-                    options={HOURS}
-                    onChange={setEndHour}
-                  />
-                </View>
-              </>
-            ) : null}
-          </>
+          <View style={styles.dateRow}>
+            <TextInput
+              mode="outlined"
+              dense
+              label="Du (AAAA-MM-JJ)"
+              value={fromDate}
+              onChangeText={setFromDate}
+              style={styles.dateInput}
+              outlineColor={Colors.border}
+              activeOutlineColor={Colors.primary}
+            />
+            <TextInput
+              mode="outlined"
+              dense
+              label="Au (AAAA-MM-JJ)"
+              value={toDate}
+              onChangeText={setToDate}
+              style={styles.dateInput}
+              outlineColor={Colors.border}
+              activeOutlineColor={Colors.primary}
+            />
+          </View>
         ) : null}
 
         <View style={styles.summaryRow}>
@@ -150,7 +121,7 @@ export function SalesHistoryScreen() {
           <SummaryTile label="TVA" value={formatMoney(snapshot?.vatCents ?? 0)} />
         </View>
 
-        <Text style={[typography.h3, { color: theme.colors.onSurface }]}>Par heure</Text>
+        <Text style={[typography.h3, { color: Colors.text }]}>Par heure</Text>
         <View style={styles.hourlyWrap}>
           {(snapshot?.hourly ?? []).map((bucket) => {
             const height = 8 + (bucket.totalCents / maxHourTotal) * 72;
@@ -170,7 +141,7 @@ export function SalesHistoryScreen() {
                   style={[
                     typography.caption,
                     {
-                      color: active ? theme.colors.onSurface : theme.colors.onSurfaceVariant,
+                      color: active ? Colors.text : Colors.textDisabled,
                       fontSize: 10,
                     },
                   ]}
@@ -183,7 +154,7 @@ export function SalesHistoryScreen() {
         </View>
 
         <View style={styles.listHeader}>
-          <Text style={[typography.h3, { color: theme.colors.onSurface }]}>Tickets</Text>
+          <Text style={[typography.h3, { color: Colors.text }]}>Tickets</Text>
           <Button compact textColor={Colors.primary} onPress={() => void historyQuery.refetch()}>
             Actualiser
           </Button>
@@ -213,42 +184,6 @@ export function SalesHistoryScreen() {
   );
 }
 
-function HourChips({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  options: number[];
-  onChange: (value: number) => void;
-}) {
-  return (
-    <View style={{ flex: 1, gap: spacing.xxs }}>
-      <Text style={typography.caption}>
-        {label}: {value >= 24 ? '24h' : formatHourLabel(value)}
-      </Text>
-      <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        data={options}
-        keyExtractor={(item) => `${label}-${item}`}
-        renderItem={({ item }) => (
-          <Chip
-            selected={item === value}
-            onPress={() => onChange(item)}
-            style={{ marginRight: spacing.xxs }}
-            compact
-          >
-            {item >= 24 ? '24h' : formatHourLabel(item)}
-          </Chip>
-        )}
-      />
-    </View>
-  );
-}
-
 function SummaryTile({
   label,
   value,
@@ -272,7 +207,7 @@ function SummaryTile({
       <Text style={[typography.caption, { color: Colors.textSecondary }]}>{label}</Text>
       <Text
         style={[
-          typography.bodyStrong,
+          emphasis ? typography.money : typography.bodyStrong,
           { color: emphasis ? Colors.primaryDark : Colors.text },
         ]}
       >
@@ -313,7 +248,7 @@ function OrderRow({
           {order.paymentMethods.length ? ` · ${order.paymentMethods.join('+')}` : ''}
         </Text>
       </View>
-      <Text style={[typography.money, { color: Colors.primary }]}>
+      <Text style={[typography.amount, { color: Colors.primary, fontSize: 18 }]}>
         {formatMoney(order.totalCents)}
       </Text>
     </Pressable>
@@ -329,7 +264,10 @@ const styles = StyleSheet.create({
   },
   segment: { marginBottom: spacing.xs },
   dateRow: { flexDirection: 'row', gap: spacing.sm },
-  hourRow: { flexDirection: 'row', gap: spacing.sm },
+  dateInput: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+  },
   summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   summaryTile: {
     minWidth: '47%',

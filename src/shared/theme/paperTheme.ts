@@ -1,26 +1,25 @@
 import {
-  MD3DarkTheme,
   MD3LightTheme,
   configureFonts,
   type MD3Theme,
 } from 'react-native-paper';
-import { darkColors, lightColors } from '@/shared/theme/colors';
+import { lightColors } from '@/shared/theme/colors';
 import { fonts } from '@/shared/theme/typography';
 
-export function createPaperTheme(mode: 'light' | 'dark'): MD3Theme {
-  const base = mode === 'light' ? MD3LightTheme : MD3DarkTheme;
-  const colors = mode === 'light' ? lightColors : darkColors;
-
-  const fontConfig = {
-    fontFamily: fonts.regular,
-  } as const;
+export function createPaperTheme(_mode: 'light' | 'dark' = 'light'): MD3Theme {
+  const colors = lightColors;
 
   return {
-    ...base,
-    fonts: configureFonts({ config: fontConfig }),
+    ...MD3LightTheme,
+    dark: false,
+    fonts: configureFonts({
+      config: {
+        fontFamily: fonts.regular,
+      },
+    }),
     roundness: 14,
     colors: {
-      ...base.colors,
+      ...MD3LightTheme.colors,
       primary: colors.primary,
       onPrimary: colors.onPrimary,
       primaryContainer: colors.primaryMuted,
@@ -38,7 +37,7 @@ export function createPaperTheme(mode: 'light' | 'dark'): MD3Theme {
       onSurface: colors.text,
       onSurfaceVariant: colors.textSecondary,
       elevation: {
-        ...base.colors.elevation,
+        ...MD3LightTheme.colors.elevation,
         level0: 'transparent',
         level1: colors.surface,
         level2: colors.surfaceMuted,

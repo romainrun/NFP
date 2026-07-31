@@ -4,7 +4,8 @@ export type AuthStackParamList = {
   PinLogin: undefined;
 };
 
-export type DrawerParamList = {
+/** Primary authenticated destinations (former drawer routes). */
+export type MainParamList = {
   Dashboard: undefined;
   Pos: undefined;
   SalesHistory: undefined;
@@ -12,8 +13,11 @@ export type DrawerParamList = {
   CategoryList: undefined;
 };
 
+/** @deprecated Use MainParamList */
+export type DrawerParamList = MainParamList;
+
 export type AppStackParamList = {
-  Main: NavigatorScreenParams<DrawerParamList> | undefined;
+  Main: NavigatorScreenParams<MainParamList> | undefined;
   Checkout: undefined;
   SaleComplete: { orderId: string; changeCents?: number };
   ProductForm: { productId?: string };

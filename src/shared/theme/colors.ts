@@ -1,5 +1,5 @@
 /**
- * Naturally Forme / NFP brand tokens — light surfaces + gold accent.
+ * Naturally Forme / NFP design tokens (site 2026).
  */
 export const Colors = {
   primary: '#C9A457',
@@ -33,18 +33,7 @@ export const Colors = {
   black: '#181818',
 } as const;
 
-/** @deprecated Prefer Colors — kept for gradual migration. */
-export const palette = {
-  gold: Colors.primary,
-  goldHover: Colors.primaryDark,
-  goldLight: Colors.primaryLight,
-  goldPressed: Colors.primaryPressed,
-  pine700: Colors.primary,
-  seafoam500: Colors.primaryLight,
-  ink: Colors.text,
-  white: Colors.white,
-} as const;
-
+/** Semantic aliases used by Paper / screens. */
 export const lightColors = {
   background: Colors.background,
   surface: Colors.surface,
@@ -67,7 +56,7 @@ export const lightColors = {
   heroInk: Colors.primaryDark,
 } as const;
 
-/** NFP stays light-first; dark mode softens the same brand. */
+/** Soft dark variant — brand stays gold-forward. */
 export const darkColors = {
   background: '#1A1814',
   surface: '#24211C',
@@ -92,23 +81,35 @@ export const darkColors = {
 
 export type ThemeColors = typeof lightColors;
 
+/** @deprecated Prefer Colors */
+export const palette = {
+  gold: Colors.primary,
+  goldHover: Colors.primaryDark,
+  goldLight: Colors.primaryLight,
+  goldPressed: Colors.primaryPressed,
+  pine700: Colors.primary,
+  seafoam500: Colors.primaryLight,
+  ink: Colors.text,
+  white: Colors.white,
+} as const;
+
 export const shadows = {
   sm: {
-    shadowColor: '#000',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 2,
   },
   md: {
-    shadowColor: '#000',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 25,
     elevation: 6,
   },
   lg: {
-    shadowColor: '#000',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 15 },
     shadowOpacity: 0.12,
     shadowRadius: 40,
