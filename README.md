@@ -39,6 +39,12 @@ git push origin main  →  GitHub Actions  →  SSH  →  deploy.sh  →  PM2 re
 
 Required Actions secrets: `HOST`, `PORT`, `USERNAME`, `SSH_KEY`.
 
+Dev Metro URL (Expo Go):
+
+```text
+exp://tikilote.re:2000
+```
+
 ## Run (local)
 
 ```bash
@@ -50,11 +56,13 @@ Then open on a tablet emulator / Expo Go (Android) or iOS Simulator.
 
 ## Demo PINs (seeded offline)
 
+All demo employees use PIN **`0000`** during development. The login screen also has a **Passer** button that skips PIN entry (logs in as the selected employee, or ADMIN by default).
+
 | Code   | Name            | Role     | PIN  |
 |--------|-----------------|----------|------|
-| ADMIN  | Admin NFP       | admin    | 1234 |
-| MGR01  | Marie Manager   | manager  | 9012 |
-| CASH1  | Paul Caissier   | cashier  | 5678 |
+| ADMIN  | Admin NFP       | admin    | 0000 |
+| MGR01  | Marie Manager   | manager  | 0000 |
+| CASH1  | Paul Caissier   | cashier  | 0000 |
 
 Change these before any production deployment.
 
@@ -71,7 +79,7 @@ Change these before any production deployment.
 
 ```
 src/
-  app/           # Composition root & providers
+  application/   # Composition root & providers
   core/          # DI, config, errors, security
   database/      # SQLite schema, migrations, seed
   features/      # Feature-first modules

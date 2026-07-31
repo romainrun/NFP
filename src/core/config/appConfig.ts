@@ -10,6 +10,10 @@ export const APP_CONFIG = {
   idleLogoutMs: 15 * 60 * 1000,
   /** PIN length accepted by the unlock pad. */
   pinLength: 4,
+  /** Shared development PIN for seeded employees. */
+  devPin: '0000',
+  /** Show "Passer" on the PIN screen (dev / tablet QA). */
+  allowPinSkip: true,
   /** Tablet layout breakpoint (dp). */
   tabletMinWidth: 768,
   database: {

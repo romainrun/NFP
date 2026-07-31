@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { Button, Text, useTheme } from 'react-native-paper';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useQuery } from '@tanstack/react-query';
 import { APP_CONFIG } from '@/core/config/appConfig';
@@ -51,6 +51,19 @@ export function PinLoginScreen() {
     clearError();
     setSelected(employee);
     setPin('');
+  };
+
+  const skipPinLogin = async () => {
+    clearError();
+    const employee =
+      selected ??
+      employeesQuery.data?.find((item) => item.employeeCode === 'ADMIN') ??
+      employeesQuery.data?.[0];
+
+    if (!employee || isSubmitting) return;
+
+    setSelected(employee);
+    await loginWithPin(employee.employeeCode, APP_CONFIG.devPin);
   };
 
   const employeeList = (
@@ -115,7 +128,7 @@ export function PinLoginScreen() {
         }}
       >
         {selected
-          ? `PIN de ${selected.displayName}`
+          ? `PIN de ${selected.displayName} (dev: ${APP_CONFIG.devPin})`
           : 'Choisissez un profil pour déverrouiller la caisse'}
       </Text>
 
@@ -129,6 +142,19 @@ export function PinLoginScreen() {
           }}
           disabled={isSubmitting}
         />
+      ) : null}
+
+      {APP_CONFIG.allowPinSkip ? (
+        <Button
+          mode="contained"
+          onPress={() => void skipPinLogin()}
+          loading={isSubmitting}
+          disabled={isSubmitting || !(employeesQuery.data?.length)}
+          style={styles.skipButton}
+          contentStyle={styles.skipButtonContent}
+        >
+          Passer
+        </Button>
       ) : null}
 
       {errorMessage ? (
@@ -206,6 +232,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     justifyContent: 'center',
+  },
+  skipButton: {
+    marginTop: spacing.lg,
+    minWidth: 220,
+    borderRadius: radii.md,
+  },
+  skipButtonContent: {
+    minHeight: touchTarget.comfortable,
   },
   error: {
     marginTop: spacing.md,
