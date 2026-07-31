@@ -13,7 +13,7 @@ Roadmap steps 1–8 only:
 7. PIN authentication flow
 8. Dashboard shell
 
-No cart, checkout, payments, inventory UI, reports, or sync engine yet — those land after validation.
+Cart / POS / checkout / local payments are implemented. Remaining roadmap: customers, sales history UI, reports, sync, real TPE adapters.
 
 ## Why Expo
 
@@ -90,8 +90,9 @@ Phase 1 repositories return mock data behind interfaces:
 - `IDashboardRepository`
 - `ISettingsRepository`
 - `IProductRepository` / `ICategoryRepository` (SQLite catalog CRUD + stock adjustments)
+- `ICartRepository` / `IOrderRepository` / `PaymentProvider` (POS cart → immutable sale)
 
-Local SQLite repositories are wired for users/settings/audit/catalog so offline-first path is real from day one; dashboard metrics stay mocked until sales exist.
+Local SQLite repositories are wired for users/settings/audit/catalog/cart/orders. Dashboard metrics stay mocked until replaced by order aggregates.
 
 ## Authentication (Phase 1)
 
@@ -104,7 +105,7 @@ Local SQLite repositories are wired for users/settings/audit/catalog so offline-
 ## Security foundations (scaffolded)
 
 - Audit log writer interface
-- Receipt hash-chain helpers (SHA-256) ready for sales feature
+- Receipt hash-chain applied on each completed sale (`previous_hash` → `receipt_hash`)
 - No hard deletes of accounting entities in schema (`deleted_at` forbidden on orders; soft flags only where legally allowed)
 
 ## Tablet / phone
@@ -119,6 +120,6 @@ Local SQLite repositories are wired for users/settings/audit/catalog so offline-
 - Jest + Testing Library configured
 - Repository interfaces enable unit tests without SQLite/UI
 
-## What comes after validation
+## What comes next
 
-Cart → Checkout → PaymentProvider abstraction → Inventory → Customers → Sales history → Reports → Sync engine.
+Customers → Sales history UI → live dashboard metrics → Reports → Sync engine → real payment terminal adapters.
