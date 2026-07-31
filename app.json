@@ -46,7 +46,8 @@
           "barcodeScannerPermission": "NFP a besoin de la caméra pour scanner les codes-barres en caisse.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "appName": "NaturallyForme Paiement",

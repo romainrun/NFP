@@ -5,7 +5,6 @@ import {
   HelperText,
   SegmentedButtons,
   Text,
-  TextInput,
 } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -17,6 +16,7 @@ import type { IOrderRepository } from '@/features/checkout/data/OrderRepository'
 import type { OrderSummary } from '@/features/checkout/domain/salesHistory';
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { DatePickerField } from '@/shared/components/DatePickerField';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { Colors, shadows } from '@/shared/theme/colors';
@@ -89,25 +89,15 @@ export function SalesHistoryScreen() {
 
         {preset === 'range' ? (
           <View style={styles.dateRow}>
-            <TextInput
-              mode="outlined"
-              dense
-              label="Du (AAAA-MM-JJ)"
-              value={fromDate}
-              onChangeText={setFromDate}
-              style={styles.dateInput}
-              outlineColor={Colors.border}
-              activeOutlineColor={Colors.primary}
+            <DatePickerField
+              label="Du"
+              value={parseDateInput(fromDate) ?? new Date()}
+              onChange={(date) => setFromDate(format(date, 'yyyy-MM-dd'))}
             />
-            <TextInput
-              mode="outlined"
-              dense
-              label="Au (AAAA-MM-JJ)"
-              value={toDate}
-              onChangeText={setToDate}
-              style={styles.dateInput}
-              outlineColor={Colors.border}
-              activeOutlineColor={Colors.primary}
+            <DatePickerField
+              label="Au"
+              value={parseDateInput(toDate) ?? new Date()}
+              onChange={(date) => setToDate(format(date, 'yyyy-MM-dd'))}
             />
           </View>
         ) : null}
@@ -284,10 +274,6 @@ const styles = StyleSheet.create({
   },
   segment: { marginBottom: spacing.xs },
   dateRow: { flexDirection: 'row', gap: spacing.sm },
-  dateInput: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-  },
   summaryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   summaryTile: {
     minWidth: '47%',
