@@ -1,6 +1,7 @@
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import type { Product } from '@/features/products/domain/types';
+import { AnimatedPressable } from '@/shared/components/AnimatedPressable';
 import { formatMoney } from '@/shared/utils/money';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -15,16 +16,17 @@ export function ProductListItem({ product, onPress }: Props) {
   const lowStock = product.stockQuantity <= 5;
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={() => onPress(product)}
-      style={({ pressed }) => [
+      style={[
         styles.row,
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.outline,
-          opacity: pressed ? 0.88 : product.isActive ? 1 : 0.55,
+          opacity: product.isActive ? 1 : 0.55,
         },
       ]}
+      scaleTo={0.985}
     >
       {product.imageUri ? (
         <Image source={{ uri: product.imageUri }} style={styles.thumb} resizeMode="cover" />
@@ -79,7 +81,7 @@ export function ProductListItem({ product, onPress }: Props) {
           ) : null}
         </View>
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 

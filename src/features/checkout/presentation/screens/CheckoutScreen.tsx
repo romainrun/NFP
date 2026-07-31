@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
   HelperText,
@@ -22,6 +22,7 @@ import {
   type TenderMethod,
 } from '@/features/payments/domain/paymentMethods';
 import type { AppStackParamList } from '@/navigation/types';
+import { AnimatedPressable } from '@/shared/components/AnimatedPressable';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { vibrateSuccess, vibrateTap } from '@/shared/utils/haptics';
@@ -144,7 +145,7 @@ export function CheckoutScreen({ navigation }: Props) {
           {TENDER_METHODS.map((value) => {
             const selected = method === value;
             return (
-              <Pressable
+              <AnimatedPressable
                 key={value}
                 onPress={() => {
                   vibrateTap();
@@ -155,6 +156,7 @@ export function CheckoutScreen({ navigation }: Props) {
                   shadows.sm,
                   selected && styles.methodTileSelected,
                 ]}
+                scaleTo={0.975}
               >
                 <IconButton
                   icon={PAYMENT_METHOD_ICONS[value]}
@@ -176,7 +178,7 @@ export function CheckoutScreen({ navigation }: Props) {
                 >
                   {PAYMENT_METHOD_LABELS[value]}
                 </Text>
-              </Pressable>
+              </AnimatedPressable>
             );
           })}
         </View>

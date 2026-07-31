@@ -34,6 +34,7 @@ import type { IProductRepository } from '@/features/products/data/ProductReposit
 import type { Product } from '@/features/products/domain/types';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
 import type { AppStackParamList, MainParamList } from '@/navigation/types';
+import { AnimatedPressable } from '@/shared/components/AnimatedPressable';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
@@ -418,9 +419,10 @@ export function PosScreen() {
 
       {!useSplitLayout ? (
         <>
-          <Pressable
+          <AnimatedPressable
             onPress={() => setCartSheetOpen(true)}
             style={[styles.cartBar, { backgroundColor: theme.colors.surface }]}
+            scaleTo={0.985}
           >
             <View>
               <Text style={[typography.bodyStrong, { color: theme.colors.onSurface }]}>
@@ -433,7 +435,7 @@ export function PosScreen() {
             <Text style={[typography.money, { color: theme.colors.primary }]}>
               {formatMoney(cart.totalCents)}
             </Text>
-          </Pressable>
+          </AnimatedPressable>
 
           <Modal
             visible={cartSheetOpen}
@@ -516,9 +518,10 @@ export function PosScreen() {
                 </HelperText>
               }
               renderItem={({ item }) => (
-                <Pressable
+                <AnimatedPressable
                   onPress={() => associateBarcodeMutation.mutate(item)}
                   style={[styles.associationRow, { borderColor: theme.colors.outline }]}
+                  scaleTo={0.985}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={[typography.bodyStrong, { color: theme.colors.onSurface }]}>
@@ -532,7 +535,7 @@ export function PosScreen() {
                   <Text style={[typography.money, { color: theme.colors.primary }]}>
                     {formatMoney(item.priceCents)}
                   </Text>
-                </Pressable>
+                </AnimatedPressable>
               )}
             />
           </Dialog.Content>
@@ -561,16 +564,16 @@ function ProductTile({
 }) {
   const theme = useTheme();
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.tile,
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.outline,
-          opacity: pressed ? 0.85 : 1,
         },
       ]}
+      scaleTo={0.965}
     >
       {product.imageUri ? (
         <Image source={{ uri: product.imageUri }} style={styles.tileImage} />
@@ -596,7 +599,7 @@ function ProductTile({
       <Text style={[typography.bodyStrong, { color: theme.colors.primary }]}>
         {formatMoney(product.priceCents)}
       </Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
