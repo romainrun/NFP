@@ -21,6 +21,12 @@ Roadmap steps 1–8 only:
 
 Architecture decisions: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
+## Expo Go compatibility
+
+This project targets **Expo SDK 54** so it runs in the store Expo Go app (same as the other VPS Metro projects).
+
+If you see *Project is incompatible with this version of Expo Go*, the phone is on a different SDK than the Metro server — keep NFP on SDK 54 or update Expo Go.
+
 ## Development CI/CD (VPS Metro)
 
 Every push to `main` deploys automatically to the remote VPS Expo Metro server (PM2 process `nfp-metro` on port **2000**).
