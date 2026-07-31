@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, StyleSheet, View } from 'react-native';
+import { Modal, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { radii, spacing } from '@/shared/theme/spacing';
@@ -11,12 +11,27 @@ type Props = {
   onScan: (code: string) => void;
 };
 
+type ScanPoint = { x: number; y: number };
+type ScanBounds = {
+  origin?: ScanPoint;
+  size?: { width: number; height: number };
+};
+type BarcodeEvent = {
+  data: string;
+  bounds?: ScanBounds;
+  cornerPoints?: ScanPoint[];
+};
+
+const FRAME_WIDTH_RATIO = 0.72;
+const FRAME_ASPECT_RATIO = 1.6;
+
 export function BarcodeScannerModal({ visible, onClose, onScan }: Props) {
   const theme = useTheme();
   const [permission, requestPermission] = useCameraPermissions();
   const lastScanAt = useRef(0);
   const lastCode = useRef('');
   const [hint, setHint] = useState('Cadrez le code-barres');
+  const [cameraSize, setCameraSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
     if (visible) {
@@ -25,9 +40,64 @@ export function BarcodeScannerModal({ visible, onClose, onScan }: Props) {
     }
   }, [visible]);
 
-  const handleBarcode = ({ data }: { data: string }) => {
+  const frameRect = () => {
+    const frameWidth = cameraSize.width * FRAME_WIDTH_RATIO;
+    const frameHeight = frameWidth / FRAME_ASPECT_RATIO;
+    return {
+      x: (cameraSize.width - frameWidth) / 2,
+      y: (cameraSize.height - frameHeight) / 2,
+      width: frameWidth,
+      height: frameHeight,
+    };
+  };
+
+  const normalizePoint = (point: ScanPoint): ScanPoint => {
+    if (point.x <= 1 && point.y <= 1) {
+      return { x: point.x * cameraSize.width, y: point.y * cameraSize.height };
+    }
+    return point;
+  };
+
+  const isPointInsideFrame = (point: ScanPoint) => {
+    const rect = frameRect();
+    return (
+      point.x >= rect.x &&
+      point.x <= rect.x + rect.width &&
+      point.y >= rect.y &&
+      point.y <= rect.y + rect.height
+    );
+  };
+
+  const barcodePoints = (event: BarcodeEvent): ScanPoint[] | null => {
+    if (!cameraSize.width || !cameraSize.height) return null;
+
+    if (event.bounds?.origin && event.bounds?.size) {
+      const { origin, size } = event.bounds;
+      return [
+        normalizePoint(origin),
+        normalizePoint({ x: origin.x + size.width, y: origin.y }),
+        normalizePoint({ x: origin.x, y: origin.y + size.height }),
+        normalizePoint({ x: origin.x + size.width, y: origin.y + size.height }),
+      ];
+    }
+
+    if (event.cornerPoints?.length) {
+      return event.cornerPoints.map(normalizePoint);
+    }
+
+    // Some platforms do not expose scan coordinates. Keep scanning functional.
+    return null;
+  };
+
+  const handleBarcode = (event: BarcodeEvent) => {
+    const { data } = event;
     const code = data.trim();
     if (!code) return;
+    const points = barcodePoints(event);
+    if (points && !points.every(isPointInsideFrame)) {
+      setHint('Centrez le code dans le cadre');
+      return;
+    }
     const now = Date.now();
     if (code === lastCode.current && now - lastScanAt.current < 1600) return;
     lastCode.current = code;
@@ -58,7 +128,13 @@ export function BarcodeScannerModal({ visible, onClose, onScan }: Props) {
             </Button>
           </View>
         ) : (
-          <View style={styles.cameraWrap}>
+          <View
+            style={styles.cameraWrap}
+            onLayout={(event: LayoutChangeEvent) => {
+              const { width, height } = event.nativeEvent.layout;
+              setCameraSize({ width, height });
+            }}
+          >
             <CameraView
               style={StyleSheet.absoluteFill}
               facing="back"
@@ -116,8 +192,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.18)',
   },
   frame: {
-    width: '72%',
-    aspectRatio: 1.6,
+    width: `${FRAME_WIDTH_RATIO * 100}%`,
+    aspectRatio: FRAME_ASPECT_RATIO,
     borderWidth: 3,
     borderRadius: radii.md,
   },

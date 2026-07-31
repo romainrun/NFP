@@ -65,6 +65,7 @@ export function PosScreen() {
   const [catalogTab, setCatalogTab] = useState<CatalogTab>('top');
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null);
+  const [associationSearch, setAssociationSearch] = useState('');
 
   const cartQuery = useQuery({
     queryKey: ['cart', userId],
@@ -157,6 +158,7 @@ export function PosScreen() {
     onSuccess: async ({ barcode }) => {
       await queryClient.invalidateQueries({ queryKey: ['products'] });
       setUnknownBarcode(null);
+      setAssociationSearch('');
       barcodeMutation.mutate(barcode);
     },
     onError: (error: Error) => setSnack(error.message),
@@ -215,6 +217,24 @@ export function PosScreen() {
   });
 
   const gridProducts = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
+  const associationProducts = useMemo(() => {
+    const query = associationSearch.trim().toLowerCase();
+    const products = barcodeProductsQuery.data ?? [];
+    if (!query) return products.slice(0, 20);
+    return products
+      .filter((product) => {
+        const haystack = [
+          product.name,
+          product.sku,
+          product.barcode ?? '',
+          product.categoryName ?? '',
+        ]
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(query);
+      })
+      .slice(0, 20);
+  }, [associationSearch, barcodeProductsQuery.data]);
 
   if (!canSell) {
     return (
@@ -447,7 +467,10 @@ export function PosScreen() {
       <Portal>
         <Dialog
           visible={Boolean(unknownBarcode)}
-          onDismiss={() => setUnknownBarcode(null)}
+          onDismiss={() => {
+            setUnknownBarcode(null);
+            setAssociationSearch('');
+          }}
         >
           <Dialog.Title>Code-barres inconnu</Dialog.Title>
           <Dialog.Content style={{ gap: spacing.sm }}>
@@ -460,6 +483,7 @@ export function PosScreen() {
               onPress={() => {
                 const barcode = unknownBarcode;
                 setUnknownBarcode(null);
+                setAssociationSearch('');
                 navigation.navigate('ProductForm', { initialBarcode: barcode ?? undefined });
               }}
             >
@@ -468,8 +492,14 @@ export function PosScreen() {
             <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
               Ou associer ce code à un article existant :
             </Text>
+            <Searchbar
+              placeholder="Rechercher un produit"
+              value={associationSearch}
+              onChangeText={setAssociationSearch}
+              style={styles.associationSearch}
+            />
             <FlatList
-              data={(barcodeProductsQuery.data ?? []).slice(0, 12)}
+              data={associationProducts}
               keyExtractor={(item) => item.id}
               style={{ maxHeight: 260 }}
               ListEmptyComponent={
@@ -499,7 +529,14 @@ export function PosScreen() {
             />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setUnknownBarcode(null)}>Fermer</Button>
+            <Button
+              onPress={() => {
+                setUnknownBarcode(null);
+                setAssociationSearch('');
+              }}
+            >
+              Fermer
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -706,5 +743,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingVertical: spacing.sm,
+  },
+  associationSearch: {
+    elevation: 0,
+    borderRadius: radii.input,
   },
 });
