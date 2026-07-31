@@ -36,7 +36,8 @@ module.exports = {
         METRO_PORT: '2000',
         EXPO_NO_TELEMETRY: '1',
         EXPO_NO_DOCTOR: '1',
-        CI: '',
+        // Never set CI to "" — Expo getenv crashes with GetEnv.NoBoolean.
+        // Leave CI unset so Metro watch/reload works under PM2.
       },
       out_file: path.join(logDir, 'metro-out.log'),
       error_file: path.join(logDir, 'metro-error.log'),
