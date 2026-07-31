@@ -13,13 +13,12 @@ import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import { PinPad } from '@/shared/components/PinPad';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
-import { darkColors, lightColors, palette } from '@/shared/theme/colors';
+import { brandGradient, Colors } from '@/shared/theme/colors';
 import { radii, spacing, touchTarget } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
 export function PinLoginScreen() {
   const theme = useTheme();
-  const tokens = theme.dark ? darkColors : lightColors;
   const { useSplitLayout } = useResponsiveLayout();
   const { loginWithPin, isSubmitting, errorMessage, clearError } = useAuth();
   const [selected, setSelected] = useState<Employee | null>(null);
@@ -173,16 +172,16 @@ export function PinLoginScreen() {
         {useSplitLayout ? (
           <>
             <LinearGradient
-              colors={[tokens.heroInk, tokens.primary, palette.seafoam500]}
+              colors={[...brandGradient]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.hero}
             >
-              <Text style={[typography.brand, { color: tokens.onPrimary }]}>NFP</Text>
+              <Text style={[typography.brand, { color: Colors.white }]}>NFP</Text>
               <Text
                 style={[
                   typography.h2,
-                  { color: tokens.onPrimary, marginTop: spacing.sm, opacity: 0.92 },
+                  { color: Colors.white, marginTop: spacing.sm, opacity: 0.95 },
                 ]}
               >
                 Caisse prête. Mode hors-ligne.

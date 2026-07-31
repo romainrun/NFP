@@ -1,75 +1,78 @@
-import { Platform } from 'react-native';
-
 /**
- * Expressive stacks — serif display for brand presence, clean body for POS density.
+ * Inter — primary NFP typeface for payment UI clarity.
+ * Font files loaded in AppProviders via expo-font.
  */
 export const fonts = {
-  display: Platform.select({
-    ios: 'Georgia',
-    android: 'serif',
-    default: 'Georgia',
-  }) as string,
-  body: Platform.select({
-    ios: 'Avenir Next',
-    android: 'sans-serif-medium',
-    default: 'System',
-  }) as string,
-  mono: Platform.select({
-    ios: 'Menlo',
-    android: 'monospace',
-    default: 'monospace',
-  }) as string,
-};
+  light: 'Inter_300Light',
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semiBold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+  /** Aliases used across the app */
+  display: 'Inter_700Bold',
+  body: 'Inter_400Regular',
+  mono: 'Inter_600SemiBold',
+} as const;
 
 export const typography = {
   brand: {
-    fontFamily: fonts.display,
-    fontSize: 44,
+    fontFamily: fonts.bold,
+    fontSize: 36,
     fontWeight: '700' as const,
-    letterSpacing: -1.2,
+    letterSpacing: -0.8,
   },
   h1: {
-    fontFamily: fonts.display,
-    fontSize: 30,
+    fontFamily: fonts.bold,
+    fontSize: 32,
     fontWeight: '700' as const,
-    letterSpacing: -0.6,
+    letterSpacing: -0.5,
   },
   h2: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.semiBold,
     fontSize: 24,
     fontWeight: '600' as const,
     letterSpacing: -0.3,
   },
   h3: {
-    fontFamily: fonts.body,
-    fontSize: 18,
-    fontWeight: '700' as const,
+    fontFamily: fonts.semiBold,
+    fontSize: 20,
+    fontWeight: '600' as const,
   },
   body: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.regular,
     fontSize: 16,
     fontWeight: '400' as const,
   },
   bodyStrong: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.semiBold,
     fontSize: 16,
-    fontWeight: '700' as const,
+    fontWeight: '600' as const,
   },
   caption: {
-    fontFamily: fonts.body,
-    fontSize: 13,
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    fontWeight: '400' as const,
+  },
+  button: {
+    fontFamily: fonts.semiBold,
+    fontSize: 16,
     fontWeight: '600' as const,
-    letterSpacing: 0.2,
+  },
+  amount: {
+    fontFamily: fonts.bold,
+    fontSize: 36,
+    fontWeight: '700' as const,
+    letterSpacing: -0.5,
+  },
+  money: {
+    fontFamily: fonts.semiBold,
+    fontSize: 18,
+    fontWeight: '600' as const,
   },
   pin: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.semiBold,
     fontSize: 28,
     fontWeight: '600' as const,
     letterSpacing: 8,
-  },
-  money: {
-    fontFamily: fonts.mono,
-    fontSize: 18,
-    fontWeight: '700' as const,
   },
 };

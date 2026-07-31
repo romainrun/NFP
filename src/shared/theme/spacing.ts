@@ -15,9 +15,14 @@ export const touchTarget = {
   pinKey: 72,
 } as const;
 
+/** Brand radius scale */
 export const radii = {
-  sm: 10,
-  md: 16,
-  lg: 24,
-  xl: 32,
+  input: 12,
+  button: 14,
+  sm: 12,
+  md: 14,
+  card: 18,
+  lg: 18,
+  xl: 24,
+  pill: 999,
 } as const;

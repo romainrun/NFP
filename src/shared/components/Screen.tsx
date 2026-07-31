@@ -3,7 +3,7 @@ import { StyleSheet, View, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from 'react-native-paper';
-import { darkColors, lightColors } from '@/shared/theme/colors';
+import { Colors, darkColors, lightColors } from '@/shared/theme/colors';
 import { spacing } from '@/shared/theme/spacing';
 
 type Props = {
@@ -29,10 +29,10 @@ export function Screen({
     <View style={styles.root}>
       {atmosphere ? (
         <LinearGradient
-          colors={[tokens.gradientTop, tokens.gradientBottom, tokens.background]}
-          locations={[0, 0.45, 1]}
-          start={{ x: 0.1, y: 0 }}
-          end={{ x: 0.9, y: 1 }}
+          colors={[Colors.backgroundSecondary, tokens.gradientBottom, Colors.background]}
+          locations={[0, 0.55, 1]}
+          start={{ x: 0.15, y: 0 }}
+          end={{ x: 0.85, y: 1 }}
           style={StyleSheet.absoluteFill}
         />
       ) : (

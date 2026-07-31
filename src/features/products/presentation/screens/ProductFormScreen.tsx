@@ -288,6 +288,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
           imageUri={imageUri}
           editable={canManage}
           onChange={setImageUri}
+          compact
         />
 
         <Controller
@@ -299,45 +300,50 @@ export function ProductFormScreen({ navigation, route }: Props) {
               value={value}
               onChangeText={onChange}
               mode="outlined"
+              dense
               disabled={!canManage}
               error={Boolean(errors.name)}
             />
           )}
         />
-        <HelperText type="error" visible={Boolean(errors.name)}>
+        <HelperText type="error" visible={Boolean(errors.name)} style={styles.tightHelp}>
           {errors.name?.message}
         </HelperText>
 
-        <Controller
-          control={control}
-          name="sku"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              label={isEdit ? 'SKU *' : 'SKU (auto si vide)'}
-              value={value ?? ''}
-              onChangeText={onChange}
-              autoCapitalize="characters"
-              mode="outlined"
-              disabled={!canManage}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="barcode"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              label="Code-barres"
-              value={value ?? ''}
-              onChangeText={onChange}
-              mode="outlined"
-              keyboardType="number-pad"
-              disabled={!canManage}
-              style={styles.field}
-            />
-          )}
-        />
+        <View style={styles.row}>
+          <Controller
+            control={control}
+            name="sku"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                label={isEdit ? 'SKU *' : 'SKU (auto)'}
+                value={value ?? ''}
+                onChangeText={onChange}
+                autoCapitalize="characters"
+                mode="outlined"
+                dense
+                disabled={!canManage}
+                style={styles.half}
+              />
+            )}
+          />
+          <Controller
+            control={control}
+            name="barcode"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                label="Code-barres"
+                value={value ?? ''}
+                onChangeText={onChange}
+                mode="outlined"
+                dense
+                keyboardType="number-pad"
+                disabled={!canManage}
+                style={styles.half}
+              />
+            )}
+          />
+        </View>
 
         <Menu
           visible={categoryMenuOpen}
@@ -345,6 +351,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
           anchor={
             <Button
               mode="outlined"
+              compact
               onPress={() => setCategoryMenuOpen(true)}
               disabled={!canManage}
               style={styles.field}
@@ -372,67 +379,70 @@ export function ProductFormScreen({ navigation, route }: Props) {
           ))}
         </Menu>
 
-        <Controller
-          control={control}
-          name="priceEuros"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              label="Prix TTC (€) *"
-              value={value}
-              onChangeText={onChange}
-              mode="outlined"
-              keyboardType="decimal-pad"
-              disabled={!canManage}
-              error={Boolean(errors.priceEuros)}
-              style={styles.field}
-            />
-          )}
-        />
-        <HelperText type="error" visible={Boolean(errors.priceEuros)}>
+        <View style={styles.row}>
+          <Controller
+            control={control}
+            name="priceEuros"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                label="Prix TTC (€) *"
+                value={value}
+                onChangeText={onChange}
+                mode="outlined"
+                dense
+                keyboardType="decimal-pad"
+                disabled={!canManage}
+                error={Boolean(errors.priceEuros)}
+                style={styles.third}
+              />
+            )}
+          />
+          <Menu
+            visible={vatMenuOpen}
+            onDismiss={() => setVatMenuOpen(false)}
+            anchor={
+              <Button
+                mode="outlined"
+                compact
+                onPress={() => setVatMenuOpen(true)}
+                disabled={!canManage}
+                style={[styles.third, styles.vatBtn]}
+              >
+                TVA {watch('vatRate')}%
+              </Button>
+            }
+          >
+            {VAT_RATES.map((rate) => (
+              <Menu.Item
+                key={rate}
+                onPress={() => {
+                  setValue('vatRate', rate);
+                  setVatMenuOpen(false);
+                }}
+                title={`${rate}%`}
+              />
+            ))}
+          </Menu>
+          <Controller
+            control={control}
+            name="costEuros"
+            render={({ field: { onChange, value } }) => (
+              <TextInput
+                label="Coût (€)"
+                value={value ?? ''}
+                onChangeText={onChange}
+                mode="outlined"
+                dense
+                keyboardType="decimal-pad"
+                disabled={!canManage}
+                style={styles.third}
+              />
+            )}
+          />
+        </View>
+        <HelperText type="error" visible={Boolean(errors.priceEuros)} style={styles.tightHelp}>
           {errors.priceEuros?.message}
         </HelperText>
-
-        <Menu
-          visible={vatMenuOpen}
-          onDismiss={() => setVatMenuOpen(false)}
-          anchor={
-            <Button
-              mode="outlined"
-              onPress={() => setVatMenuOpen(true)}
-              disabled={!canManage}
-              style={styles.field}
-            >
-              TVA : {watch('vatRate')}%
-            </Button>
-          }
-        >
-          {VAT_RATES.map((rate) => (
-            <Menu.Item
-              key={rate}
-              onPress={() => {
-                setValue('vatRate', rate);
-                setVatMenuOpen(false);
-              }}
-              title={`${rate}%`}
-            />
-          ))}
-        </Menu>
-
-        <Controller
-          control={control}
-          name="costEuros"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              label="Coût d’achat (€)"
-              value={value ?? ''}
-              onChangeText={onChange}
-              mode="outlined"
-              keyboardType="decimal-pad"
-              disabled={!canManage}
-              style={styles.field}
-            />
-          )}
-        />
 
         {!isEdit ? (
           <Controller
@@ -444,6 +454,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
                 value={value ?? '0'}
                 onChangeText={onChange}
                 mode="outlined"
+                dense
                 keyboardType="decimal-pad"
                 disabled={!canManage}
                 style={styles.field}
@@ -452,12 +463,12 @@ export function ProductFormScreen({ navigation, route }: Props) {
           />
         ) : (
           <View style={[styles.stockBox, { borderColor: theme.colors.outline }]}>
-            <Text style={[typography.bodyStrong, { color: theme.colors.onSurface }]}>
-              Stock actuel : {productQuery.data?.stockQuantity ?? '—'}
+            <Text style={[typography.bodyStrong, { color: theme.colors.onSurface, flex: 1 }]}>
+              Stock : {productQuery.data?.stockQuantity ?? '—'}
             </Text>
             {canManage ? (
-              <Button mode="contained-tonal" onPress={() => setStockDialogOpen(true)}>
-                Ajuster le stock
+              <Button compact mode="contained-tonal" onPress={() => setStockDialogOpen(true)}>
+                Ajuster
               </Button>
             ) : null}
           </View>
@@ -472,46 +483,49 @@ export function ProductFormScreen({ navigation, route }: Props) {
               value={value ?? ''}
               onChangeText={onChange}
               mode="outlined"
+              dense
               multiline
-              numberOfLines={3}
+              numberOfLines={2}
               disabled={!canManage}
               style={styles.field}
             />
           )}
         />
 
-        <View style={styles.switchRow}>
-          <Text style={{ color: theme.colors.onSurface, flex: 1 }}>Favori</Text>
-          <Controller
-            control={control}
-            name="isFavorite"
-            render={({ field: { onChange, value } }) => (
-              <Switch value={value} onValueChange={onChange} disabled={!canManage} />
-            )}
-          />
-        </View>
-        <View style={styles.switchRow}>
-          <Text style={{ color: theme.colors.onSurface, flex: 1 }}>Produit rapide</Text>
-          <Controller
-            control={control}
-            name="isQuick"
-            render={({ field: { onChange, value } }) => (
-              <Switch value={value} onValueChange={onChange} disabled={!canManage} />
-            )}
-          />
-        </View>
-        {isEdit ? (
-          <View style={styles.switchRow}>
-            <Text style={{ color: theme.colors.onSurface, flex: 1 }}>Actif</Text>
+        <View style={styles.flagsRow}>
+          <View style={styles.flag}>
+            <Text style={typography.caption}>Favori</Text>
             <Controller
               control={control}
-              name="isActive"
+              name="isFavorite"
               render={({ field: { onChange, value } }) => (
                 <Switch value={value} onValueChange={onChange} disabled={!canManage} />
               )}
             />
           </View>
-        ) : null}
+          <View style={styles.flag}>
+            <Text style={typography.caption}>Rapide</Text>
+            <Controller
+              control={control}
+              name="isQuick"
+              render={({ field: { onChange, value } }) => (
+                <Switch value={value} onValueChange={onChange} disabled={!canManage} />
+              )}
+            />
+          </View>
+          {isEdit ? (
+            <View style={styles.flag}>
+              <Text style={typography.caption}>Actif</Text>
+              <Controller
+                control={control}
+                name="isActive"
+                render={({ field: { onChange, value } }) => (
+                  <Switch value={value} onValueChange={onChange} disabled={!canManage} />
+                )}
+              />
+            </View>
+          ) : null}
+        </View>
 
         {formError ? (
           <HelperText type="error" visible>
@@ -613,27 +627,56 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
   },
   content: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     paddingBottom: spacing.xxl,
-    gap: spacing.xxs,
+    gap: spacing.xs,
   },
   field: {
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
-  switchRow: {
+  tightHelp: {
+    marginTop: 0,
+    marginBottom: 0,
+    minHeight: 0,
+    paddingVertical: 0,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+    alignItems: 'flex-start',
+  },
+  half: { flex: 1 },
+  third: { flex: 1 },
+  vatBtn: {
+    marginTop: spacing.xs,
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  flagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.sm,
+    alignItems: 'center',
+  },
+  flag: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.sm,
+    gap: spacing.xs,
   },
   actions: {
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     gap: spacing.sm,
   },
   stockBox: {
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 12,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
   },
   chipRow: {

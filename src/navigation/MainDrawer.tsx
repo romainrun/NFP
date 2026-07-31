@@ -7,23 +7,25 @@ import { CategoryListScreen } from '@/features/products/presentation/screens/Cat
 import { ProductListScreen } from '@/features/products/presentation/screens/ProductListScreen';
 import { AppDrawerContent } from '@/navigation/AppDrawerContent';
 import type { DrawerParamList } from '@/navigation/types';
-import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
 
 const Drawer = createDrawerNavigator<DrawerParamList>();
 
+/**
+ * Overlay drawer on all sizes so it can always be closed (swipe / overlay / X).
+ */
 export function MainDrawer() {
   const theme = useTheme();
-  const { isTablet } = useResponsiveLayout();
 
   return (
     <Drawer.Navigator
       drawerContent={(props) => <AppDrawerContent {...props} />}
       screenOptions={{
         headerShown: false,
-        drawerType: isTablet ? 'permanent' : 'front',
-        overlayColor: theme.dark ? 'rgba(0,0,0,0.45)' : 'rgba(16,42,39,0.28)',
+        drawerType: 'front',
+        swipeEnabled: true,
+        overlayColor: 'rgba(34, 34, 34, 0.28)',
         drawerStyle: {
-          width: isTablet ? 300 : 300,
+          width: 300,
           backgroundColor: theme.colors.background,
         },
         sceneStyle: {

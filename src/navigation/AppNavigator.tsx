@@ -1,6 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { CheckoutScreen } from '@/features/checkout/presentation/screens/CheckoutScreen';
-import { OrderDetailScreen } from '@/features/checkout/presentation/screens/OrderDetailScreen';
 import { SaleCompleteScreen } from '@/features/checkout/presentation/screens/SaleCompleteScreen';
 import { ProductFormScreen } from '@/features/products/presentation/screens/ProductFormScreen';
 import { MainDrawer } from '@/navigation/MainDrawer';
@@ -23,7 +22,6 @@ export function AppNavigator() {
       <Stack.Screen name="Checkout" component={CheckoutScreen} />
       <Stack.Screen name="SaleComplete" component={SaleCompleteScreen} />
       <Stack.Screen name="ProductForm" component={ProductFormScreen} />
-      <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
     </Stack.Navigator>
   );
 }

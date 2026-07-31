@@ -66,9 +66,15 @@ All demo employees use PIN **`0000`** during development. The login screen also 
 
 Change these before any production deployment.
 
+## Brand UI
+
+- Palette Naturally Forme: fond clair `#F8F6F2`, accent or `#C9A457`
+- Typography: **Inter** (Light → Bold)
+- Overlay drawer (ouvrable / fermable) on phone & tablet
+
 ## Navigation
 
-Authenticated screens live in a **drawer menu** (permanent on tablet):
+Authenticated screens live in a **drawer menu** (swipe, overlay tap, or ✕ to close):
 
 - Tableau de bord
 - Caisse
@@ -90,8 +96,8 @@ Seed barcodes for quick scan tests: `3000000000001`, `3000000000002`, `300000000
 ## Historique des ventes
 
 Filter by **Aujourd’hui**, **Hier**, or a custom date range.
-Default day hours are **00h → minuit**; refine with start/end hour chips.
-View hourly bars, totals, and ticket details.
+Today/yesterday always cover **00h → minuit** (no hour picker).
+Custom range can refine hours. Ticket details open in a dialog.
 
 ## Catalogue (articles)
 

@@ -17,13 +17,12 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
-import { darkColors, lightColors, palette } from '@/shared/theme/colors';
+import { brandGradient, Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
 export function DashboardScreen() {
   const theme = useTheme();
-  const tokens = theme.dark ? darkColors : lightColors;
   const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const { session } = useAuth();
   const { useSplitLayout } = useResponsiveLayout();
@@ -54,31 +53,32 @@ export function DashboardScreen() {
 
         <Animated.View entering={FadeInDown.duration(420)}>
           <LinearGradient
-            colors={[tokens.heroInk, tokens.primary, palette.seafoam500]}
+            colors={[...brandGradient]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.hero}
           >
-            <Text style={[typography.brand, { color: tokens.onPrimary, fontSize: 42 }]}>
+            <Text style={[typography.brand, { color: Colors.white, fontSize: 40 }]}>
               {APP_CONFIG.shortName}
             </Text>
-            <Text style={{ color: tokens.onPrimary, opacity: 0.9, marginTop: spacing.xs }}>
-              Caisse offline · NaturallyForme
+            <Text style={{ color: Colors.white, opacity: 0.95, marginTop: spacing.xs }}>
+              Caisse offline · Naturally Forme
             </Text>
             <View style={styles.heroActions}>
               <Button
                 mode="contained"
-                buttonColor={tokens.accent}
-                textColor={palette.ink}
+                buttonColor={Colors.white}
+                textColor={Colors.primaryDark}
                 onPress={() => navigation.navigate('Pos')}
                 contentStyle={{ minHeight: 48 }}
+                labelStyle={typography.button}
               >
                 Ouvrir la caisse
               </Button>
               <Button
                 mode="outlined"
-                textColor={tokens.onPrimary}
-                style={{ borderColor: tokens.onPrimary }}
+                textColor={Colors.white}
+                style={{ borderColor: Colors.white }}
                 onPress={() => navigation.navigate('SalesHistory')}
               >
                 Historique

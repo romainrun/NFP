@@ -3,12 +3,12 @@ import {
   DrawerContentScrollView,
   type DrawerContentComponentProps,
 } from '@react-navigation/drawer';
-import { Button, Divider, Text, useTheme } from 'react-native-paper';
+import { Button, Divider, IconButton, Text, useTheme } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { APP_CONFIG } from '@/core/config/appConfig';
 import { hasPermission } from '@/features/authentication/domain/permissions';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
-import { darkColors, lightColors } from '@/shared/theme/colors';
+import { brandGradient, Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
@@ -30,7 +30,6 @@ const ITEMS: Item[] = [
 
 export function AppDrawerContent(props: DrawerContentComponentProps) {
   const theme = useTheme();
-  const tokens = theme.dark ? darkColors : lightColors;
   const { session, logout } = useAuth();
   const active = props.state.routes[props.state.index]?.name;
   const canManageCatalog = Boolean(
@@ -38,30 +37,42 @@ export function AppDrawerContent(props: DrawerContentComponentProps) {
   );
 
   const visible = ITEMS.filter((item) => {
-    if (item.route === 'ProductList' || item.route === 'CategoryList') {
-      return canManageCatalog || item.route === 'ProductList';
-    }
+    if (item.route === 'CategoryList') return canManageCatalog;
     return true;
   });
 
   const sections = Array.from(new Set(visible.map((item) => item.section)));
 
+  const go = (route: Item['route']) => {
+    props.navigation.navigate(route);
+    props.navigation.closeDrawer();
+  };
+
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <LinearGradient
-        colors={[tokens.heroInk, tokens.primary, tokens.gradientTop]}
+        colors={[...brandGradient]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.hero}
       >
-        <Text style={[typography.brand, { color: tokens.onPrimary, fontSize: 36 }]}>
-          {APP_CONFIG.shortName}
-        </Text>
-        <Text style={{ color: tokens.onPrimary, opacity: 0.9 }}>
+        <View style={styles.heroTop}>
+          <Text style={[typography.brand, { color: Colors.white, fontSize: 32, flex: 1 }]}>
+            {APP_CONFIG.shortName}
+          </Text>
+          <IconButton
+            icon="close"
+            iconColor={Colors.white}
+            size={22}
+            onPress={() => props.navigation.closeDrawer()}
+            accessibilityLabel="Fermer le menu"
+          />
+        </View>
+        <Text style={{ color: Colors.white, opacity: 0.95 }}>
           {session?.employee.displayName ?? 'Collaborateur'}
         </Text>
-        <Text style={[typography.caption, { color: tokens.onPrimary, opacity: 0.75 }]}>
-          {session?.employee.role?.toUpperCase()} · caisse offline
+        <Text style={[typography.caption, { color: Colors.white, opacity: 0.8 }]}>
+          {session?.employee.role?.toUpperCase()} · Naturally Forme
         </Text>
       </LinearGradient>
 
@@ -80,12 +91,12 @@ export function AppDrawerContent(props: DrawerContentComponentProps) {
                     key={item.key}
                     mode={selected ? 'contained' : 'text'}
                     icon={item.icon}
-                    onPress={() => props.navigation.navigate(item.route)}
+                    onPress={() => go(item.route)}
                     style={styles.item}
                     contentStyle={styles.itemContent}
-                    labelStyle={{ textAlign: 'left' }}
-                    buttonColor={selected ? theme.colors.primary : undefined}
-                    textColor={selected ? theme.colors.onPrimary : theme.colors.onSurface}
+                    labelStyle={[typography.button, { textAlign: 'left' }]}
+                    buttonColor={selected ? Colors.primary : undefined}
+                    textColor={selected ? Colors.onPrimary : theme.colors.onSurface}
                   >
                     {item.label}
                   </Button>
@@ -100,8 +111,12 @@ export function AppDrawerContent(props: DrawerContentComponentProps) {
         <Button
           mode="outlined"
           icon="lock-outline"
-          onPress={() => void logout()}
-          style={{ marginTop: spacing.sm }}
+          textColor={Colors.primary}
+          style={{ marginTop: spacing.sm, borderColor: Colors.primary, borderRadius: radii.button }}
+          onPress={() => {
+            props.navigation.closeDrawer();
+            void logout();
+          }}
         >
           Verrouiller
         </Button>
@@ -114,11 +129,15 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   hero: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
-    borderBottomLeftRadius: radii.lg,
-    borderBottomRightRadius: radii.lg,
+    borderBottomLeftRadius: radii.card,
+    borderBottomRightRadius: radii.card,
     gap: spacing.xxs,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   scroll: {
     paddingTop: spacing.md,
@@ -130,7 +149,7 @@ const styles = StyleSheet.create({
   },
   item: {
     justifyContent: 'flex-start',
-    borderRadius: radii.md,
+    borderRadius: radii.button,
   },
   itemContent: {
     justifyContent: 'flex-start',

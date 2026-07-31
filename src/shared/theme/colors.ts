@@ -1,72 +1,119 @@
 /**
- * NFP visual language — pine ink + seafoam + gold signal.
- * Avoids purple gradients, cream/terracotta, and newspaper layouts.
+ * Naturally Forme / NFP brand tokens — light surfaces + gold accent.
  */
-export const palette = {
-  pine950: '#061A18',
-  pine900: '#0A2E2A',
-  pine800: '#0C3B36',
-  pine700: '#0F524B',
-  pine600: '#14756B',
-  seafoam500: '#2BB8A8',
-  seafoam300: '#7ED9CE',
-  seafoam100: '#D7F4F0',
-  seafoam50: '#EEF8F6',
-  mist: '#E7F1EE',
-  paper: '#F5FAF8',
-  ivory: '#FBFEFD',
-  ink: '#102A27',
-  inkMuted: '#4A6B66',
-  inkFaint: '#8AA39E',
-  line: '#C9DED9',
-  gold: '#C79212',
-  goldSoft: '#F4E2A8',
-  danger: '#C23B3B',
-  warning: '#C47A12',
-  success: '#1F8A5B',
+export const Colors = {
+  primary: '#C9A457',
+  primaryDark: '#B88E3A',
+  primaryPressed: '#9F7B30',
+  primaryLight: '#E7D3A2',
+
+  background: '#F8F6F2',
+  backgroundSecondary: '#FAF8F5',
+  section: '#F4F1EB',
+
+  surface: '#FFFFFF',
+
+  text: '#222222',
+  textSecondary: '#666666',
+  textDisabled: '#9A9A9A',
+  onPrimary: '#FFFFFF',
+
+  border: '#E7E2D8',
+  divider: '#EFEAE2',
+
+  success: '#3CB371',
+  error: '#E74C3C',
+  warning: '#F39C12',
+  info: '#3A86FF',
+
+  iconActive: '#C9A457',
+  iconInactive: '#888888',
+
   white: '#FFFFFF',
+  black: '#181818',
+} as const;
+
+/** @deprecated Prefer Colors — kept for gradual migration. */
+export const palette = {
+  gold: Colors.primary,
+  goldHover: Colors.primaryDark,
+  goldLight: Colors.primaryLight,
+  goldPressed: Colors.primaryPressed,
+  pine700: Colors.primary,
+  seafoam500: Colors.primaryLight,
+  ink: Colors.text,
+  white: Colors.white,
 } as const;
 
 export const lightColors = {
-  background: palette.mist,
-  surface: palette.ivory,
-  surfaceMuted: palette.seafoam50,
-  border: palette.line,
-  text: palette.ink,
-  textSecondary: palette.inkMuted,
-  primary: palette.pine700,
-  primaryMuted: palette.seafoam100,
-  onPrimary: palette.white,
-  accent: palette.gold,
-  accentMuted: palette.goldSoft,
-  danger: palette.danger,
-  warning: palette.warning,
-  success: palette.success,
-  overlay: 'rgba(6, 26, 24, 0.48)',
-  gradientTop: '#DCEFEA',
-  gradientBottom: '#F5FAF8',
-  heroInk: palette.pine900,
+  background: Colors.background,
+  surface: Colors.surface,
+  surfaceMuted: Colors.section,
+  border: Colors.border,
+  text: Colors.text,
+  textSecondary: Colors.textSecondary,
+  primary: Colors.primary,
+  primaryMuted: Colors.primaryLight,
+  onPrimary: Colors.onPrimary,
+  accent: Colors.primaryDark,
+  accentMuted: Colors.primaryLight,
+  danger: Colors.error,
+  warning: Colors.warning,
+  success: Colors.success,
+  info: Colors.info,
+  overlay: 'rgba(34, 34, 34, 0.35)',
+  gradientTop: Colors.primaryLight,
+  gradientBottom: Colors.background,
+  heroInk: Colors.primaryDark,
 } as const;
 
+/** NFP stays light-first; dark mode softens the same brand. */
 export const darkColors = {
-  background: palette.pine950,
-  surface: palette.pine900,
-  surfaceMuted: palette.pine800,
-  border: '#1E4A44',
-  text: '#ECF8F5',
-  textSecondary: '#9EC4BD',
-  primary: palette.seafoam500,
-  primaryMuted: '#134842',
-  onPrimary: palette.pine950,
-  accent: '#E0B33A',
-  accentMuted: '#5C4A14',
+  background: '#1A1814',
+  surface: '#24211C',
+  surfaceMuted: '#2E2A24',
+  border: '#3D3830',
+  text: '#F5F2EC',
+  textSecondary: '#B8B2A6',
+  primary: Colors.primary,
+  primaryMuted: '#4A3F24',
+  onPrimary: Colors.black,
+  accent: Colors.primaryLight,
+  accentMuted: '#3A3424',
   danger: '#F07171',
   warning: '#F0B35A',
-  success: '#4ADE9B',
-  overlay: 'rgba(2, 12, 11, 0.64)',
-  gradientTop: '#0A2E2A',
-  gradientBottom: '#061A18',
-  heroInk: '#ECF8F5',
+  success: '#5DCE8F',
+  info: '#6BA3FF',
+  overlay: 'rgba(0, 0, 0, 0.55)',
+  gradientTop: '#2E2A24',
+  gradientBottom: '#1A1814',
+  heroInk: Colors.primaryDark,
 } as const;
 
 export type ThemeColors = typeof lightColors;
+
+export const shadows = {
+  sm: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  md: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 25,
+    elevation: 6,
+  },
+  lg: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.12,
+    shadowRadius: 40,
+    elevation: 12,
+  },
+} as const;
+
+export const brandGradient = ['#E7D3A2', '#C9A457', '#B88E3A'] as const;

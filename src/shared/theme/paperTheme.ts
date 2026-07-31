@@ -7,18 +7,18 @@ import {
 import { darkColors, lightColors } from '@/shared/theme/colors';
 import { fonts } from '@/shared/theme/typography';
 
-const fontConfig = {
-  fontFamily: fonts.body,
-} as const;
-
 export function createPaperTheme(mode: 'light' | 'dark'): MD3Theme {
   const base = mode === 'light' ? MD3LightTheme : MD3DarkTheme;
   const colors = mode === 'light' ? lightColors : darkColors;
 
+  const fontConfig = {
+    fontFamily: fonts.regular,
+  } as const;
+
   return {
     ...base,
     fonts: configureFonts({ config: fontConfig }),
-    roundness: 18,
+    roundness: 14,
     colors: {
       ...base.colors,
       primary: colors.primary,

@@ -17,7 +17,6 @@ export type AppStackParamList = {
   Checkout: undefined;
   SaleComplete: { orderId: string; changeCents?: number };
   ProductForm: { productId?: string };
-  OrderDetail: { orderId: string };
 };
 
 export type RootStackParamList = {
