@@ -19,7 +19,7 @@ git reset --hard origin/main
 npm install
 pm2 start|restart nfp-metro
         ↓
-Health check → http://127.0.0.1:8086
+Health check → http://127.0.0.1:2000
         ↓
 Expo Go / Dev Client loads the VPS Metro bundle
 ```
@@ -106,7 +106,7 @@ Metro must be reachable from your phone (or use a VPN / SSH tunnel).
 
 ```bash
 # UFW example — restrict to your IP in production-like setups
-sudo ufw allow 8086/tcp
+sudo ufw allow 2000/tcp
 sudo ufw reload
 ```
 
@@ -134,9 +134,9 @@ pm2 save
 | Sync | `git fetch` + `git reset --hard origin/main` |
 | Install | `npm install` only (keeps `node_modules`, no cache wipe) |
 | Process | PM2 app `nfp-metro` created or restarted |
-| Metro | `npx expo start --dev-client --host 0.0.0.0 --port 8086 --clear=false` |
+| Metro | `npx expo start --dev-client --host 0.0.0.0 --port 2000 --clear=false` |
 | Safety | Failed `git` / `npm install` → **Metro not restarted** |
-| Health | curl `http://127.0.0.1:8086` with retries; workflow fails if down |
+| Health | curl `http://127.0.0.1:2000` with retries; workflow fails if down |
 | Reboot | `pm2 save` + `pm2 startup` restore Metro after reboot |
 
 Key files:
@@ -149,12 +149,12 @@ Key files:
 
 ## 4. Connect Expo Go / Dev Client
 
-1. Ensure the VPS firewall allows `8086` (or use Tailscale / SSH tunnel).
+1. Ensure the VPS firewall allows `2000` (or use Tailscale / SSH tunnel).
 2. On your phone, open Expo Go or your Dev Client.
 3. Enter the bundle URL:
 
 ```text
-exp://YOUR_VPS_IP:8086
+exp://YOUR_VPS_IP:2000
 ```
 
 Or scan the QR code from Metro logs if you expose it.
@@ -233,7 +233,7 @@ Do **not** clear `node_modules` on every normal deploy — only when changing No
 |---------|--------|
 | Actions SSH failure | Secrets `HOST` / `PORT` / `USERNAME` / `SSH_KEY`; `authorized_keys` |
 | `npm install` fails | Disk space, Node version, registry connectivity — Metro kept alive |
-| Health check fails | `pm2 logs nfp-metro`; port 8086 free; `curl -v localhost:8086` |
+| Health check fails | `pm2 logs nfp-metro`; port 2000 free; `curl -v localhost:2000` |
 | Phone cannot connect | Firewall / security group; use VPN; confirm `--host 0.0.0.0` |
 | After reboot Metro missing | Re-run `pm2 startup` + `pm2 save` |
 | Dubious ownership | Deploy script sets `safe.directory` automatically |

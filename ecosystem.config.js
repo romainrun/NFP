@@ -2,7 +2,7 @@
  * PM2 ecosystem — permanent Expo Metro development server (NFP).
  *
  * Process name : nfp-metro
- * Bind         : 0.0.0.0:8086
+ * Bind         : 0.0.0.0:2000
  * Mode         : development (--dev-client), not Expo production hosting
  *
  * Logs live under /home/deploy/logs/nfp/ (created by scripts/deploy.sh).
@@ -16,7 +16,7 @@ module.exports = {
       script: 'bash',
       args: [
         '-lc',
-        'npx expo start --dev-client --host 0.0.0.0 --port 8086 --clear=false',
+        'npx expo start --dev-client --host 0.0.0.0 --port 2000 --clear=false',
       ],
       instances: 1,
       exec_mode: 'fork',

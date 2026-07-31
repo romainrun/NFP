@@ -23,7 +23,7 @@ Architecture decisions: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ## Development CI/CD (VPS Metro)
 
-Every push to `main` deploys automatically to the remote VPS Expo Metro server (PM2 process `nfp-metro` on port **8086**).
+Every push to `main` deploys automatically to the remote VPS Expo Metro server (PM2 process `nfp-metro` on port **2000**).
 
 Full guide (secrets, VPS bootstrap, PM2, logs, manual redeploy): [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
 

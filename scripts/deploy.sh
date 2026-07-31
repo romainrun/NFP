@@ -6,7 +6,7 @@
 #   1) sync git to origin/main
 #   2) npm install (on failure: abort, do NOT touch PM2)
 #   3) start/restart Metro via PM2
-#   4) health-check http://localhost:8086
+#   4) health-check http://localhost:2000
 #
 # Usage (on the VPS, as the deploy user):
 #   bash /home/deploy/apps/nfp/scripts/deploy.sh
@@ -18,7 +18,7 @@ APP_DIR="${APP_DIR:-/home/deploy/apps/nfp}"
 LOG_DIR="${LOG_DIR:-/home/deploy/logs/nfp}"
 REPO_URL="${REPO_URL:-https://github.com/romainrun/NFP.git}"
 BRANCH="${BRANCH:-main}"
-METRO_PORT="${METRO_PORT:-8086}"
+METRO_PORT="${METRO_PORT:-2000}"
 HEALTH_URL="http://127.0.0.1:${METRO_PORT}"
 HEALTH_RETRIES="${HEALTH_RETRIES:-18}"
 HEALTH_SLEEP_SECONDS="${HEALTH_SLEEP_SECONDS:-5}"
