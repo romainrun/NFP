@@ -398,6 +398,7 @@ export function PosScreen() {
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.categoryFilterList}
         data={[
           { id: 'all', label: 'Tous' },
           ...(categoriesQuery.data ?? []).map((category) => ({
@@ -847,6 +848,9 @@ const styles = StyleSheet.create({
   categoryChips: {
     paddingHorizontal: spacing.sm,
     paddingBottom: spacing.xs,
+  },
+  categoryFilterList: {
+    maxHeight: 42,
   },
   categoryChip: {
     marginRight: spacing.xs,

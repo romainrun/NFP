@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
   HelperText,
@@ -70,7 +70,7 @@ export function SalesHistoryScreen() {
 
   return (
     <Screen padded={false}>
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container}>
         <AppHeader
           title="Historique des ventes"
           subtitle={formatPeriodLabel(period.fromIso, period.toIso)}
@@ -168,20 +168,20 @@ export function SalesHistoryScreen() {
           </Button>
         </View>
 
-        <FlatList
-          data={snapshot?.orders ?? []}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: spacing.xxl }}
-          ListEmptyComponent={
-            <HelperText type="info" visible>
-              Aucune vente sur cette période.
-            </HelperText>
-          }
-          renderItem={({ item }) => (
-            <OrderRow order={item} onPress={() => setSelectedOrderId(item.id)} />
-          )}
-        />
-      </View>
+        {(snapshot?.orders.length ?? 0) === 0 ? (
+          <HelperText type="info" visible>
+            Aucune vente sur cette période.
+          </HelperText>
+        ) : (
+          (snapshot?.orders ?? []).map((item) => (
+            <OrderRow
+              key={item.id}
+              order={item}
+              onPress={() => setSelectedOrderId(item.id)}
+            />
+          ))
+        )}
+      </ScrollView>
 
       <OrderDetailDialog
         orderId={selectedOrderId}
@@ -267,9 +267,9 @@ function OrderRow({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
+    paddingBottom: spacing.xxl,
     gap: spacing.sm,
   },
   segment: { marginBottom: spacing.xs },

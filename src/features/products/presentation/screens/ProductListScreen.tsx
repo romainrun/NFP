@@ -112,6 +112,7 @@ export function ProductListScreen() {
         <FlatList
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.categoryFilterList}
           data={[
             { id: 'all', label: 'Tous' },
             ...(categoriesQuery.data ?? []).map((c) => ({ id: c.id, label: c.name })),
@@ -199,6 +200,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.xs,
     alignItems: 'center',
+  },
+  categoryFilterList: {
+    maxHeight: 42,
   },
   chip: {
     marginRight: spacing.xs,
