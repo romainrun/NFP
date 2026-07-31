@@ -116,12 +116,14 @@ export function DashboardScreen() {
                   Ouvrir la caisse
                 </Button>
                 <Button
-                  mode="outlined"
+                  mode="contained"
+                  buttonColor={Colors.black}
                   textColor={Colors.white}
-                  style={{ borderColor: Colors.white }}
                   onPress={() => navigation.navigate('SalesHistory')}
+                  contentStyle={{ minHeight: 48 }}
+                  labelStyle={typography.button}
                 >
-                  Historique
+                  Voir l’historique
                 </Button>
               </View>
             </LinearGradient>
