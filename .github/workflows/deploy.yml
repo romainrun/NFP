@@ -51,7 +51,11 @@ jobs:
           if [ -z "${PORT}" ]; then
             echo "Secret PORT: missing — will default to 22"
           else
-            echo "Secret PORT: present"
+            echo "Secret PORT: present (value hidden)"
+            if [ "${PORT}" = "2000" ]; then
+              echo "::error::Secret PORT is 2000 — that is the Metro port, not SSH. Set PORT=22 (SSH), Metro stays on 2000 via PM2."
+              exit 1
+            fi
           fi
           if [ "$missing" -ne 0 ]; then
             echo "::error::Add HOST, USERNAME, SSH_KEY (and optionally PORT) under Settings → Secrets and variables → Actions"
@@ -62,12 +66,14 @@ jobs:
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.HOST }}
+          # Secret PORT = SSH port only (usually 22). Metro uses 2000 separately.
           port: ${{ secrets.PORT || 22 }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          protocol: tcp
+          timeout: 30s
           # Enough headroom for npm install + Metro boot + health checks.
           command_timeout: 15m
-          script_stop: true
           envs: REPO_URL,APP_DIR,LOG_DIR,BRANCH
           script: |
             set -euo pipefail
