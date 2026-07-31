@@ -7,7 +7,8 @@ export type DashboardWidgetId =
   | 'tickets_today'
   | 'sales_chart'
   | 'top_products'
-  | 'stock_alerts';
+  | 'stock_alerts'
+  | 'team_notes';
 
 export type DashboardWidgetSetting = {
   id: DashboardWidgetId;
@@ -55,6 +56,7 @@ export const DASHBOARD_WIDGET_LABELS: Record<DashboardWidgetId, string> = {
   sales_chart: 'Graphique par heure',
   top_products: 'Top produits',
   stock_alerts: 'Alertes stock',
+  team_notes: 'Notes d’équipe',
 };
 
 export function defaultDashboardWidgets(): DashboardWidgetSetting[] {
@@ -67,6 +69,7 @@ export function defaultDashboardWidgets(): DashboardWidgetSetting[] {
       'sales_chart',
       'top_products',
       'stock_alerts',
+      'team_notes',
     ] as DashboardWidgetId[]
   ).map((id) => ({ id, isEnabled: true }));
 }

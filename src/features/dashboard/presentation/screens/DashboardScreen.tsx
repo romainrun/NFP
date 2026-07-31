@@ -8,6 +8,7 @@ import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import type { IDashboardRepository } from '@/features/dashboard/data/DashboardRepository';
+import { EmployeeNotesPanel } from '@/features/dashboard/presentation/components/EmployeeNotesPanel';
 import { MetricCard } from '@/features/dashboard/presentation/components/MetricCard';
 import { SalesSparkBars } from '@/features/dashboard/presentation/components/SalesSparkBars';
 import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
@@ -92,6 +93,7 @@ export function DashboardScreen() {
   const showSalesChart = isWidgetEnabled('sales_chart');
   const showTopProducts = isWidgetEnabled('top_products');
   const showStockAlerts = isWidgetEnabled('stock_alerts');
+  const showTeamNotes = isWidgetEnabled('team_notes');
   const showSidePanel = showTopProducts || showStockAlerts;
 
   return (
@@ -147,6 +149,12 @@ export function DashboardScreen() {
             {secondaryMetrics.map((metric) => (
               <MetricCard key={metric.id} metric={metric} />
             ))}
+          </Animated.View>
+        ) : null}
+
+        {showTeamNotes && session?.employee.id ? (
+          <Animated.View entering={FadeInUp.delay(120).duration(400)}>
+            <EmployeeNotesPanel userId={session.employee.id} />
           </Animated.View>
         ) : null}
 

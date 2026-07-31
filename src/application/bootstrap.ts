@@ -10,6 +10,7 @@ import { SqliteDashboardRepository } from '@/features/dashboard/data/SqliteDashb
 import { LocalPaymentProvider } from '@/features/payments/data/LocalPaymentProvider';
 import { SqliteCategoryRepository } from '@/features/products/data/SqliteCategoryRepository';
 import { SqliteProductRepository } from '@/features/products/data/SqliteProductRepository';
+import { SqliteNoteRepository } from '@/features/notes/data/SqliteNoteRepository';
 import { SqlitePromotionRepository } from '@/features/promotions/data/SqlitePromotionRepository';
 import { SqliteSettingsRepository } from '@/features/settings/data/SqliteSettingsRepository';
 import { SqliteSyncRepository } from '@/features/sync/data/SqliteSyncRepository';
@@ -39,6 +40,7 @@ export async function bootstrap(): Promise<void> {
   const carts = new SqliteCartRepository(db, products);
   const paymentProvider = new LocalPaymentProvider();
   const sync = new SqliteSyncRepository(db);
+  const notes = new SqliteNoteRepository(db);
   const cashClosing = new SqliteCashClosingRepository(db);
   const orders = new SqliteOrderRepository(db, carts, paymentProvider, audit, sync);
 
@@ -58,6 +60,7 @@ export async function bootstrap(): Promise<void> {
   container.registerInstance(TOKENS.OrderRepository, orders);
   container.registerInstance(TOKENS.CashClosingRepository, cashClosing);
   container.registerInstance(TOKENS.SyncRepository, sync);
+  container.registerInstance(TOKENS.NoteRepository, notes);
 
   const settingsResult = await settings.getSettings();
   if (settingsResult.ok) {

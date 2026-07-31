@@ -15,6 +15,7 @@ export const TOKENS = {
   OrderRepository: 'OrderRepository',
   CashClosingRepository: 'CashClosingRepository',
   SyncRepository: 'SyncRepository',
+  NoteRepository: 'NoteRepository',
   PaymentProvider: 'PaymentProvider',
   AuditService: 'AuditService',
   SecureStorage: 'SecureStorage',
