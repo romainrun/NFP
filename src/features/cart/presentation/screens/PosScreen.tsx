@@ -6,6 +6,7 @@ import {
   Modal,
   Pressable,
   StyleSheet,
+  Vibration,
   View,
 } from 'react-native';
 import {
@@ -123,13 +124,7 @@ export function PosScreen() {
       queryClient.setQueryData(['cart', userId], cart);
       setSnack('Article ajouté');
     },
-    onError: (error: Error, code) => {
-      if (canManageCatalog) {
-        setUnknownBarcode(code);
-        return;
-      }
-      setSnack(error.message);
-    },
+    onError: (error: Error) => setSnack(error.message),
   });
 
   const associateBarcodeMutation = useMutation({
@@ -182,8 +177,21 @@ export function PosScreen() {
       setManualCode('');
       setSnack('Article scanné');
     },
-    onError: (error: Error) => setSnack(error.message),
+    onError: (error: Error, code) => {
+      if (canManageCatalog) {
+        setUnknownBarcode(code);
+        return;
+      }
+      setSnack(error.message);
+    },
   });
+
+  const scanBarcode = (rawCode: string) => {
+    const code = rawCode.trim();
+    if (!code) return;
+    Vibration.vibrate(80);
+    barcodeMutation.mutate(code);
+  };
 
   const qtyMutation = useMutation({
     mutationFn: async ({ lineId, quantity }: { lineId: string; quantity: number }) => {
@@ -266,13 +274,13 @@ export function PosScreen() {
           style={{ flex: 1 }}
           autoCapitalize="characters"
           onSubmitEditing={() => {
-            if (manualCode.trim()) barcodeMutation.mutate(manualCode.trim());
+            scanBarcode(manualCode);
           }}
           right={
             <TextInput.Icon
               icon="keyboard-return"
               onPress={() => {
-                if (manualCode.trim()) barcodeMutation.mutate(manualCode.trim());
+                scanBarcode(manualCode);
               }}
             />
           }
@@ -427,7 +435,8 @@ export function PosScreen() {
         visible={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScan={(code) => {
-          barcodeMutation.mutate(code);
+          setScannerOpen(false);
+          scanBarcode(code);
         }}
       />
 
