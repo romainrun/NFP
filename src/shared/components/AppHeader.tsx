@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { IconButton, Text } from 'react-native-paper';
+import { IconButton, Text, useTheme } from 'react-native-paper';
 import { useDrawerStore } from '@/navigation/drawerStore';
 import { Colors } from '@/shared/theme/colors';
 import { spacing } from '@/shared/theme/spacing';
@@ -14,6 +14,7 @@ type Props = {
 };
 
 export function AppHeader({ title, subtitle, right, showMenu = true }: Props) {
+  const theme = useTheme();
   const open = useDrawerStore((s) => s.open);
 
   return (
@@ -28,11 +29,14 @@ export function AppHeader({ title, subtitle, right, showMenu = true }: Props) {
         />
       ) : null}
       <View style={styles.titles}>
-        <Text style={[typography.h2, { color: Colors.text }]} numberOfLines={1}>
+        <Text style={[typography.h2, { color: theme.colors.onSurface }]} numberOfLines={1}>
           {title}
         </Text>
         {subtitle ? (
-          <Text style={[typography.caption, { color: Colors.textSecondary }]} numberOfLines={2}>
+          <Text
+            style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}
+            numberOfLines={2}
+          >
             {subtitle}
           </Text>
         ) : null}

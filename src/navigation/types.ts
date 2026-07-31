@@ -22,7 +22,7 @@ export type AppStackParamList = {
   Main: NavigatorScreenParams<MainParamList> | undefined;
   Checkout: undefined;
   SaleComplete: { orderId: string; changeCents?: number };
-  ProductForm: { productId?: string };
+  ProductForm: { productId?: string; initialBarcode?: string };
 };
 
 export type RootStackParamList = {

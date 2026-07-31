@@ -1,5 +1,6 @@
 import { View, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTheme } from 'react-native-paper';
 import { MemberListScreen } from '@/features/authentication/presentation/screens/MemberListScreen';
 import { PosScreen } from '@/features/cart/presentation/screens/PosScreen';
 import { SalesHistoryScreen } from '@/features/checkout/presentation/screens/SalesHistoryScreen';
@@ -10,7 +11,6 @@ import { SettingsScreen } from '@/features/settings/presentation/screens/Setting
 import { AppSideMenu } from '@/navigation/AppSideMenu';
 import { useDrawerStore } from '@/navigation/drawerStore';
 import type { MainParamList } from '@/navigation/types';
-import { Colors } from '@/shared/theme/colors';
 
 const Stack = createNativeStackNavigator<MainParamList>();
 
@@ -18,6 +18,7 @@ const Stack = createNativeStackNavigator<MainParamList>();
  * Main authenticated destinations + controlled side menu overlay.
  */
 export function MainDrawer() {
+  const theme = useTheme();
   const setActiveRoute = useDrawerStore((s) => s.setActiveRoute);
 
   return (
@@ -26,7 +27,7 @@ export function MainDrawer() {
         screenOptions={{
           headerShown: false,
           animation: 'fade',
-          contentStyle: { backgroundColor: Colors.background },
+          contentStyle: { backgroundColor: theme.colors.background },
         }}
         screenListeners={{
           state: (event) => {

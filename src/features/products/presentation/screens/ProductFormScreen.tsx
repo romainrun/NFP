@@ -64,6 +64,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
   const queryClient = useQueryClient();
   const { canManage, userId } = useCatalogAccess();
   const productId = route.params.productId;
+  const initialBarcode = route.params.initialBarcode;
   const isEdit = Boolean(productId);
 
   const [vatMenuOpen, setVatMenuOpen] = useState(false);
@@ -100,7 +101,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
     () => ({
       name: '',
       sku: '',
-      barcode: '',
+      barcode: initialBarcode ?? '',
       description: '',
       categoryId: null,
       priceEuros: '',
@@ -111,7 +112,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
       isQuick: false,
       isActive: true,
     }),
-    [],
+    [initialBarcode],
   );
 
   const {

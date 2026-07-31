@@ -1,11 +1,10 @@
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Button, Text, useTheme } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { APP_CONFIG } from '@/core/config/appConfig';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
@@ -17,11 +16,15 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
-import { brandGradient, Colors, shadows } from '@/shared/theme/colors';
+import { brandGradient, Colors, darkColors, lightColors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
+const logoSource = require('../../../../../assets/logo.png');
+
 export function DashboardScreen() {
+  const theme = useTheme();
+  const tokens = theme.dark ? darkColors : lightColors;
   const navigation = useNavigation<NativeStackNavigationProp<MainParamList>>();
   const { session } = useAuth();
   const { useSplitLayout } = useResponsiveLayout();
@@ -41,6 +44,8 @@ export function DashboardScreen() {
   }
 
   const snapshot = snapshotQuery.data;
+  const revenueToday = snapshot.metrics.find((m) => m.id === 'revenue_today');
+  const secondaryMetrics = snapshot.metrics.filter((m) => m.id !== 'revenue_today');
 
   return (
     <Screen padded={false}>
@@ -57,17 +62,15 @@ export function DashboardScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.hero}
           >
-            <Text style={[typography.brand, { color: Colors.white, fontSize: 36 }]}>
-              {APP_CONFIG.shortName}
-            </Text>
+            <Image source={logoSource} style={styles.logo} resizeMode="contain" />
             <Text style={[typography.caption, { color: Colors.white, opacity: 0.9 }]}>
               CA de la journée
             </Text>
             <Text style={[typography.amount, { color: Colors.white, marginTop: 2 }]}>
-              {snapshot.metrics.find((m) => m.id === 'revenue_today')?.value ?? '0,00 €'}
+              {revenueToday?.value ?? '0,00 €'}
             </Text>
             <Text style={[typography.caption, { color: Colors.white, opacity: 0.85 }]}>
-              {snapshot.metrics.find((m) => m.id === 'revenue_today')?.deltaLabel ?? ''}
+              {revenueToday?.deltaLabel ?? ''}
             </Text>
             <View style={styles.heroActions}>
               <Button
@@ -96,7 +99,7 @@ export function DashboardScreen() {
           entering={FadeInUp.delay(80).duration(400)}
           style={[styles.metrics, useSplitLayout && styles.metricsTablet]}
         >
-          {snapshot.metrics.map((metric) => (
+          {secondaryMetrics.map((metric) => (
             <MetricCard key={metric.id} metric={metric} />
           ))}
         </Animated.View>
@@ -106,20 +109,26 @@ export function DashboardScreen() {
             <SalesSparkBars points={snapshot.salesPerHour} />
           </View>
 
-          <View style={[styles.sidePanel, shadows.sm]}>
-            <Text style={[typography.h3, { color: Colors.text }]}>Top produits</Text>
+          <View
+            style={[
+              styles.sidePanel,
+              shadows.sm,
+              { backgroundColor: tokens.surface, borderColor: tokens.border },
+            ]}
+          >
+            <Text style={[typography.h3, { color: tokens.text }]}>Top produits</Text>
             {snapshot.topProducts.length === 0 ? (
-              <Text style={[typography.caption, { color: Colors.textSecondary }]}>
+              <Text style={[typography.caption, { color: tokens.textSecondary }]}>
                 Aucune vente aujourd’hui
               </Text>
             ) : (
               snapshot.topProducts.map((product) => (
                 <Pressable key={product.id} style={styles.productRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[typography.bodyStrong, { color: Colors.text }]}>
+                    <Text style={[typography.bodyStrong, { color: tokens.text }]}>
                       {product.name}
                     </Text>
-                    <Text style={[typography.caption, { color: Colors.textSecondary }]}>
+                    <Text style={[typography.caption, { color: tokens.textSecondary }]}>
                       {product.quantitySold} vendus
                     </Text>
                   </View>
@@ -130,11 +139,11 @@ export function DashboardScreen() {
               ))
             )}
 
-            <Text style={[typography.h3, { color: Colors.text, marginTop: spacing.lg }]}>
+            <Text style={[typography.h3, { color: tokens.text, marginTop: spacing.lg }]}>
               Alertes stock
             </Text>
             {snapshot.inventoryAlerts.length === 0 ? (
-              <Text style={[typography.caption, { color: Colors.textSecondary }]}>
+              <Text style={[typography.caption, { color: tokens.textSecondary }]}>
                 Stock OK
               </Text>
             ) : (
@@ -165,6 +174,11 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     overflow: 'hidden',
   },
+  logo: {
+    width: 112,
+    height: 58,
+    marginBottom: spacing.xs,
+  },
   heroActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -190,8 +204,6 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
     padding: spacing.md,
     gap: spacing.sm,
   },

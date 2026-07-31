@@ -3,9 +3,11 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
   HelperText,
+  SegmentedButtons,
   Switch,
   Text,
   TextInput,
+  useTheme,
 } from 'react-native-paper';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { container } from '@/core/di/container';
@@ -18,6 +20,7 @@ import {
   WEEKDAY_LABELS,
   defaultOpeningHours,
   formatHourRange,
+  type ThemePreference,
 } from '@/features/settings/domain/types';
 import { useSettingsStore } from '@/features/settings/presentation/store/settingsStore';
 import { AppHeader } from '@/shared/components/AppHeader';
@@ -30,14 +33,18 @@ import { typography } from '@/shared/theme/typography';
 const HOUR_OPTIONS = Array.from({ length: 25 }, (_, i) => i);
 
 export function SettingsScreen() {
+  const theme = useTheme();
   const queryClient = useQueryClient();
   const { session } = useAuth();
   const setStoreName = useSettingsStore((s) => s.setStoreName);
+  const setThemePreference = useSettingsStore((s) => s.setThemePreference);
   const canManage = Boolean(
     session && hasPermission(session.employee.role, 'settings.manage'),
   );
 
   const [storeName, setLocalStoreName] = useState('');
+  const [themePreference, setLocalThemePreference] =
+    useState<ThemePreference>('system');
   const [hours, setHours] = useState<StoreOpeningHours>(defaultOpeningHours());
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +62,7 @@ export function SettingsScreen() {
   useEffect(() => {
     if (!settingsQuery.data) return;
     setLocalStoreName(settingsQuery.data.storeName);
+    setLocalThemePreference(settingsQuery.data.themePreference);
     setHours(settingsQuery.data.openingHours);
   }, [settingsQuery.data]);
 
@@ -64,12 +72,15 @@ export function SettingsScreen() {
       const repo = container.resolve<ISettingsRepository>(TOKENS.SettingsRepository);
       const nameResult = await repo.setStoreName(storeName);
       if (!nameResult.ok) throw nameResult.error;
+      const themeResult = await repo.setThemePreference(themePreference);
+      if (!themeResult.ok) throw themeResult.error;
       const hoursResult = await repo.setOpeningHours(hours);
       if (!hoursResult.ok) throw hoursResult.error;
-      return { storeName: storeName.trim(), hours };
+      return { storeName: storeName.trim(), themePreference, hours };
     },
     onSuccess: async (value) => {
       setStoreName(value.storeName);
+      setThemePreference(value.themePreference);
       setMessage('Paramètres enregistrés');
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['settings'] });
@@ -89,7 +100,7 @@ export function SettingsScreen() {
   if (!canManage) {
     return (
       <Screen centered>
-        <Text style={[typography.h2, { color: Colors.text }]}>
+        <Text style={[typography.h2, { color: theme.colors.onSurface }]}>
           Accès paramètres réservé
         </Text>
       </Screen>
@@ -105,7 +116,7 @@ export function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <AppHeader title="Paramètres" subtitle="Magasin et horaires d’ouverture" />
 
-        <Text style={[typography.h3, { color: Colors.text }]}>Magasin</Text>
+        <Text style={[typography.h3, { color: theme.colors.onSurface }]}>Magasin</Text>
         <TextInput
           mode="outlined"
           label="Nom du magasin"
@@ -113,29 +124,49 @@ export function SettingsScreen() {
           onChangeText={setLocalStoreName}
           outlineColor={Colors.border}
           activeOutlineColor={Colors.primary}
-          style={{ backgroundColor: Colors.surface }}
+          style={{ backgroundColor: theme.colors.surface }}
         />
 
-        <Text style={[typography.h3, { color: Colors.text, marginTop: spacing.sm }]}>
+        <Text style={[typography.h3, { color: theme.colors.onSurface, marginTop: spacing.sm }]}>
+          Apparence
+        </Text>
+        <SegmentedButtons
+          value={themePreference}
+          onValueChange={(value) => setLocalThemePreference(value as ThemePreference)}
+          buttons={[
+            { value: 'system', label: 'Système', icon: 'theme-light-dark' },
+            { value: 'light', label: 'Clair', icon: 'white-balance-sunny' },
+            { value: 'dark', label: 'Sombre', icon: 'weather-night' },
+          ]}
+        />
+
+        <Text style={[typography.h3, { color: theme.colors.onSurface, marginTop: spacing.sm }]}>
           Horaires d’ouverture
         </Text>
-        <Text style={[typography.caption, { color: Colors.textSecondary }]}>
+        <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
           Définissez la tranche horaire pour chaque jour (ex. 09h → 19h).
         </Text>
 
         {hours.map((day) => (
-          <View key={day.weekday} style={[styles.dayCard, shadows.sm]}>
+          <View
+            key={day.weekday}
+            style={[
+              styles.dayCard,
+              shadows.sm,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+            ]}
+          >
             <View style={styles.dayHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={[typography.bodyStrong, { color: Colors.text }]}>
+                <Text style={[typography.bodyStrong, { color: theme.colors.onSurface }]}>
                   {WEEKDAY_LABELS[day.weekday]}
                 </Text>
-                <Text style={[typography.caption, { color: Colors.textSecondary }]}>
+                <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
                   {formatHourRange(day)}
                 </Text>
               </View>
               <View style={styles.switchRow}>
-                <Text style={[typography.caption, { color: Colors.textSecondary }]}>
+                <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
                   Ouvert
                 </Text>
                 <Switch
@@ -202,9 +233,10 @@ function HourSelect({
   options: number[];
   onChange: (value: number) => void;
 }) {
+  const theme = useTheme();
   return (
     <View style={{ flex: 1, gap: spacing.xxs }}>
-      <Text style={[typography.caption, { color: Colors.textSecondary }]}>{label}</Text>
+      <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {options.map((hour) => {
           const selected = hour === value;
@@ -217,7 +249,7 @@ function HourSelect({
               onPress={() => onChange(hour)}
               style={styles.hourChip}
               buttonColor={selected ? Colors.primary : undefined}
-              textColor={selected ? Colors.onPrimary : Colors.text}
+              textColor={selected ? Colors.onPrimary : theme.colors.onSurface}
             >
               {labelText}
             </Button>
@@ -235,8 +267,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   dayCard: {
-    backgroundColor: Colors.surface,
-    borderColor: Colors.border,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radii.card,
     padding: spacing.md,

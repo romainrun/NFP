@@ -18,7 +18,7 @@
     "android": {
       "package": "com.naturallyforme.nfp",
       "adaptiveIcon": {
-        "backgroundColor": "#0F766E",
+        "backgroundColor": "#181818",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

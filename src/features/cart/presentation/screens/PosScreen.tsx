@@ -3,13 +3,16 @@ import {
   Alert,
   FlatList,
   Image,
+  Modal,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
 import {
   Button,
+  Dialog,
   HelperText,
+  Portal,
   Searchbar,
   SegmentedButtons,
   Snackbar,
@@ -29,6 +32,7 @@ import { CartLineRow } from '@/features/cart/presentation/components/CartLineRow
 import { useSalesAccess } from '@/features/cart/presentation/hooks/useSalesAccess';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
 import type { Product } from '@/features/products/domain/types';
+import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
 import type { AppStackParamList, MainParamList } from '@/navigation/types';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
@@ -52,11 +56,14 @@ export function PosScreen() {
   const queryClient = useQueryClient();
   const { useSplitLayout } = useResponsiveLayout();
   const { canSell, userId } = useSalesAccess();
+  const { canManage: canManageCatalog, userId: catalogUserId } = useCatalogAccess();
   const [search, setSearch] = useState('');
   const [manualCode, setManualCode] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
   const [catalogTab, setCatalogTab] = useState<CatalogTab>('top');
+  const [cartSheetOpen, setCartSheetOpen] = useState(false);
+  const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null);
 
   const cartQuery = useQuery({
     queryKey: ['cart', userId],
@@ -94,6 +101,17 @@ export function PosScreen() {
     },
   });
 
+  const barcodeProductsQuery = useQuery({
+    queryKey: ['products', 'barcode-association', unknownBarcode],
+    enabled: Boolean(unknownBarcode && canManageCatalog),
+    queryFn: async () => {
+      const repo = container.resolve<IProductRepository>(TOKENS.ProductRepository);
+      const result = await repo.list({ includeInactive: false });
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+  });
+
   const addMutation = useMutation({
     mutationFn: async (productId: string) => {
       const repo = container.resolve<ICartRepository>(TOKENS.CartRepository);
@@ -104,6 +122,47 @@ export function PosScreen() {
     onSuccess: async (cart) => {
       queryClient.setQueryData(['cart', userId], cart);
       setSnack('Article ajouté');
+    },
+    onError: (error: Error, code) => {
+      if (canManageCatalog) {
+        setUnknownBarcode(code);
+        return;
+      }
+      setSnack(error.message);
+    },
+  });
+
+  const associateBarcodeMutation = useMutation({
+    mutationFn: async (product: Product) => {
+      if (!unknownBarcode || !catalogUserId) {
+        throw new Error('Code-barres invalide');
+      }
+      const repo = container.resolve<IProductRepository>(TOKENS.ProductRepository);
+      const result = await repo.update(
+        {
+          id: product.id,
+          sku: product.sku,
+          barcode: unknownBarcode,
+          name: product.name,
+          description: product.description,
+          categoryId: product.categoryId,
+          priceCents: product.priceCents,
+          vatRate: product.vatRate,
+          costCents: product.costCents,
+          isFavorite: product.isFavorite,
+          isQuick: product.isQuick,
+          imageUri: product.imageUri,
+          isActive: product.isActive,
+        },
+        catalogUserId,
+      );
+      if (!result.ok) throw result.error;
+      return { product: result.value, barcode: unknownBarcode };
+    },
+    onSuccess: async ({ barcode }) => {
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+      setUnknownBarcode(null);
+      barcodeMutation.mutate(barcode);
     },
     onError: (error: Error) => setSnack(error.message),
   });
@@ -310,7 +369,10 @@ export function PosScreen() {
         disabled={cart.lines.length === 0}
         style={styles.checkoutBtn}
         contentStyle={{ minHeight: 52 }}
-        onPress={() => navigation.navigate('Checkout')}
+        onPress={() => {
+          setCartSheetOpen(false);
+          navigation.navigate('Checkout');
+        }}
       >
         Encaisser
       </Button>
@@ -321,8 +383,45 @@ export function PosScreen() {
     <Screen padded={false}>
       <View style={[styles.shell, useSplitLayout && styles.shellTablet]}>
         <View style={{ flex: useSplitLayout ? 1.35 : 1 }}>{catalog}</View>
-        <View style={{ flex: useSplitLayout ? 1 : 0.95 }}>{cartPane}</View>
+        {useSplitLayout ? <View style={{ flex: 1 }}>{cartPane}</View> : null}
       </View>
+
+      {!useSplitLayout ? (
+        <>
+          <Pressable
+            onPress={() => setCartSheetOpen(true)}
+            style={[styles.cartBar, { backgroundColor: theme.colors.surface }]}
+          >
+            <View>
+              <Text style={[typography.bodyStrong, { color: theme.colors.onSurface }]}>
+                Panier ({cart.itemCount})
+              </Text>
+              <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+                {cart.lines.length ? 'Touchez pour vérifier le panier' : 'Aucun article'}
+              </Text>
+            </View>
+            <Text style={[typography.money, { color: theme.colors.primary }]}>
+              {formatMoney(cart.totalCents)}
+            </Text>
+          </Pressable>
+
+          <Modal
+            visible={cartSheetOpen}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setCartSheetOpen(false)}
+          >
+            <Pressable
+              style={styles.sheetOverlay}
+              onPress={() => setCartSheetOpen(false)}
+            />
+            <View style={styles.sheetWrap}>
+              <View style={styles.sheetHandle} />
+              {cartPane}
+            </View>
+          </Modal>
+        </>
+      ) : null}
 
       <BarcodeScannerModal
         visible={scannerOpen}
@@ -335,6 +434,66 @@ export function PosScreen() {
       <Snackbar visible={Boolean(snack)} onDismiss={() => setSnack(null)} duration={1800}>
         {snack}
       </Snackbar>
+
+      <Portal>
+        <Dialog
+          visible={Boolean(unknownBarcode)}
+          onDismiss={() => setUnknownBarcode(null)}
+        >
+          <Dialog.Title>Code-barres inconnu</Dialog.Title>
+          <Dialog.Content style={{ gap: spacing.sm }}>
+            <Text style={[typography.body, { color: theme.colors.onSurface }]}>
+              Aucun article trouvé pour {unknownBarcode}.
+            </Text>
+            <Button
+              mode="contained"
+              icon="plus"
+              onPress={() => {
+                const barcode = unknownBarcode;
+                setUnknownBarcode(null);
+                navigation.navigate('ProductForm', { initialBarcode: barcode ?? undefined });
+              }}
+            >
+              Créer un article avec ce code
+            </Button>
+            <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+              Ou associer ce code à un article existant :
+            </Text>
+            <FlatList
+              data={(barcodeProductsQuery.data ?? []).slice(0, 12)}
+              keyExtractor={(item) => item.id}
+              style={{ maxHeight: 260 }}
+              ListEmptyComponent={
+                <HelperText type="info" visible>
+                  Aucun article disponible.
+                </HelperText>
+              }
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => associateBarcodeMutation.mutate(item)}
+                  style={[styles.associationRow, { borderColor: theme.colors.outline }]}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typography.bodyStrong, { color: theme.colors.onSurface }]}>
+                      {item.name}
+                    </Text>
+                    <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+                      {item.sku}
+                      {item.barcode ? ` · ${item.barcode}` : ''}
+                    </Text>
+                  </View>
+                  <Text style={[typography.money, { color: theme.colors.primary }]}>
+                    {formatMoney(item.priceCents)}
+                  </Text>
+                </Pressable>
+              )}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setUnknownBarcode(null)}>Fermer</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </Screen>
   );
 }
@@ -492,5 +651,51 @@ const styles = StyleSheet.create({
   },
   checkoutBtn: {
     borderRadius: radii.md,
+  },
+  cartBar: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    bottom: spacing.md,
+    borderRadius: radii.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    elevation: 8,
+  },
+  sheetOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  sheetWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: '82%',
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    padding: spacing.sm,
+    backgroundColor: Colors.background,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 48,
+    height: 5,
+    borderRadius: radii.pill,
+    backgroundColor: Colors.border,
+    marginBottom: spacing.sm,
+  },
+  associationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: spacing.sm,
   },
 });
