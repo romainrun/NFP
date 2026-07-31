@@ -9,6 +9,7 @@ export interface ICartRepository {
   addBySku(userId: string, sku: string, quantity?: number): Promise<Result<Cart>>;
   setLineQuantity(lineId: string, quantity: number): Promise<Result<Cart>>;
   removeLine(lineId: string): Promise<Result<Cart>>;
+  setLineDiscountBps(lineId: string, discountBps: number): Promise<Result<Cart>>;
   setGlobalDiscountBps(cartId: string, discountBps: number): Promise<Result<Cart>>;
   clear(cartId: string): Promise<Result<Cart>>;
 }

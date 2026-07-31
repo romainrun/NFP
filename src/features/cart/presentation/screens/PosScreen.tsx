@@ -5,6 +5,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -55,6 +56,7 @@ type PosNavigation = CompositeNavigationProp<
 >;
 
 type CatalogTab = 'top' | 'favorites';
+type DiscountTarget = 'cart' | 'line';
 const DISCOUNT_PRESETS = [5, 10, 15, 20, 25, 30] as const;
 
 export function PosScreen() {
@@ -75,6 +77,8 @@ export function PosScreen() {
   const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null);
   const [associationSearch, setAssociationSearch] = useState('');
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
+  const [discountTarget, setDiscountTarget] = useState<DiscountTarget>('cart');
+  const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [discountMode, setDiscountMode] = useState<'percent' | 'amount'>('percent');
   const [discountValue, setDiscountValue] = useState('');
 
@@ -141,6 +145,14 @@ export function PosScreen() {
       return result.value;
     },
   });
+
+  const activePromotions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const rule of promotionsQuery.data ?? []) {
+      if (isPromotionRuleActive(rule)) map.set(rule.productId, rule.discountBps);
+    }
+    return map;
+  }, [promotionsQuery.data]);
 
   const barcodeProductsQuery = useQuery({
     queryKey: ['products', 'barcode-association', unknownBarcode],
@@ -241,6 +253,14 @@ export function PosScreen() {
     requestAnimationFrame(() => searchRef.current?.focus?.());
   };
 
+  const openDiscountDialog = () => {
+    setDiscountTarget('cart');
+    setSelectedLineId(null);
+    setDiscountMode('percent');
+    setDiscountValue('');
+    setDiscountDialogOpen(true);
+  };
+
   const qtyMutation = useMutation({
     mutationFn: async ({ lineId, quantity }: { lineId: string; quantity: number }) => {
       const repo = container.resolve<ICartRepository>(TOKENS.CartRepository);
@@ -265,9 +285,42 @@ export function PosScreen() {
   const discountMutation = useMutation({
     mutationFn: async () => {
       if (!cartQuery.data) throw new Error('Panier introuvable');
-      if (cartQuery.data.subtotalCents <= 0) throw new Error('Panier vide');
+      if (cartQuery.data.lines.length === 0) throw new Error('Panier vide');
       const repo = container.resolve<ICartRepository>(TOKENS.CartRepository);
       let discountBps = 0;
+
+      if (discountTarget === 'line') {
+        if (!selectedLineId) throw new Error('Sélectionnez un article');
+        const line = cartQuery.data.lines.find((item) => item.id === selectedLineId);
+        if (!line) throw new Error('Article introuvable');
+        const lineGrossCents = line.unitPriceCents * line.quantity;
+        if (lineGrossCents <= 0) throw new Error('Montant de ligne invalide');
+
+        if (discountMode === 'percent') {
+          const percent = Number(discountValue.trim().replace(',', '.'));
+          if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+            throw new Error('Pourcentage invalide');
+          }
+          discountBps = Math.round(percent * 100);
+        } else {
+          const euros = parseEurosInput(discountValue);
+          if (euros == null) throw new Error('Montant invalide');
+          const cents = eurosToCents(euros);
+          if (cents < 0 || cents > lineGrossCents) {
+            throw new Error('Montant de remise invalide');
+          }
+          discountBps = Math.round((cents / lineGrossCents) * 10_000);
+        }
+
+        const result = await repo.setLineDiscountBps(
+          selectedLineId,
+          Math.min(10_000, Math.max(0, discountBps)),
+        );
+        if (!result.ok) throw result.error;
+        return { cart: result.value, kind: 'line' as const };
+      }
+
+      if (cartQuery.data.subtotalCents <= 0) throw new Error('Panier vide');
 
       if (discountMode === 'percent') {
         const percent = Number(discountValue.trim().replace(',', '.'));
@@ -290,13 +343,49 @@ export function PosScreen() {
         Math.min(10_000, Math.max(0, discountBps)),
       );
       if (!result.ok) throw result.error;
+      return { cart: result.value, kind: 'cart' as const };
+    },
+    onSuccess: ({ cart, kind }) => {
+      queryClient.setQueryData(['cart', userId], cart);
+      setDiscountDialogOpen(false);
+      setDiscountValue('');
+      setSnack(
+        kind === 'line' || cart.discountCents > 0 ? 'Remise appliquée' : 'Remise retirée',
+      );
+    },
+    onError: (error: Error) => setSnack(error.message),
+  });
+
+  const applyPromotionMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedLineId || !cartQuery.data) throw new Error('Article invalide');
+      const line = cartQuery.data.lines.find((item) => item.id === selectedLineId);
+      if (!line) throw new Error('Article introuvable');
+      const promoBps = activePromotions.get(line.productId) ?? 0;
+      if (promoBps <= 0) throw new Error('Aucune promotion active pour cet article');
+      const repo = container.resolve<ICartRepository>(TOKENS.CartRepository);
+      const result = await repo.setLineDiscountBps(selectedLineId, promoBps);
+      if (!result.ok) throw result.error;
       return result.value;
     },
     onSuccess: (cart) => {
       queryClient.setQueryData(['cart', userId], cart);
       setDiscountDialogOpen(false);
-      setDiscountValue('');
-      setSnack(cart.discountCents > 0 ? 'Remise appliquée' : 'Remise retirée');
+      setSnack('Promotion appliquée');
+    },
+    onError: (error: Error) => setSnack(error.message),
+  });
+
+  const clearLineDiscountMutation = useMutation({
+    mutationFn: async (lineId: string) => {
+      const repo = container.resolve<ICartRepository>(TOKENS.CartRepository);
+      const result = await repo.setLineDiscountBps(lineId, 0);
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+    onSuccess: (cart) => {
+      queryClient.setQueryData(['cart', userId], cart);
+      setSnack('Remise article retirée');
     },
     onError: (error: Error) => setSnack(error.message),
   });
@@ -322,13 +411,6 @@ export function PosScreen() {
     for (const category of categoriesQuery.data ?? []) map.set(category.id, category.color);
     return map;
   }, [categoriesQuery.data]);
-  const activePromotions = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const rule of promotionsQuery.data ?? []) {
-      if (isPromotionRuleActive(rule)) map.set(rule.productId, rule.discountBps);
-    }
-    return map;
-  }, [promotionsQuery.data]);
   const associationProducts = useMemo(() => {
     const query = associationSearch.trim().toLowerCase();
     const products = barcodeProductsQuery.data ?? [];
@@ -347,6 +429,16 @@ export function PosScreen() {
       })
       .slice(0, 20);
   }, [associationSearch, barcodeProductsQuery.data]);
+
+  const selectedDiscountLine = useMemo(() => {
+    if (!selectedLineId || !cartQuery.data) return null;
+    return cartQuery.data.lines.find((line) => line.id === selectedLineId) ?? null;
+  }, [cartQuery.data, selectedLineId]);
+
+  const catalogPromoBpsForLine = useMemo(() => {
+    if (!selectedDiscountLine) return 0;
+    return activePromotions.get(selectedDiscountLine.productId) ?? 0;
+  }, [activePromotions, selectedDiscountLine]);
 
   if (!canSell) {
     return (
@@ -424,6 +516,7 @@ export function PosScreen() {
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.categoryFilterList}
+        contentContainerStyle={styles.categoryChips}
         data={[
           { id: 'all', label: 'Tous', color: Colors.primary },
           ...(categoriesQuery.data ?? []).map((category) => ({
@@ -433,29 +526,28 @@ export function PosScreen() {
           })),
         ]}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.categoryChips}
-        renderItem={({ item }) => (
-          (() => {
-            const selected = item.id === 'all' ? categoryId === null : categoryId === item.id;
-            return (
-              <Chip
-                compact
-                selected={selected}
-                onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
-                style={[
-                  styles.categoryChip,
-                  {
-                    borderColor: item.color,
-                    backgroundColor: selected ? item.color : 'transparent',
-                  },
-                ]}
-                textStyle={{ color: selected ? Colors.white : item.color }}
-              >
-                {item.label}
-              </Chip>
-            );
-          })()
-        )}
+        renderItem={({ item }) => {
+          const selected = item.id === 'all' ? categoryId === null : categoryId === item.id;
+          return (
+            <Chip
+              selected={selected}
+              onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
+              style={[
+                styles.categoryChip,
+                {
+                  borderColor: item.color,
+                  backgroundColor: selected ? item.color : 'transparent',
+                },
+              ]}
+              textStyle={[
+                styles.categoryChipText,
+                { color: selected ? Colors.white : item.color },
+              ]}
+            >
+              {item.label}
+            </Chip>
+          );
+        }}
       />
 
       <FlatList
@@ -543,7 +635,7 @@ export function PosScreen() {
 
       <View style={styles.totals}>
         <View style={styles.discountActions}>
-          <Button compact mode="outlined" onPress={() => setDiscountDialogOpen(true)}>
+          <Button compact mode="outlined" onPress={openDiscountDialog}>
             Remise
           </Button>
           {cart.discountCents > 0 ? (
@@ -649,50 +741,153 @@ export function PosScreen() {
           visible={discountDialogOpen}
           onDismiss={() => setDiscountDialogOpen(false)}
         >
-          <Dialog.Title>Remise panier</Dialog.Title>
-          <Dialog.Content style={{ gap: spacing.sm }}>
-            <SegmentedButtons
-              value={discountMode}
-              onValueChange={(value) => setDiscountMode(value as 'percent' | 'amount')}
-              buttons={[
-                { value: 'percent', label: '%' },
-                { value: 'amount', label: '€' },
-              ]}
-            />
-            <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
-              Raccourcis fréquents
-            </Text>
-            <View style={styles.discountPresets}>
-              {DISCOUNT_PRESETS.map((preset) => {
-                const selected = discountValue.trim().replace(',', '.') === String(preset);
-                return (
-                  <Chip
-                    key={`${discountMode}-${preset}`}
-                    selected={selected}
-                    compact
-                    onPress={() => {
-                      setDiscountValue(String(preset));
-                      vibrateTap();
-                    }}
-                    style={styles.discountPresetChip}
-                  >
-                    {discountMode === 'percent' ? `${preset}%` : `${preset} €`}
-                  </Chip>
-                );
-              })}
-            </View>
-            <TextInput
-              mode="outlined"
-              label={discountMode === 'percent' ? 'Remise custom (%)' : 'Remise custom (€)'}
-              value={discountValue}
-              onChangeText={setDiscountValue}
-              keyboardType="decimal-pad"
-              placeholder={discountMode === 'percent' ? '10' : '5,00'}
-            />
-          </Dialog.Content>
+          <Dialog.Title>Remise</Dialog.Title>
+          <Dialog.ScrollArea style={styles.discountDialogScroll}>
+            <ScrollView contentContainerStyle={{ gap: spacing.sm, paddingVertical: spacing.xs }}>
+              <SegmentedButtons
+                value={discountTarget}
+                onValueChange={(value) => {
+                  const target = value as DiscountTarget;
+                  setDiscountTarget(target);
+                  if (target === 'cart') setSelectedLineId(null);
+                  else if (!selectedLineId && cart.lines.length === 1) {
+                    setSelectedLineId(cart.lines[0]!.id);
+                  }
+                }}
+                buttons={[
+                  { value: 'cart', label: 'Panier entier' },
+                  { value: 'line', label: 'Un article' },
+                ]}
+              />
+
+              {discountTarget === 'line' ? (
+                <View style={styles.linePicker}>
+                  <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+                    Article à remiser
+                  </Text>
+                  {cart.lines.map((line) => {
+                    const selected = selectedLineId === line.id;
+                    const linePromo = activePromotions.get(line.productId) ?? 0;
+                    return (
+                      <Pressable
+                        key={line.id}
+                        onPress={() => {
+                          setSelectedLineId(line.id);
+                          vibrateTap();
+                        }}
+                        style={[
+                          styles.linePickerRow,
+                          {
+                            borderColor: selected ? theme.colors.primary : theme.colors.outline,
+                            backgroundColor: selected
+                              ? theme.colors.primaryContainer
+                              : theme.colors.surface,
+                          },
+                        ]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              typography.bodyStrong,
+                              { color: theme.colors.onSurface },
+                            ]}
+                          >
+                            {line.productName}
+                          </Text>
+                          <Text
+                            style={[
+                              typography.caption,
+                              { color: theme.colors.onSurfaceVariant },
+                            ]}
+                          >
+                            {line.quantity} × {formatMoney(line.unitPriceCents)}
+                            {line.discountBps > 0 ? ` · -${line.discountBps / 100}%` : ''}
+                            {linePromo > 0 ? ` · promo dispo -${linePromo / 100}%` : ''}
+                          </Text>
+                        </View>
+                        {selected ? (
+                          <Text style={{ color: theme.colors.primary }}>✓</Text>
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+
+              {discountTarget === 'line' &&
+              selectedLineId &&
+              catalogPromoBpsForLine > 0 &&
+              selectedDiscountLine?.discountBps !== catalogPromoBpsForLine ? (
+                <Button
+                  mode="contained-tonal"
+                  loading={applyPromotionMutation.isPending}
+                  onPress={() => applyPromotionMutation.mutate()}
+                >
+                  Appliquer promo catalogue (-{catalogPromoBpsForLine / 100}%)
+                </Button>
+              ) : null}
+
+              {discountTarget === 'line' &&
+              selectedDiscountLine &&
+              selectedDiscountLine.discountBps > 0 ? (
+                <Button
+                  compact
+                  textColor={theme.colors.error}
+                  loading={clearLineDiscountMutation.isPending}
+                  onPress={() => clearLineDiscountMutation.mutate(selectedDiscountLine.id)}
+                >
+                  Retirer la remise sur cet article
+                </Button>
+              ) : null}
+
+              <SegmentedButtons
+                value={discountMode}
+                onValueChange={(value) => setDiscountMode(value as 'percent' | 'amount')}
+                buttons={[
+                  { value: 'percent', label: '%' },
+                  { value: 'amount', label: '€' },
+                ]}
+              />
+              <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+                Raccourcis fréquents
+              </Text>
+              <View style={styles.discountPresets}>
+                {DISCOUNT_PRESETS.map((preset) => {
+                  const selected = discountValue.trim().replace(',', '.') === String(preset);
+                  return (
+                    <Chip
+                      key={`${discountMode}-${preset}`}
+                      selected={selected}
+                      onPress={() => {
+                        setDiscountValue(String(preset));
+                        vibrateTap();
+                      }}
+                      style={styles.discountPresetChip}
+                    >
+                      {discountMode === 'percent' ? `${preset}%` : `${preset} €`}
+                    </Chip>
+                  );
+                })}
+              </View>
+              <TextInput
+                mode="outlined"
+                label={
+                  discountMode === 'percent' ? 'Remise custom (%)' : 'Remise custom (€)'
+                }
+                value={discountValue}
+                onChangeText={setDiscountValue}
+                keyboardType="decimal-pad"
+                placeholder={discountMode === 'percent' ? '10' : '5,00'}
+              />
+            </ScrollView>
+          </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={() => setDiscountDialogOpen(false)}>Annuler</Button>
-            <Button loading={discountMutation.isPending} onPress={() => discountMutation.mutate()}>
+            <Button
+              loading={discountMutation.isPending}
+              disabled={discountTarget === 'line' && !selectedLineId}
+              onPress={() => discountMutation.mutate()}
+            >
               Appliquer
             </Button>
           </Dialog.Actions>
@@ -805,38 +1000,38 @@ function ProductTile({
       ]}
       scaleTo={0.965}
     >
-      {hasPromotion || product.isFavorite || product.isQuick ? (
-        <View style={styles.tileBadges}>
-          {hasPromotion ? (
-            <View style={[styles.promoBadge, { backgroundColor: theme.colors.primary }]}>
-              <Text style={[typography.caption, { color: Colors.white, fontSize: 11 }]}>
-                -{promotionBps / 100}%
-              </Text>
-            </View>
-          ) : null}
-        {product.isFavorite ? (
-          <Text style={[styles.miniBadge, { color: theme.colors.primary }]}>★</Text>
+      <View style={styles.tileImageWrap}>
+        {product.imageUri ? (
+          <Image source={{ uri: product.imageUri }} style={styles.tileImage} resizeMode="cover" />
+        ) : (
+          <View
+            style={[
+              styles.tileImage,
+              styles.tilePlaceholder,
+              { backgroundColor: theme.colors.surfaceVariant },
+            ]}
+          >
+            <Text style={{ color: theme.colors.onSurfaceVariant }}>
+              {product.name.slice(0, 1).toUpperCase()}
+            </Text>
+          </View>
+        )}
+        {product.isFavorite || product.isQuick ? (
+          <View style={styles.tileOverlayTopLeft}>
+            {product.isFavorite ? (
+              <Text style={styles.tileOverlayIcon}>★</Text>
+            ) : null}
+            {product.isQuick ? (
+              <Text style={styles.tileOverlayIcon}>⚡</Text>
+            ) : null}
+          </View>
         ) : null}
-        {product.isQuick ? (
-          <Text style={[styles.miniBadge, { color: theme.colors.tertiary }]}>⚡</Text>
+        {hasPromotion ? (
+          <View style={[styles.tileOverlayTopRight, { backgroundColor: theme.colors.primary }]}>
+            <Text style={styles.tilePromoText}>-{promotionBps / 100}%</Text>
+          </View>
         ) : null}
       </View>
-      ) : null}
-      {product.imageUri ? (
-        <Image source={{ uri: product.imageUri }} style={styles.tileImage} />
-      ) : (
-        <View
-          style={[
-            styles.tileImage,
-            styles.tilePlaceholder,
-            { backgroundColor: theme.colors.surfaceVariant },
-          ]}
-        >
-          <Text style={{ color: theme.colors.onSurfaceVariant }}>
-            {product.name.slice(0, 1).toUpperCase()}
-          </Text>
-        </View>
-      )}
       <Text
         numberOfLines={2}
         style={[typography.caption, { color: theme.colors.onSurface, fontWeight: '600' }]}
@@ -863,7 +1058,7 @@ function ProductTile({
         </Text>
         <Text
           style={[
-            typography.caption,
+            styles.tileStock,
             { color: lowStock ? theme.colors.error : theme.colors.onSurfaceVariant },
           ]}
         >
@@ -935,13 +1130,22 @@ const styles = StyleSheet.create({
   },
   categoryChips: {
     paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.xs,
+    paddingVertical: spacing.xs,
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   categoryFilterList: {
-    maxHeight: 42,
+    flexGrow: 0,
+    marginBottom: spacing.xs,
   },
   categoryChip: {
     marginRight: spacing.xs,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 36,
+  },
+  categoryChipText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   grid: {
     paddingHorizontal: spacing.xs,
@@ -954,23 +1158,42 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.sm,
     gap: spacing.xxs,
-    minHeight: 168,
+    minHeight: 148,
   },
-  tileBadges: {
+  tileImageWrap: {
+    position: 'relative',
+    width: '100%',
+    marginBottom: spacing.xxs,
+  },
+  tileOverlayTopLeft: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xxs,
-    minHeight: 18,
+    gap: 2,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: radii.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  miniBadge: {
-    fontSize: 13,
+  tileOverlayTopRight: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    borderRadius: radii.pill,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  tileOverlayIcon: {
+    color: Colors.white,
+    fontSize: 11,
     fontWeight: '700',
   },
-  promoBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
+  tilePromoText: {
+    color: Colors.white,
+    fontSize: 10,
+    fontWeight: '700',
   },
   tileCategoryLine: {
     flexDirection: 'row',
@@ -984,7 +1207,7 @@ const styles = StyleSheet.create({
   },
   tileImage: {
     width: '100%',
-    height: 64,
+    height: 56,
     borderRadius: radii.sm,
   },
   tilePlaceholder: {
@@ -997,6 +1220,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.xs,
+  },
+  tileStock: {
+    fontSize: 10,
+    lineHeight: 14,
   },
   cartPane: {
     flex: 1,
@@ -1036,6 +1263,22 @@ const styles = StyleSheet.create({
   discountPresetChip: {
     marginRight: spacing.xs,
     marginBottom: spacing.xs,
+  },
+  discountDialogScroll: {
+    maxHeight: 420,
+    paddingHorizontal: 0,
+  },
+  linePicker: {
+    gap: spacing.xs,
+  },
+  linePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   totalRow: {
     flexDirection: 'row',

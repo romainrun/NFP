@@ -268,6 +268,40 @@ export class SqliteCartRepository implements ICartRepository {
     return this.setLineQuantity(lineId, 0);
   }
 
+  async setLineDiscountBps(
+    lineId: string,
+    discountBps: number,
+  ): Promise<Result<Cart>> {
+    if (!Number.isFinite(discountBps) || discountBps < 0 || discountBps > 10_000) {
+      return err(AppError.validation('Remise invalide'));
+    }
+
+    try {
+      const line = await this.db.getFirstAsync<{ cart_id: string }>(
+        `SELECT cart_id FROM cart_lines WHERE id = ?`,
+        lineId,
+      );
+      if (!line) return err(AppError.notFound('Ligne panier introuvable'));
+
+      await withWriteTransaction(this.db, async (txn) => {
+        await txn.runAsync(
+          `UPDATE cart_lines SET discount_bps = ? WHERE id = ?`,
+          Math.round(discountBps),
+          lineId,
+        );
+        await txn.runAsync(
+          `UPDATE cart SET updated_at = ? WHERE id = ?`,
+          new Date().toISOString(),
+          line.cart_id,
+        );
+      });
+
+      return this.hydrate(line.cart_id);
+    } catch (cause) {
+      return err(AppError.database('Impossible d’appliquer la remise sur l’article', cause));
+    }
+  }
+
   async setGlobalDiscountBps(
     cartId: string,
     discountBps: number,
