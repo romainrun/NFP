@@ -6,7 +6,6 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Vibration,
   View,
 } from 'react-native';
 import {
@@ -39,6 +38,7 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
+import { vibrateScan, vibrateSuccess, vibrateTap } from '@/shared/utils/haptics';
 import { formatMoney } from '@/shared/utils/money';
 import { Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
@@ -123,6 +123,7 @@ export function PosScreen() {
     },
     onSuccess: async (cart) => {
       queryClient.setQueryData(['cart', userId], cart);
+      vibrateTap();
       setSnack('Article ajouté');
     },
     onError: (error: Error) => setSnack(error.message),
@@ -177,6 +178,7 @@ export function PosScreen() {
     onSuccess: async (cart) => {
       queryClient.setQueryData(['cart', userId], cart);
       setManualCode('');
+      vibrateSuccess();
       setSnack('Article scanné');
     },
     onError: (error: Error, code) => {
@@ -191,7 +193,7 @@ export function PosScreen() {
   const scanBarcode = (rawCode: string) => {
     const code = rawCode.trim();
     if (!code) return;
-    Vibration.vibrate(80);
+    vibrateScan();
     barcodeMutation.mutate(code);
   };
 
@@ -460,7 +462,13 @@ export function PosScreen() {
         }}
       />
 
-      <Snackbar visible={Boolean(snack)} onDismiss={() => setSnack(null)} duration={1800}>
+      <Snackbar
+        visible={Boolean(snack)}
+        onDismiss={() => setSnack(null)}
+        duration={2600}
+        action={{ label: 'OK', onPress: () => setSnack(null) }}
+        wrapperStyle={styles.snackbarWrapper}
+      >
         {snack}
       </Snackbar>
 
@@ -747,5 +755,8 @@ const styles = StyleSheet.create({
   associationSearch: {
     elevation: 0,
     borderRadius: radii.input,
+  },
+  snackbarWrapper: {
+    bottom: 96,
   },
 });

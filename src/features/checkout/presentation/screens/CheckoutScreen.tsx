@@ -24,6 +24,7 @@ import {
 import type { AppStackParamList } from '@/navigation/types';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { vibrateSuccess, vibrateTap } from '@/shared/utils/haptics';
 import { eurosToCents, formatMoney, parseEurosInput } from '@/shared/utils/money';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
@@ -85,6 +86,7 @@ export function CheckoutScreen({ navigation }: Props) {
       return result.value;
     },
     onSuccess: async (sale) => {
+      vibrateSuccess();
       await queryClient.invalidateQueries({ queryKey: ['cart', userId] });
       await queryClient.invalidateQueries({ queryKey: ['products'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -144,7 +146,10 @@ export function CheckoutScreen({ navigation }: Props) {
             return (
               <Pressable
                 key={value}
-                onPress={() => setMethod(value)}
+                onPress={() => {
+                  vibrateTap();
+                  setMethod(value);
+                }}
                 style={[
                   styles.methodTile,
                   shadows.sm,
@@ -229,6 +234,7 @@ export function CheckoutScreen({ navigation }: Props) {
           labelStyle={typography.button}
           onPress={() => {
             setError(null);
+            vibrateTap();
             payMutation.mutate();
           }}
         >
