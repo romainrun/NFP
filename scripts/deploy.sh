@@ -102,9 +102,11 @@ sync_repository() {
 install_dependencies() {
   cd "$APP_DIR"
 
-  log "Installing dependencies (npm install — keeps node_modules, no cache clear)"
+  log "Installing dependencies (npm install --legacy-peer-deps — keeps node_modules)"
   # Do not restart Metro if this fails.
-  if ! npm install --no-audit --no-fund; then
+  # --legacy-peer-deps: Expo/RN peer ranges conflict under npm 10+ (e.g. react 19.1 vs jest tooling).
+  # .npmrc also sets legacy-peer-deps=true; flag kept explicit for older checkouts.
+  if ! npm install --legacy-peer-deps --no-audit --no-fund; then
     fail "npm install failed — Metro left running with previous build"
   fi
 }

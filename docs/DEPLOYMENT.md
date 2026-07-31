@@ -132,7 +132,7 @@ pm2 save
 |------|----------|
 | Trigger | `push` to `main` (also manual `workflow_dispatch`) |
 | Sync | `git fetch` + `git reset --hard origin/main` |
-| Install | `npm install` only (keeps `node_modules`, no cache wipe) |
+| Install | `npm install --legacy-peer-deps` (keeps `node_modules`, no cache wipe; see `.npmrc`) |
 | Process | PM2 app `nfp-metro` created or restarted |
 | Metro | `npx expo start --dev-client --host lan --port 2000 --clear=false` |
 | Safety | Failed `git` / `npm install` → **Metro not restarted** |
@@ -232,7 +232,7 @@ Do **not** clear `node_modules` on every normal deploy — only when changing No
 | Symptom | Check |
 |---------|--------|
 | Actions SSH failure | Secrets `HOST` / `PORT` / `USERNAME` / `SSH_KEY`; `authorized_keys` |
-| `npm install` fails | Disk space, Node version, registry connectivity — Metro kept alive |
+| `npm install` fails | Disk space, Node version, registry / peer deps — Metro kept alive. Repo uses `.npmrc` `legacy-peer-deps=true` |
 | Health check fails | `pm2 logs nfp-metro`; port 2000 free; `curl -v localhost:2000` |
 | Phone cannot connect | Firewall / security group; use VPN; confirm `--host lan` |
 | After reboot Metro missing | Re-run `pm2 startup` + `pm2 save` |
