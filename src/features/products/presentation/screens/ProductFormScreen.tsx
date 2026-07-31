@@ -265,6 +265,11 @@ export function ProductFormScreen({ navigation, route }: Props) {
     categoriesQuery.data?.find((c) => c.id === watch('categoryId'))?.name ??
     'Sans catégorie';
 
+  const submitProduct = handleSubmit((values) => {
+    setFormError(null);
+    saveMutation.mutate(values);
+  });
+
   if (isEdit && productQuery.isLoading) {
     return <LoadingOverlay label="Chargement de l’article…" />;
   }
@@ -276,6 +281,16 @@ export function ProductFormScreen({ navigation, route }: Props) {
         <Text style={[typography.h2, { color: theme.colors.onSurface, flex: 1 }]}>
           {isEdit ? 'Modifier l’article' : 'Nouvel article'}
         </Text>
+        {canManage ? (
+          <Button
+            mode="contained"
+            compact
+            loading={isSubmitting || saveMutation.isPending}
+            onPress={submitProduct}
+          >
+            Enregistrer
+          </Button>
+        ) : null}
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -539,10 +554,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
             <Button
               mode="contained"
               loading={isSubmitting || saveMutation.isPending}
-              onPress={handleSubmit((values) => {
-                setFormError(null);
-                saveMutation.mutate(values);
-              })}
+              onPress={submitProduct}
             >
               Enregistrer
             </Button>

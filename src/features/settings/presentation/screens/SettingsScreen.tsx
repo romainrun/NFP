@@ -203,7 +203,21 @@ export function SettingsScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.content}>
-        <AppHeader title="Paramètres" subtitle="Magasin et horaires d’ouverture" />
+        <AppHeader
+          title="Paramètres"
+          subtitle="Magasin et horaires d’ouverture"
+          right={
+            <Button
+              mode="contained"
+              compact
+              buttonColor={Colors.primary}
+              loading={saveMutation.isPending}
+              onPress={() => saveMutation.mutate()}
+            >
+              Enregistrer
+            </Button>
+          }
+        />
 
         <Text style={[typography.h3, { color: theme.colors.onSurface }]}>Magasin</Text>
         <TextInput
