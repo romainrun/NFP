@@ -36,29 +36,32 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
 }
 
-# Non-interactive SSH sessions often skip .bashrc.
-# Load common Node/PM2 locations used on VPS images.
+# Non-interactive SSH sessions often skip .bashrc / nvm.
+# Rebuild PATH from known Node install locations without sourcing profiles.
 load_runtime_path() {
   export PATH="/usr/local/bin:/usr/bin:$HOME/.local/bin:$PATH"
 
-  # nvm
   if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
     # shellcheck disable=SC1091
-    . "$HOME/.nvm/nvm.sh"
+    . "$HOME/.nvm/nvm.sh" >/dev/null 2>&1 || true
   fi
 
-  # fnm
-  if [[ -s "$HOME/.local/share/fnm/fnm" ]] || command -v fnm >/dev/null 2>&1; then
-    eval "$(fnm env --shell bash 2>/dev/null)" || true
+  if [[ -d "$HOME/.nvm/versions/node" ]]; then
+    local latest_nvm_bin
+    latest_nvm_bin="$(ls -1d "$HOME/.nvm/versions/node"/*/bin 2>/dev/null | tail -n 1 || true)"
+    [[ -n "${latest_nvm_bin}" ]] && export PATH="${latest_nvm_bin}:$PATH"
   fi
 
-  # Login profiles (ignore interactive-only failures)
-  [[ -f /etc/profile ]] && . /etc/profile 2>/dev/null || true
-  [[ -f "$HOME/.profile" ]] && . "$HOME/.profile" 2>/dev/null || true
-  [[ -f "$HOME/.bash_profile" ]] && . "$HOME/.bash_profile" 2>/dev/null || true
-  [[ -f "$HOME/.bashrc" ]] && . "$HOME/.bashrc" 2>/dev/null || true
+  # Common global npm prefixes (where `npm i -g pm2` lands)
+  for candidate in \
+    "$HOME/.npm-global/bin" \
+    "$HOME/.local/share/npm/bin" \
+    /usr/lib/node_modules/npm/bin \
+    /usr/local/lib/node_modules/npm/bin
+  do
+    [[ -d "$candidate" ]] && export PATH="$candidate:$PATH"
+  done
 
-  # Global npm prefix bins (pm2, expo often land here)
   if command -v npm >/dev/null 2>&1; then
     local npm_bin
     npm_bin="$(npm bin -g 2>/dev/null || true)"

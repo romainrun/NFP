@@ -106,10 +106,13 @@ jobs:
             git reset --hard "origin/${BRANCH}"
 
             chmod +x scripts/deploy.sh
-            # Login shell so PATH matches an interactive SSH session (nvm/npm/pm2).
-            bash -lc "cd \"$APP_DIR\" && \
-              APP_DIR=\"$APP_DIR\" LOG_DIR=\"$LOG_DIR\" REPO_URL=\"$REPO_URL\" BRANCH=\"$BRANCH\" \
-              bash scripts/deploy.sh"
+            echo "[gha] preflight PATH tools:"
+            command -v node || true
+            command -v npm || true
+            command -v pm2 || true
+            command -v npx || true
+            APP_DIR="$APP_DIR" LOG_DIR="$LOG_DIR" REPO_URL="$REPO_URL" BRANCH="$BRANCH" \
+              bash scripts/deploy.sh
         env:
           REPO_URL: https://github.com/romainrun/NFP.git
           BRANCH: main
