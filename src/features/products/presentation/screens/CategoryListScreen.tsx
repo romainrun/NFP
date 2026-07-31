@@ -15,6 +15,7 @@ import { TOKENS } from '@/core/di/tokens';
 import type { ICategoryRepository } from '@/features/products/data/CategoryRepository';
 import type { Category } from '@/features/products/domain/types';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
+import { CategoryColorPicker } from '@/features/products/presentation/components/CategoryColorPicker';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
@@ -219,13 +220,7 @@ export function CategoryListScreen() {
               onChangeText={setName}
               mode="outlined"
             />
-            <TextInput
-              label="Couleur (#hex)"
-              value={color}
-              onChangeText={setColor}
-              autoCapitalize="characters"
-              mode="outlined"
-            />
+            <CategoryColorPicker value={color} onChange={setColor} />
             {error ? (
               <HelperText type="error" visible>
                 {error}
