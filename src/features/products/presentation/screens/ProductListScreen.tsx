@@ -21,8 +21,8 @@ import { ProductListItem } from '@/features/products/presentation/components/Pro
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
 import type { AppStackParamList, MainParamList } from '@/navigation/types';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { ProductListSkeleton } from '@/shared/components/skeletons';
 import { eurosToCents, parseEurosInput } from '@/shared/utils/money';
 import { Colors } from '@/shared/theme/colors';
 import { spacing } from '@/shared/theme/spacing';
@@ -239,7 +239,11 @@ export function ProductListScreen() {
   }, [search]);
 
   if (productsQuery.isLoading && !productsQuery.data) {
-    return <LoadingOverlay label="Chargement du catalogue…" />;
+    return (
+      <Screen padded={false}>
+        <ProductListSkeleton />
+      </Screen>
+    );
   }
 
   return (

@@ -7,8 +7,8 @@ import { TOKENS } from '@/core/di/tokens';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { CashClosingSkeleton } from '@/shared/components/skeletons';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -33,7 +33,11 @@ export function CashClosingScreen() {
   });
 
   if (historyQuery.isLoading && !historyQuery.data) {
-    return <LoadingOverlay label="Préparation de la clôture…" />;
+    return (
+      <Screen padded={false}>
+        <CashClosingSkeleton />
+      </Screen>
+    );
   }
 
   const snapshot = historyQuery.data;

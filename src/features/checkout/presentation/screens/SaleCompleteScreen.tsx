@@ -9,8 +9,8 @@ import type { IOrderRepository } from '@/features/checkout/data/OrderRepository'
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
 import type { AppStackParamList } from '@/navigation/types';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { ReceiptSkeleton } from '@/shared/components/skeletons';
 import { formatMoney } from '@/shared/utils/money';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -42,7 +42,11 @@ export function SaleCompleteScreen({ navigation, route }: Props) {
   });
 
   if (orderQuery.isLoading || !orderQuery.data) {
-    return <LoadingOverlay label="Préparation du ticket…" />;
+    return (
+      <Screen padded={false}>
+        <ReceiptSkeleton />
+      </Screen>
+    );
   }
 
   const order = orderQuery.data;

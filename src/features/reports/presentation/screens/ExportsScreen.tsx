@@ -7,8 +7,8 @@ import type { IOrderRepository } from '@/features/checkout/data/OrderRepository'
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { ExportsSkeleton } from '@/shared/components/skeletons';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -49,7 +49,11 @@ export function ExportsScreen() {
   });
 
   if ((productsQuery.isLoading || salesQuery.isLoading) && !productsQuery.data) {
-    return <LoadingOverlay label="Préparation des exports…" />;
+    return (
+      <Screen padded={false}>
+        <ExportsSkeleton />
+      </Screen>
+    );
   }
 
   const shareText = async (title: string, message: string) => {

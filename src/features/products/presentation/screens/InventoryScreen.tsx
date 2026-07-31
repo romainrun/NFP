@@ -8,8 +8,8 @@ import type { IProductRepository } from '@/features/products/data/ProductReposit
 import type { Product, StockAdjustmentType } from '@/features/products/domain/types';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { ProductListSkeleton } from '@/shared/components/skeletons';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -61,7 +61,11 @@ export function InventoryScreen() {
   });
 
   if (productsQuery.isLoading && !productsQuery.data) {
-    return <LoadingOverlay label="Chargement de l’inventaire…" />;
+    return (
+      <Screen padded={false}>
+        <ProductListSkeleton count={5} />
+      </Screen>
+    );
   }
 
   return (

@@ -40,7 +40,7 @@ import { isPromotionRuleActive } from '@/features/promotions/domain/types';
 import type { AppStackParamList, MainParamList } from '@/navigation/types';
 import { AnimatedPressable } from '@/shared/components/AnimatedPressable';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
+import { PosSkeleton } from '@/shared/components/skeletons';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
 import { vibrateScan, vibrateSuccess, vibrateTap } from '@/shared/utils/haptics';
@@ -360,7 +360,11 @@ export function PosScreen() {
   }
 
   if (cartQuery.isLoading || !cartQuery.data) {
-    return <LoadingOverlay label="Ouverture de la caisse…" />;
+    return (
+      <Screen padded={false}>
+        <PosSkeleton splitLayout={useSplitLayout} />
+      </Screen>
+    );
   }
 
   const cart = cartQuery.data;

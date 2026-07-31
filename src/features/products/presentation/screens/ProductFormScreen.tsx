@@ -26,8 +26,8 @@ import { VAT_RATES } from '@/features/products/domain/types';
 import { ProductImageField } from '@/features/products/presentation/components/ProductImageField';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
 import type { AppStackParamList } from '@/navigation/types';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { ProductFormSkeleton } from '@/shared/components/skeletons';
 import { centsToEuros, eurosToCents, formatMoney, parseEurosInput } from '@/shared/utils/money';
 import { spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -282,7 +282,11 @@ export function ProductFormScreen({ navigation, route }: Props) {
   });
 
   if (isEdit && productQuery.isLoading) {
-    return <LoadingOverlay label="Chargement de l’article…" />;
+    return (
+      <Screen padded={false}>
+        <ProductFormSkeleton />
+      </Screen>
+    );
   }
 
   return (

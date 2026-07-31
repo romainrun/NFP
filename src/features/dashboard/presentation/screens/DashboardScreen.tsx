@@ -18,8 +18,8 @@ import {
 } from '@/features/settings/domain/types';
 import type { MainParamList } from '@/navigation/types';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { DashboardSkeleton } from '@/shared/components/skeletons';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
 import { brandGradient, Colors, darkColors, lightColors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
@@ -55,7 +55,11 @@ export function DashboardScreen() {
   });
 
   if (snapshotQuery.isLoading || !snapshotQuery.data) {
-    return <LoadingOverlay label="Préparation du tableau de bord…" />;
+    return (
+      <Screen padded={false}>
+        <DashboardSkeleton />
+      </Screen>
+    );
   }
 
   const snapshot = snapshotQuery.data;

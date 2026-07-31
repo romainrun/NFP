@@ -13,8 +13,8 @@ import type { ProductPromotionRule } from '@/features/promotions/domain/types';
 import { normalizeDiscountBps } from '@/features/promotions/domain/types';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { DatePickerField } from '@/shared/components/DatePickerField';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { ProductListSkeleton } from '@/shared/components/skeletons';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -104,7 +104,11 @@ export function PromotionListScreen() {
   });
 
   if ((productsQuery.isLoading || rulesQuery.isLoading) && !productsQuery.data) {
-    return <LoadingOverlay label="Chargement des promotions…" />;
+    return (
+      <Screen padded={false}>
+        <ProductListSkeleton />
+      </Screen>
+    );
   }
 
   return (

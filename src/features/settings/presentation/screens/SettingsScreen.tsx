@@ -35,8 +35,8 @@ import {
 } from '@/features/settings/domain/types';
 import { useSettingsStore } from '@/features/settings/presentation/store/settingsStore';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { SettingsSkeleton } from '@/shared/components/skeletons';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -205,7 +205,11 @@ export function SettingsScreen() {
   }
 
   if (settingsQuery.isLoading && !settingsQuery.data) {
-    return <LoadingOverlay label="Chargement des paramètres…" />;
+    return (
+      <Screen padded={false}>
+        <SettingsSkeleton />
+      </Screen>
+    );
   }
 
   return (

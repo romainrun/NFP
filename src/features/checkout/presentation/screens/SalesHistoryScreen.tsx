@@ -18,8 +18,8 @@ import type { OrderSummary } from '@/features/checkout/domain/salesHistory';
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { DatePickerField } from '@/shared/components/DatePickerField';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { SalesHistorySkeleton } from '@/shared/components/skeletons';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -61,7 +61,11 @@ export function SalesHistoryScreen() {
   });
 
   if (historyQuery.isLoading && !historyQuery.data) {
-    return <LoadingOverlay label="Chargement de l’historique…" />;
+    return (
+      <Screen padded={false}>
+        <SalesHistorySkeleton />
+      </Screen>
+    );
   }
 
   const snapshot = historyQuery.data;

@@ -10,6 +10,7 @@ import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
+import { ReceiptSkeleton } from '@/shared/components/skeletons';
 import { Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -108,9 +109,7 @@ export function OrderDetailDialog({ orderId, visible, onDismiss }: Props) {
         </Dialog.Title>
         <Dialog.Content style={{ maxHeight: 420 }}>
           {orderQuery.isLoading || !orderQuery.data ? (
-            <Text style={{ color: theme.colors.onSurfaceVariant, paddingVertical: spacing.lg }}>
-              Chargement du ticket…
-            </Text>
+            <ReceiptSkeleton />
           ) : (
             <ScrollView>
               <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>

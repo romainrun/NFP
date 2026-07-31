@@ -23,8 +23,8 @@ import {
 } from '@/features/payments/domain/paymentMethods';
 import type { AppStackParamList } from '@/navigation/types';
 import { AnimatedPressable } from '@/shared/components/AnimatedPressable';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { CheckoutSkeleton } from '@/shared/components/skeletons';
 import { vibrateSuccess, vibrateTap } from '@/shared/utils/haptics';
 import { eurosToCents, formatMoney, parseEurosInput } from '@/shared/utils/money';
 import { Colors, shadows } from '@/shared/theme/colors';
@@ -109,7 +109,11 @@ export function CheckoutScreen({ navigation }: Props) {
   }
 
   if (cartQuery.isLoading || !cartQuery.data) {
-    return <LoadingOverlay label="Préparation de l’encaissement…" />;
+    return (
+      <Screen padded={false}>
+        <CheckoutSkeleton />
+      </Screen>
+    );
   }
 
   if (cartQuery.data.lines.length === 0) {

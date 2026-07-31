@@ -19,8 +19,8 @@ import { hasPermission } from '@/features/authentication/domain/permissions';
 import type { Employee, UserRole } from '@/features/authentication/domain/types';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { MemberListSkeleton } from '@/shared/components/skeletons';
 import type { IAuditService } from '@/shared/services/audit/AuditService';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
@@ -145,7 +145,11 @@ export function MemberListScreen() {
   }
 
   if (membersQuery.isLoading && !membersQuery.data) {
-    return <LoadingOverlay label="Chargement des membres…" />;
+    return (
+      <Screen padded={false}>
+        <MemberListSkeleton />
+      </Screen>
+    );
   }
 
   return (

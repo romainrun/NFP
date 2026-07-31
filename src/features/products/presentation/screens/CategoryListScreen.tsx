@@ -16,8 +16,8 @@ import type { ICategoryRepository } from '@/features/products/data/CategoryRepos
 import type { Category } from '@/features/products/domain/types';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
 import { AppHeader } from '@/shared/components/AppHeader';
-import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
+import { CategoryListSkeleton } from '@/shared/components/skeletons';
 import type { IAuditService } from '@/shared/services/audit/AuditService';
 import { Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
@@ -123,7 +123,11 @@ export function CategoryListScreen() {
   });
 
   if (categoriesQuery.isLoading && !categoriesQuery.data) {
-    return <LoadingOverlay label="Chargement des catégories…" />;
+    return (
+      <Screen padded={false}>
+        <CategoryListSkeleton />
+      </Screen>
+    );
   }
 
   return (

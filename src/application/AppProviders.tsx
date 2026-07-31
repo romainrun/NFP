@@ -72,6 +72,7 @@ export function AppProviders({ children }: Props) {
     return (
       <LoadingOverlay
         label={`Erreur: ${bootError ?? fontError?.message ?? 'Police'}`}
+        variant="minimal"
       />
     );
   }
