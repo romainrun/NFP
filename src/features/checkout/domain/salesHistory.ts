@@ -18,6 +18,12 @@ export type HourlySalesBucket = {
   totalCents: number;
 };
 
+export type PaymentBreakdown = {
+  method: string;
+  totalCents: number;
+  orderCount: number;
+};
+
 export type SalesHistoryQuery = {
   fromIso: string;
   toIso: string;
@@ -32,5 +38,6 @@ export type SalesHistorySnapshot = {
   discountCents: number;
   averageTicketCents: number;
   hourly: HourlySalesBucket[];
+  paymentBreakdown: PaymentBreakdown[];
   orders: OrderSummary[];
 };

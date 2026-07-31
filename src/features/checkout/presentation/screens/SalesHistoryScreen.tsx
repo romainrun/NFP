@@ -122,6 +122,23 @@ export function SalesHistoryScreen() {
           <SummaryTile label="TVA" value={formatMoney(snapshot?.vatCents ?? 0)} />
         </View>
 
+        {(snapshot?.paymentBreakdown.length ?? 0) > 0 ? (
+          <>
+            <Text style={[typography.h3, { color: Colors.text }]}>
+              Par moyen de paiement
+            </Text>
+            <View style={styles.summaryRow}>
+              {snapshot?.paymentBreakdown.map((payment) => (
+                <SummaryTile
+                  key={payment.method}
+                  label={`${paymentMethodLabel(payment.method)} · ${payment.orderCount}`}
+                  value={formatMoney(payment.totalCents)}
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
+
         <Text style={[typography.h3, { color: Colors.text }]}>Par heure</Text>
         <View style={styles.hourlyWrap}>
           {(snapshot?.hourly ?? []).map((bucket) => {

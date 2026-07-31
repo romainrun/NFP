@@ -1,10 +1,12 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, Portal, Text, useTheme } from 'react-native-paper';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
+import { hasPermission } from '@/features/authentication/domain/permissions';
+import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import { Colors } from '@/shared/theme/colors';
@@ -20,6 +22,11 @@ type Props = {
 
 export function OrderDetailDialog({ orderId, visible, onDismiss }: Props) {
   const theme = useTheme();
+  const queryClient = useQueryClient();
+  const { session } = useAuth();
+  const canVoid = Boolean(
+    session && hasPermission(session.employee.role, 'sales.void'),
+  );
 
   const orderQuery = useQuery({
     queryKey: ['orders', orderId],
@@ -30,6 +37,24 @@ export function OrderDetailDialog({ orderId, visible, onDismiss }: Props) {
       if (!result.ok) throw result.error;
       return result.value;
     },
+  });
+
+  const voidMutation = useMutation({
+    mutationFn: async () => {
+      if (!orderId || !session) throw new Error('Session invalide');
+      const repo = container.resolve<IOrderRepository>(TOKENS.OrderRepository);
+      const result = await repo.voidOrder(orderId, session.employee.id);
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['orders', orderId] });
+      await queryClient.invalidateQueries({ queryKey: ['sales-history'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      await queryClient.invalidateQueries({ queryKey: ['products'] });
+      onDismiss();
+    },
+    onError: (error: Error) => Alert.alert('Erreur', error.message),
   });
 
   return (
@@ -91,6 +116,28 @@ export function OrderDetailDialog({ orderId, visible, onDismiss }: Props) {
           )}
         </Dialog.Content>
         <Dialog.Actions>
+          {canVoid && orderQuery.data?.status === 'completed' ? (
+            <Button
+              textColor={theme.colors.error}
+              loading={voidMutation.isPending}
+              onPress={() =>
+                Alert.alert(
+                  'Annuler le ticket',
+                  'Cette action annule le ticket et remet les articles en stock.',
+                  [
+                    { text: 'Retour', style: 'cancel' },
+                    {
+                      text: 'Annuler le ticket',
+                      style: 'destructive',
+                      onPress: () => voidMutation.mutate(),
+                    },
+                  ],
+                )
+              }
+            >
+              Annuler
+            </Button>
+          ) : null}
           <Button onPress={onDismiss} textColor={Colors.primary}>
             Fermer
           </Button>

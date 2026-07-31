@@ -4,6 +4,7 @@ import { useTheme } from 'react-native-paper';
 import { MemberListScreen } from '@/features/authentication/presentation/screens/MemberListScreen';
 import { PosScreen } from '@/features/cart/presentation/screens/PosScreen';
 import { SalesHistoryScreen } from '@/features/checkout/presentation/screens/SalesHistoryScreen';
+import { CashClosingScreen } from '@/features/checkout/presentation/screens/CashClosingScreen';
 import { DashboardScreen } from '@/features/dashboard/presentation/screens/DashboardScreen';
 import { CategoryListScreen } from '@/features/products/presentation/screens/CategoryListScreen';
 import { ProductListScreen } from '@/features/products/presentation/screens/ProductListScreen';
@@ -40,6 +41,7 @@ export function MainDrawer() {
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
         <Stack.Screen name="Pos" component={PosScreen} />
         <Stack.Screen name="SalesHistory" component={SalesHistoryScreen} />
+        <Stack.Screen name="CashClosing" component={CashClosingScreen} />
         <Stack.Screen name="ProductList" component={ProductListScreen} />
         <Stack.Screen name="CategoryList" component={CategoryListScreen} />
         <Stack.Screen name="Members" component={MemberListScreen} />

@@ -12,6 +12,7 @@ import type { IOrderRepository } from '@/features/checkout/data/OrderRepository'
 import type {
   HourlySalesBucket,
   OrderSummary,
+  PaymentBreakdown,
   SalesHistoryQuery,
   SalesHistorySnapshot,
 } from '@/features/checkout/domain/salesHistory';
@@ -357,6 +358,70 @@ export class SqliteOrderRepository implements IOrderRepository {
     }
   }
 
+  async voidOrder(
+    orderId: string,
+    userId: string,
+    reason = 'Annulation ticket',
+  ): Promise<Result<Order>> {
+    const current = await this.getById(orderId);
+    if (!current.ok) return current;
+    if (current.value.status === 'voided') {
+      return err(AppError.validation('Ce ticket est déjà annulé'));
+    }
+
+    const now = new Date().toISOString();
+
+    try {
+      await withWriteTransaction(this.db, async (txn) => {
+        await txn.runAsync(
+          `UPDATE orders SET status = 'voided' WHERE id = ?`,
+          orderId,
+        );
+
+        for (const line of current.value.lines) {
+          if (!line.productId) continue;
+          await txn.runAsync(
+            `UPDATE products
+             SET stock_quantity = stock_quantity + ?, updated_at = ?
+             WHERE id = ?`,
+            line.quantity,
+            now,
+            line.productId,
+          );
+          await txn.runAsync(
+            `INSERT INTO inventory_movements (
+              id, product_id, user_id, type, quantity, reason, created_at
+            ) VALUES (?, ?, ?, 'adjustment', ?, ?, ?)`,
+            Crypto.randomUUID(),
+            line.productId,
+            userId,
+            line.quantity,
+            `Annulation ticket #${current.value.receiptNumber}`,
+            now,
+          );
+        }
+      });
+
+      await this.audit.log({
+        userId,
+        action: 'void',
+        entityType: 'order',
+        entityId: orderId,
+        payload: {
+          receiptNumber: current.value.receiptNumber,
+          totalCents: current.value.totalCents,
+          reason,
+        },
+      });
+
+      const updated = await this.getById(orderId);
+      if (!updated.ok) return updated;
+      return ok(updated.value);
+    } catch (cause) {
+      return err(AppError.database('Impossible d’annuler le ticket', cause));
+    }
+  }
+
   async getSalesHistory(
     query: SalesHistoryQuery,
   ): Promise<Result<SalesHistorySnapshot>> {
@@ -426,6 +491,32 @@ export class SqliteOrderRepository implements IOrderRepository {
         }
       }
 
+      const paymentRows = await this.db.getAllAsync<{
+        method: string;
+        total_cents: number;
+        order_count: number;
+      }>(
+        `SELECT
+           p.method,
+           COALESCE(SUM(p.amount_cents), 0) AS total_cents,
+           COUNT(DISTINCT p.order_id) AS order_count
+         FROM payments p
+         INNER JOIN orders o ON o.id = p.order_id
+         WHERE o.status = 'completed'
+           AND o.created_at >= ?
+           AND o.created_at < ?
+         GROUP BY p.method
+         ORDER BY total_cents DESC`,
+        query.fromIso,
+        query.toIso,
+      );
+
+      const paymentBreakdown: PaymentBreakdown[] = paymentRows.map((row) => ({
+        method: row.method,
+        totalCents: row.total_cents,
+        orderCount: row.order_count,
+      }));
+
       const orderCount = orders.length;
       return ok({
         fromIso: query.fromIso,
@@ -436,6 +527,7 @@ export class SqliteOrderRepository implements IOrderRepository {
         discountCents,
         averageTicketCents: orderCount ? Math.round(totalCents / orderCount) : 0,
         hourly: Array.from(hourlyMap.values()),
+        paymentBreakdown,
         orders,
       });
     } catch (cause) {

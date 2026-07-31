@@ -40,7 +40,7 @@ import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
 import { vibrateScan, vibrateSuccess, vibrateTap } from '@/shared/utils/haptics';
-import { formatMoney } from '@/shared/utils/money';
+import { eurosToCents, formatMoney, parseEurosInput } from '@/shared/utils/money';
 import { Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -67,6 +67,9 @@ export function PosScreen() {
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
   const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null);
   const [associationSearch, setAssociationSearch] = useState('');
+  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
+  const [discountMode, setDiscountMode] = useState<'percent' | 'amount'>('percent');
+  const [discountValue, setDiscountValue] = useState('');
 
   const cartQuery = useQuery({
     queryKey: ['cart', userId],
@@ -217,6 +220,60 @@ export function PosScreen() {
       return result.value;
     },
     onSuccess: (cart) => queryClient.setQueryData(['cart', userId], cart),
+  });
+
+  const discountMutation = useMutation({
+    mutationFn: async () => {
+      if (!cartQuery.data) throw new Error('Panier introuvable');
+      if (cartQuery.data.subtotalCents <= 0) throw new Error('Panier vide');
+      const repo = container.resolve<ICartRepository>(TOKENS.CartRepository);
+      let discountBps = 0;
+
+      if (discountMode === 'percent') {
+        const percent = Number(discountValue.trim().replace(',', '.'));
+        if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+          throw new Error('Pourcentage invalide');
+        }
+        discountBps = Math.round(percent * 100);
+      } else {
+        const euros = parseEurosInput(discountValue);
+        if (euros == null) throw new Error('Montant invalide');
+        const cents = eurosToCents(euros);
+        if (cents < 0 || cents > cartQuery.data.subtotalCents) {
+          throw new Error('Montant de remise invalide');
+        }
+        discountBps = Math.round((cents / cartQuery.data.subtotalCents) * 10_000);
+      }
+
+      const result = await repo.setGlobalDiscountBps(
+        cartQuery.data.id,
+        Math.min(10_000, Math.max(0, discountBps)),
+      );
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+    onSuccess: (cart) => {
+      queryClient.setQueryData(['cart', userId], cart);
+      setDiscountDialogOpen(false);
+      setDiscountValue('');
+      setSnack(cart.discountCents > 0 ? 'Remise appliquée' : 'Remise retirée');
+    },
+    onError: (error: Error) => setSnack(error.message),
+  });
+
+  const clearDiscountMutation = useMutation({
+    mutationFn: async () => {
+      if (!cartQuery.data) throw new Error('Panier introuvable');
+      const repo = container.resolve<ICartRepository>(TOKENS.CartRepository);
+      const result = await repo.setGlobalDiscountBps(cartQuery.data.id, 0);
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+    onSuccess: (cart) => {
+      queryClient.setQueryData(['cart', userId], cart);
+      setSnack('Remise retirée');
+    },
+    onError: (error: Error) => setSnack(error.message),
   });
 
   const gridProducts = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
@@ -378,6 +435,9 @@ export function PosScreen() {
             onIncrement={() =>
               qtyMutation.mutate({ lineId: item.id, quantity: item.quantity + 1 })
             }
+            onIncrementFast={() =>
+              qtyMutation.mutate({ lineId: item.id, quantity: item.quantity + 5 })
+            }
             onDecrement={() =>
               qtyMutation.mutate({ lineId: item.id, quantity: item.quantity - 1 })
             }
@@ -387,6 +447,21 @@ export function PosScreen() {
       />
 
       <View style={styles.totals}>
+        <View style={styles.discountActions}>
+          <Button compact mode="outlined" onPress={() => setDiscountDialogOpen(true)}>
+            Remise
+          </Button>
+          {cart.discountCents > 0 ? (
+            <Button
+              compact
+              textColor={theme.colors.error}
+              loading={clearDiscountMutation.isPending}
+              onPress={() => clearDiscountMutation.mutate()}
+            >
+              Retirer
+            </Button>
+          ) : null}
+        </View>
         <TotalRow label="Sous-total" value={formatMoney(cart.subtotalCents)} />
         {cart.discountCents > 0 ? (
           <TotalRow label="Remise" value={`- ${formatMoney(cart.discountCents)}`} />
@@ -475,6 +550,37 @@ export function PosScreen() {
       </Snackbar>
 
       <Portal>
+        <Dialog
+          visible={discountDialogOpen}
+          onDismiss={() => setDiscountDialogOpen(false)}
+        >
+          <Dialog.Title>Remise panier</Dialog.Title>
+          <Dialog.Content style={{ gap: spacing.sm }}>
+            <SegmentedButtons
+              value={discountMode}
+              onValueChange={(value) => setDiscountMode(value as 'percent' | 'amount')}
+              buttons={[
+                { value: 'percent', label: '%' },
+                { value: 'amount', label: '€' },
+              ]}
+            />
+            <TextInput
+              mode="outlined"
+              label={discountMode === 'percent' ? 'Remise (%)' : 'Remise (€)'}
+              value={discountValue}
+              onChangeText={setDiscountValue}
+              keyboardType="decimal-pad"
+              placeholder={discountMode === 'percent' ? '10' : '5,00'}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDiscountDialogOpen(false)}>Annuler</Button>
+            <Button loading={discountMutation.isPending} onPress={() => discountMutation.mutate()}>
+              Appliquer
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
         <Dialog
           visible={Boolean(unknownBarcode)}
           onDismiss={() => {
@@ -700,6 +806,12 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
+  },
+  discountActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
   },
   totalRow: {
     flexDirection: 'row',

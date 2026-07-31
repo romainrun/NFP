@@ -12,5 +12,6 @@ import type {
 export interface IOrderRepository {
   getById(orderId: string): Promise<Result<Order>>;
   completeSale(input: CompleteSaleInput): Promise<Result<CompleteSaleResult>>;
+  voidOrder(orderId: string, userId: string, reason?: string): Promise<Result<Order>>;
   getSalesHistory(query: SalesHistoryQuery): Promise<Result<SalesHistorySnapshot>>;
 }

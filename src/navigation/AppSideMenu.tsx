@@ -25,6 +25,7 @@ const ITEMS: Item[] = [
   { key: 'dash', label: 'Tableau de bord', icon: 'view-dashboard-outline', route: 'Dashboard', section: 'Accueil' },
   { key: 'pos', label: 'Caisse', icon: 'cash-register', route: 'Pos', section: 'Vente' },
   { key: 'history', label: 'Historique des ventes', icon: 'history', route: 'SalesHistory', section: 'Vente' },
+  { key: 'closing', label: 'Clôture de caisse', icon: 'cash-check', route: 'CashClosing', section: 'Vente' },
   { key: 'products', label: 'Articles', icon: 'barcode', route: 'ProductList', section: 'Catalogue' },
   { key: 'categories', label: 'Catégories', icon: 'shape-outline', route: 'CategoryList', section: 'Catalogue' },
   { key: 'members', label: 'Membres', icon: 'account-group-outline', route: 'Members', section: 'Administration' },
@@ -55,8 +56,12 @@ export function AppSideMenu() {
   const canManageSettings = Boolean(
     session && hasPermission(session.employee.role, 'settings.manage'),
   );
+  const canViewReports = Boolean(
+    session && hasPermission(session.employee.role, 'reports.view'),
+  );
 
   const visible = ITEMS.filter((item) => {
+    if (item.route === 'CashClosing') return canViewReports;
     if (item.route === 'CategoryList') return canManageCatalog;
     if (item.route === 'Members') return canManageUsers;
     if (item.route === 'Settings') return canManageSettings;

@@ -9,6 +9,7 @@ export type MainParamList = {
   Dashboard: undefined;
   Pos: undefined;
   SalesHistory: undefined;
+  CashClosing: undefined;
   ProductList: undefined;
   CategoryList: undefined;
   Members: undefined;

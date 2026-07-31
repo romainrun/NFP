@@ -8,11 +8,18 @@ import { typography } from '@/shared/theme/typography';
 type Props = {
   line: CartLine;
   onIncrement: () => void;
+  onIncrementFast?: () => void;
   onDecrement: () => void;
   onRemove: () => void;
 };
 
-export function CartLineRow({ line, onIncrement, onDecrement, onRemove }: Props) {
+export function CartLineRow({
+  line,
+  onIncrement,
+  onIncrementFast,
+  onDecrement,
+  onRemove,
+}: Props) {
   const theme = useTheme();
 
   return (
@@ -37,6 +44,9 @@ export function CartLineRow({ line, onIncrement, onDecrement, onRemove }: Props)
           {line.quantity}
         </Text>
         <IconButton icon="plus" size={18} onPress={onIncrement} />
+        {onIncrementFast ? (
+          <IconButton icon="plus-box-multiple-outline" size={18} onPress={onIncrementFast} />
+        ) : null}
       </View>
 
       <Text style={[typography.bodyStrong, { color: theme.colors.primary, minWidth: 72, textAlign: 'right' }]}>
