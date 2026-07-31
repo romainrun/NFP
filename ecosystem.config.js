@@ -3,26 +3,39 @@
  *
  * Process name : nfp-metro
  * Bind         : 0.0.0.0:2000
- * Mode         : development (--dev-client), not Expo production hosting
+ * Mode         : development Metro (not Expo production hosting)
  *
- * Paths follow the SSH user home ($HOME/apps/nfp, $HOME/logs/nfp).
+ * Paths follow the SSH user home ($HOME/logs/nfp).
  */
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
 
 const appDir = __dirname;
 const logDir = path.join(os.homedir(), 'logs', 'nfp');
+
+// Prefer the local Expo CLI binary (same pattern as other VPS Expo apps).
+const expoCliCandidates = [
+  path.join(appDir, 'node_modules', 'expo', 'bin', 'cli'),
+  path.join(appDir, 'node_modules', 'expo', 'bin', 'cli.js'),
+];
+const expoCli =
+  expoCliCandidates.find((candidate) => fs.existsSync(candidate)) ||
+  path.join(appDir, 'node_modules', 'expo', 'bin', 'cli');
 
 module.exports = {
   apps: [
     {
       name: 'nfp-metro',
       cwd: appDir,
-      // Shell keeps `npx` resolution identical to a manual SSH session.
-      script: 'bash',
+      script: expoCli,
+      interpreter: 'node',
       args: [
-        '-lc',
-        'npx expo start --dev-client --host 0.0.0.0 --port 2000 --clear=false',
+        'start',
+        '--host',
+        '0.0.0.0',
+        '--port',
+        '2000',
       ],
       instances: 1,
       exec_mode: 'fork',
@@ -36,7 +49,9 @@ module.exports = {
       env: {
         NODE_ENV: 'development',
         EXPO_NO_TELEMETRY: '1',
-        CI: '1',
+        // Keep Metro non-interactive under PM2 (no prompts).
+        CI: 'true',
+        EXPO_NO_DOCTOR: '1',
       },
       out_file: path.join(logDir, 'metro-out.log'),
       error_file: path.join(logDir, 'metro-error.log'),

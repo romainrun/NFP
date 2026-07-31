@@ -126,16 +126,18 @@ start_or_restart_metro() {
     fail "ecosystem.config.js missing after sync"
   fi
 
+  # Align in-memory daemon with local CLI (avoids 6.x daemon vs 7.x CLI drift).
+  log "Updating PM2 in-memory daemon if needed"
+  pm2 update >/dev/null 2>&1 || true
+
   if pm2 describe "$APP_NAME" >/dev/null 2>&1; then
-    log "Restarting existing PM2 process: ${APP_NAME}"
-    # restart keeps the process entry; avoids a gap that would drop Expo clients longer than needed
-    pm2 restart ecosystem.config.js --only "$APP_NAME" --update-env \
-      || fail "pm2 restart failed"
-  else
-    log "Creating PM2 process: ${APP_NAME}"
-    pm2 start ecosystem.config.js --only "$APP_NAME" \
-      || fail "pm2 start failed"
+    log "Deleting stale PM2 process before clean start: ${APP_NAME}"
+    pm2 delete "$APP_NAME" >/dev/null 2>&1 || true
   fi
+
+  log "Starting PM2 process: ${APP_NAME}"
+  pm2 start ecosystem.config.js --only "$APP_NAME" --update-env \
+    || fail "pm2 start failed"
 
   ensure_pm2_startup
   pm2 status "$APP_NAME" || true
