@@ -5,6 +5,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -378,69 +379,68 @@ export function PosScreen() {
         }
       />
 
-      <View style={styles.manualRowTop}>
-        <TextInput
-          mode="outlined"
-          dense
-          label="Code-barres / SKU"
-          value={manualCode}
-          onChangeText={setManualCode}
-          style={{ flex: 1 }}
-          autoCapitalize="characters"
-          onSubmitEditing={() => {
-            scanBarcode(manualCode);
-          }}
-          right={
-            <TextInput.Icon
-              icon="keyboard-return"
-              onPress={() => {
-                scanBarcode(manualCode);
-              }}
-            />
-          }
+      <View style={styles.filterBlock}>
+        <View style={styles.manualRowTop}>
+          <TextInput
+            mode="outlined"
+            dense
+            label="Code-barres / SKU"
+            value={manualCode}
+            onChangeText={setManualCode}
+            style={{ flex: 1 }}
+            autoCapitalize="characters"
+            onSubmitEditing={() => {
+              scanBarcode(manualCode);
+            }}
+            right={
+              <TextInput.Icon
+                icon="keyboard-return"
+                onPress={() => {
+                  scanBarcode(manualCode);
+                }}
+              />
+            }
+          />
+        </View>
+
+        <Searchbar
+          ref={searchRef as never}
+          placeholder="Rechercher un article"
+          value={search}
+          onChangeText={setSearch}
+          style={styles.search}
         />
-      </View>
 
-      <Searchbar
-        ref={searchRef as never}
-        placeholder="Rechercher un article"
-        value={search}
-        onChangeText={setSearch}
-        style={styles.search}
-      />
+        {!search.trim() ? (
+          <SegmentedButtons
+            value={catalogTab}
+            onValueChange={(value) => setCatalogTab(value as CatalogTab)}
+            buttons={[
+              { value: 'top', label: 'Plus vendus', icon: 'fire' },
+              { value: 'favorites', label: 'Favoris', icon: 'star' },
+            ]}
+            style={styles.tabs}
+          />
+        ) : null}
 
-      {!search.trim() ? (
-        <SegmentedButtons
-          value={catalogTab}
-          onValueChange={(value) => setCatalogTab(value as CatalogTab)}
-          buttons={[
-            { value: 'top', label: 'Plus vendus', icon: 'fire' },
-            { value: 'favorites', label: 'Favoris', icon: 'star' },
-          ]}
-          style={styles.tabs}
-        />
-      ) : null}
-
-      <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryFilterList}
-        data={[
-          { id: 'all', label: 'Tous', color: Colors.primary },
-          ...(categoriesQuery.data ?? []).map((category) => ({
-            id: category.id,
-            label: category.name,
-            color: category.color ?? Colors.primary,
-          })),
-        ]}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.categoryChips}
-        renderItem={({ item }) => (
-          (() => {
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryFilterScroll}
+          contentContainerStyle={styles.categoryChips}
+        >
+          {[
+            { id: 'all', label: 'Tous', color: Colors.primary },
+            ...(categoriesQuery.data ?? []).map((category) => ({
+              id: category.id,
+              label: category.name,
+              color: category.color ?? Colors.primary,
+            })),
+          ].map((item) => {
             const selected = item.id === 'all' ? categoryId === null : categoryId === item.id;
             return (
               <Chip
-                compact
+                key={item.id}
                 selected={selected}
                 onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
                 style={[
@@ -450,20 +450,24 @@ export function PosScreen() {
                     backgroundColor: selected ? item.color : 'transparent',
                   },
                 ]}
-                textStyle={{ color: selected ? Colors.white : item.color }}
+                textStyle={[
+                  styles.categoryChipText,
+                  { color: selected ? Colors.white : item.color },
+                ]}
               >
                 {item.label}
               </Chip>
             );
-          })()
-        )}
-      />
+          })}
+        </ScrollView>
+      </View>
 
       <FlatList
         data={gridProducts}
         keyExtractor={(item) => item.id}
         numColumns={useSplitLayout ? 3 : 2}
         key={`${useSplitLayout ? 'tablet' : 'phone'}-${catalogTab}`}
+        style={styles.productGrid}
         contentContainerStyle={styles.grid}
         refreshing={productsQuery.isRefetching}
         onRefresh={() => void productsQuery.refetch()}
@@ -921,6 +925,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   pane: { flex: 1 },
+  filterBlock: {
+    flexShrink: 0,
+  },
   search: {
     marginHorizontal: spacing.sm,
     marginBottom: spacing.xs,
@@ -929,6 +936,7 @@ const styles = StyleSheet.create({
   tabs: {
     marginHorizontal: spacing.sm,
     marginBottom: spacing.xs,
+    minHeight: 44,
   },
   manualRowTop: {
     paddingHorizontal: spacing.sm,
@@ -936,13 +944,26 @@ const styles = StyleSheet.create({
   },
   categoryChips: {
     paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.xs,
+    paddingVertical: spacing.xs,
+    alignItems: 'center',
+    gap: spacing.xs,
   },
-  categoryFilterList: {
-    maxHeight: 42,
+  categoryFilterScroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+    marginBottom: spacing.xs,
   },
   categoryChip: {
     marginRight: spacing.xs,
+    borderWidth: StyleSheet.hairlineWidth,
+    minHeight: 36,
+  },
+  categoryChipText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  productGrid: {
+    flex: 1,
   },
   grid: {
     paddingHorizontal: spacing.xs,
