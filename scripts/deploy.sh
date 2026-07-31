@@ -91,7 +91,10 @@ sync_repository() {
   log "Hard reset to origin/${BRANCH} (detached HEAD safe)"
   git checkout -B "$BRANCH" "origin/${BRANCH}" || fail "git checkout failed — aborting"
   git reset --hard "origin/${BRANCH}" || fail "git reset failed — aborting"
+  # Drop any leftover local edits (e.g. package-lock.json from a previous npm install).
   git clean -fd -e node_modules -e .expo || true
+  git checkout -- package-lock.json package.json 2>/dev/null || true
+  git reset --hard "origin/${BRANCH}" || fail "git reset failed — aborting"
 
   log "Now at $(git rev-parse --short HEAD) — $(git log -1 --pretty=%s)"
 }

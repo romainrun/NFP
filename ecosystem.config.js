@@ -36,7 +36,7 @@ module.exports = {
         METRO_PORT: '2000',
         EXPO_NO_TELEMETRY: '1',
         EXPO_NO_DOCTOR: '1',
-        CI: 'true',
+        CI: '',
       },
       out_file: path.join(logDir, 'metro-out.log'),
       error_file: path.join(logDir, 'metro-error.log'),

@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from 'react-native-paper';
-import { bootstrap } from '@/app/bootstrap';
+import { bootstrap } from '@/application/bootstrap';
 import { AppThemeProvider } from '@/shared/theme/ThemeProvider';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { useAuthStore } from '@/features/authentication/presentation/store/authStore';
