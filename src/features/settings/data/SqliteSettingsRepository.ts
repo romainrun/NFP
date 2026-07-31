@@ -5,12 +5,17 @@ import { AppError } from '@/core/errors/AppError';
 import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
 import type {
   AppSettings,
+  DashboardWidgetId,
+  DashboardWidgetSetting,
   DayOpeningHours,
   StoreOpeningHours,
   ThemePreference,
   Weekday,
 } from '@/features/settings/domain/types';
-import { defaultOpeningHours } from '@/features/settings/domain/types';
+import {
+  defaultDashboardWidgets,
+  defaultOpeningHours,
+} from '@/features/settings/domain/types';
 import { withWriteTransaction } from '@/database/transaction';
 
 const DEFAULTS: AppSettings = {
@@ -18,7 +23,10 @@ const DEFAULTS: AppSettings = {
   themePreference: 'system',
   idleLogoutMinutes: APP_CONFIG.idleLogoutMs / 60_000,
   openingHours: defaultOpeningHours(),
+  dashboardWidgets: defaultDashboardWidgets(),
 };
+
+const DASHBOARD_WIDGET_IDS = defaultDashboardWidgets().map((widget) => widget.id);
 
 function parseOpeningHours(raw: string | undefined): StoreOpeningHours {
   if (!raw) return defaultOpeningHours();
@@ -44,6 +52,27 @@ function parseOpeningHours(raw: string | undefined): StoreOpeningHours {
   }
 }
 
+function parseDashboardWidgets(raw: string | undefined): DashboardWidgetSetting[] {
+  const defaults = defaultDashboardWidgets();
+  if (!raw) return defaults;
+  try {
+    const parsed = JSON.parse(raw) as DashboardWidgetSetting[];
+    if (!Array.isArray(parsed)) return defaults;
+    const enabledById = new Map<DashboardWidgetId, boolean>();
+    for (const widget of parsed) {
+      if (DASHBOARD_WIDGET_IDS.includes(widget.id)) {
+        enabledById.set(widget.id, Boolean(widget.isEnabled));
+      }
+    }
+    return defaults.map((widget) => ({
+      ...widget,
+      isEnabled: enabledById.get(widget.id) ?? widget.isEnabled,
+    }));
+  } catch {
+    return defaults;
+  }
+}
+
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, Math.round(value)));
@@ -55,11 +84,12 @@ export class SqliteSettingsRepository implements ISettingsRepository {
   async getSettings(): Promise<Result<AppSettings>> {
     try {
       const rows = await this.db.getAllAsync<{ key: string; value: string }>(
-        `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?)`,
+        `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?)`,
         'store.name',
         'theme.preference',
         'security.idle_logout_minutes',
         'store.opening_hours',
+        'dashboard.widgets',
       );
 
       const map = new Map(rows.map((r) => [r.key, r.value]));
@@ -73,6 +103,7 @@ export class SqliteSettingsRepository implements ISettingsRepository {
           map.get('security.idle_logout_minutes') ?? DEFAULTS.idleLogoutMinutes,
         ),
         openingHours: parseOpeningHours(map.get('store.opening_hours')),
+        dashboardWidgets: parseDashboardWidgets(map.get('dashboard.widgets')),
       });
     } catch (cause) {
       return err(AppError.database('Unable to load settings', cause));
@@ -108,6 +139,31 @@ export class SqliteSettingsRepository implements ISettingsRepository {
       'store.opening_hours',
       JSON.stringify(hours),
       'Unable to save opening hours',
+    );
+  }
+
+  async setDashboardWidgets(
+    widgets: DashboardWidgetSetting[],
+  ): Promise<Result<void>> {
+    const defaults = defaultDashboardWidgets();
+    if (!Array.isArray(widgets)) {
+      return err(AppError.validation('Widgets incomplets'));
+    }
+    const enabledById = new Map<DashboardWidgetId, boolean>();
+    for (const widget of widgets) {
+      if (DASHBOARD_WIDGET_IDS.includes(widget.id)) {
+        enabledById.set(widget.id, Boolean(widget.isEnabled));
+      }
+    }
+    const normalized = defaults.map((widget) => ({
+      ...widget,
+      isEnabled: enabledById.get(widget.id) ?? widget.isEnabled,
+    }));
+
+    return this.upsert(
+      'dashboard.widgets',
+      JSON.stringify(normalized),
+      'Unable to save dashboard widgets',
     );
   }
 

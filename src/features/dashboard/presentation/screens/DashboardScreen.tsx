@@ -11,6 +11,11 @@ import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import type { IDashboardRepository } from '@/features/dashboard/data/DashboardRepository';
 import { MetricCard } from '@/features/dashboard/presentation/components/MetricCard';
 import { SalesSparkBars } from '@/features/dashboard/presentation/components/SalesSparkBars';
+import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
+import {
+  defaultDashboardWidgets,
+  type DashboardWidgetId,
+} from '@/features/settings/domain/types';
 import type { MainParamList } from '@/navigation/types';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
@@ -39,13 +44,39 @@ export function DashboardScreen() {
     },
   });
 
+  const settingsQuery = useQuery({
+    queryKey: ['settings', 'dashboard-widgets'],
+    queryFn: async () => {
+      const repo = container.resolve<ISettingsRepository>(TOKENS.SettingsRepository);
+      const result = await repo.getSettings();
+      if (!result.ok) throw result.error;
+      return result.value.dashboardWidgets;
+    },
+  });
+
   if (snapshotQuery.isLoading || !snapshotQuery.data) {
     return <LoadingOverlay label="Préparation du tableau de bord…" />;
   }
 
   const snapshot = snapshotQuery.data;
-  const revenueToday = snapshot.metrics.find((m) => m.id === 'revenue_today');
-  const secondaryMetrics = snapshot.metrics.filter((m) => m.id !== 'revenue_today');
+  const enabledWidgets = new Set(
+    (settingsQuery.data ?? defaultDashboardWidgets())
+      .filter((widget) => widget.isEnabled)
+      .map((widget) => widget.id),
+  );
+  const isWidgetEnabled = (id: DashboardWidgetId) => enabledWidgets.has(id);
+  const revenueToday = isWidgetEnabled('revenue_today')
+    ? snapshot.metrics.find((m) => m.id === 'revenue_today')
+    : undefined;
+  const secondaryMetrics = snapshot.metrics.filter(
+    (metric) =>
+      metric.id !== 'revenue_today' &&
+      isWidgetEnabled(metric.id as DashboardWidgetId),
+  );
+  const showSalesChart = isWidgetEnabled('sales_chart');
+  const showTopProducts = isWidgetEnabled('top_products');
+  const showStockAlerts = isWidgetEnabled('stock_alerts');
+  const showSidePanel = showTopProducts || showStockAlerts;
 
   return (
     <Screen padded={false}>
@@ -55,108 +86,129 @@ export function DashboardScreen() {
           subtitle={`Bonjour, ${session?.employee.displayName ?? ''}`}
         />
 
-        <Animated.View entering={FadeInDown.duration(420)}>
-          <LinearGradient
-            colors={[...brandGradient]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.hero}
-          >
-            <Image source={logoSource} style={styles.logo} resizeMode="contain" />
-            <Text style={[typography.caption, { color: Colors.white, opacity: 0.9 }]}>
-              CA de la journée
-            </Text>
-            <Text style={[typography.amount, { color: Colors.white, marginTop: 2 }]}>
-              {revenueToday?.value ?? '0,00 €'}
-            </Text>
-            <Text style={[typography.caption, { color: Colors.white, opacity: 0.85 }]}>
-              {revenueToday?.deltaLabel ?? ''}
-            </Text>
-            <View style={styles.heroActions}>
-              <Button
-                mode="contained"
-                buttonColor={Colors.white}
-                textColor={Colors.primaryDark}
-                onPress={() => navigation.navigate('Pos')}
-                contentStyle={{ minHeight: 48 }}
-                labelStyle={typography.button}
-              >
-                Ouvrir la caisse
-              </Button>
-              <Button
-                mode="outlined"
-                textColor={Colors.white}
-                style={{ borderColor: Colors.white }}
-                onPress={() => navigation.navigate('SalesHistory')}
-              >
-                Historique
-              </Button>
-            </View>
-          </LinearGradient>
-        </Animated.View>
+        {revenueToday ? (
+          <Animated.View entering={FadeInDown.duration(420)}>
+            <LinearGradient
+              colors={[...brandGradient]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.hero}
+            >
+              <Image source={logoSource} style={styles.logo} resizeMode="contain" />
+              <Text style={[typography.caption, { color: Colors.white, opacity: 0.9 }]}>
+                CA de la journée
+              </Text>
+              <Text style={[typography.amount, { color: Colors.white, marginTop: 2 }]}>
+                {revenueToday.value}
+              </Text>
+              <Text style={[typography.caption, { color: Colors.white, opacity: 0.85 }]}>
+                {revenueToday.deltaLabel ?? ''}
+              </Text>
+              <View style={styles.heroActions}>
+                <Button
+                  mode="contained"
+                  buttonColor={Colors.white}
+                  textColor={Colors.primaryDark}
+                  onPress={() => navigation.navigate('Pos')}
+                  contentStyle={{ minHeight: 48 }}
+                  labelStyle={typography.button}
+                >
+                  Ouvrir la caisse
+                </Button>
+                <Button
+                  mode="outlined"
+                  textColor={Colors.white}
+                  style={{ borderColor: Colors.white }}
+                  onPress={() => navigation.navigate('SalesHistory')}
+                >
+                  Historique
+                </Button>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+        ) : null}
 
-        <Animated.View
-          entering={FadeInUp.delay(80).duration(400)}
-          style={[styles.metrics, useSplitLayout && styles.metricsTablet]}
-        >
-          {secondaryMetrics.map((metric) => (
-            <MetricCard key={metric.id} metric={metric} />
-          ))}
-        </Animated.View>
+        {secondaryMetrics.length ? (
+          <Animated.View
+            entering={FadeInUp.delay(80).duration(400)}
+            style={[styles.metrics, useSplitLayout && styles.metricsTablet]}
+          >
+            {secondaryMetrics.map((metric) => (
+              <MetricCard key={metric.id} metric={metric} />
+            ))}
+          </Animated.View>
+        ) : null}
 
         <View style={[styles.lower, useSplitLayout && styles.lowerTablet]}>
-          <View style={{ flex: 1.4 }}>
-            <SalesSparkBars points={snapshot.salesPerHour} />
-          </View>
+          {showSalesChart ? (
+            <View style={{ flex: 1.4 }}>
+              <SalesSparkBars points={snapshot.salesPerHour} />
+            </View>
+          ) : null}
 
-          <View
-            style={[
-              styles.sidePanel,
-              shadows.sm,
-              { backgroundColor: tokens.surface, borderColor: tokens.border },
-            ]}
-          >
-            <Text style={[typography.h3, { color: tokens.text }]}>Top produits</Text>
-            {snapshot.topProducts.length === 0 ? (
-              <Text style={[typography.caption, { color: tokens.textSecondary }]}>
-                Aucune vente aujourd’hui
-              </Text>
-            ) : (
-              snapshot.topProducts.map((product) => (
-                <Pressable key={product.id} style={styles.productRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[typography.bodyStrong, { color: tokens.text }]}>
-                      {product.name}
-                    </Text>
+          {showSidePanel ? (
+            <View
+              style={[
+                styles.sidePanel,
+                shadows.sm,
+                { backgroundColor: tokens.surface, borderColor: tokens.border },
+              ]}
+            >
+              {showTopProducts ? (
+                <>
+                  <Text style={[typography.h3, { color: tokens.text }]}>Top produits</Text>
+                  {snapshot.topProducts.length === 0 ? (
                     <Text style={[typography.caption, { color: tokens.textSecondary }]}>
-                      {product.quantitySold} vendus
+                      Aucune vente aujourd’hui
                     </Text>
-                  </View>
-                  <Text style={[typography.money, { color: Colors.primary }]}>
-                    {product.revenueLabel}
-                  </Text>
-                </Pressable>
-              ))
-            )}
+                  ) : (
+                    snapshot.topProducts.map((product) => (
+                      <Pressable key={product.id} style={styles.productRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[typography.bodyStrong, { color: tokens.text }]}>
+                            {product.name}
+                          </Text>
+                          <Text style={[typography.caption, { color: tokens.textSecondary }]}>
+                            {product.quantitySold} vendus
+                          </Text>
+                        </View>
+                        <Text style={[typography.money, { color: Colors.primary }]}>
+                          {product.revenueLabel}
+                        </Text>
+                      </Pressable>
+                    ))
+                  )}
+                </>
+              ) : null}
 
-            <Text style={[typography.h3, { color: tokens.text, marginTop: spacing.lg }]}>
-              Alertes stock
-            </Text>
-            {snapshot.inventoryAlerts.length === 0 ? (
-              <Text style={[typography.caption, { color: tokens.textSecondary }]}>
-                Stock OK
-              </Text>
-            ) : (
-              snapshot.inventoryAlerts.map((alert) => (
-                <Text
-                  key={alert}
-                  style={[typography.caption, { color: Colors.error, marginTop: spacing.xs }]}
-                >
-                  {alert}
-                </Text>
-              ))
-            )}
-          </View>
+              {showStockAlerts ? (
+                <>
+                  <Text
+                    style={[
+                      typography.h3,
+                      { color: tokens.text, marginTop: showTopProducts ? spacing.lg : 0 },
+                    ]}
+                  >
+                    Alertes stock
+                  </Text>
+                  {snapshot.inventoryAlerts.length === 0 ? (
+                    <Text style={[typography.caption, { color: tokens.textSecondary }]}>
+                      Stock OK
+                    </Text>
+                  ) : (
+                    snapshot.inventoryAlerts.map((alert) => (
+                      <Text
+                        key={alert}
+                        style={[typography.caption, { color: Colors.error, marginTop: spacing.xs }]}
+                      >
+                        {alert}
+                      </Text>
+                    ))
+                  )}
+                </>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </Screen>

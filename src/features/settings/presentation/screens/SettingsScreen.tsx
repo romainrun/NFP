@@ -15,9 +15,17 @@ import { TOKENS } from '@/core/di/tokens';
 import { hasPermission } from '@/features/authentication/domain/permissions';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
-import type { DayOpeningHours, StoreOpeningHours, Weekday } from '@/features/settings/domain/types';
+import type {
+  DashboardWidgetId,
+  DashboardWidgetSetting,
+  DayOpeningHours,
+  StoreOpeningHours,
+  Weekday,
+} from '@/features/settings/domain/types';
 import {
+  DASHBOARD_WIDGET_LABELS,
   WEEKDAY_LABELS,
+  defaultDashboardWidgets,
   defaultOpeningHours,
   formatHourRange,
   type ThemePreference,
@@ -46,6 +54,8 @@ export function SettingsScreen() {
   const [themePreference, setLocalThemePreference] =
     useState<ThemePreference>('system');
   const [hours, setHours] = useState<StoreOpeningHours>(defaultOpeningHours());
+  const [dashboardWidgets, setDashboardWidgets] =
+    useState<DashboardWidgetSetting[]>(defaultDashboardWidgets());
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +74,7 @@ export function SettingsScreen() {
     setLocalStoreName(settingsQuery.data.storeName);
     setLocalThemePreference(settingsQuery.data.themePreference);
     setHours(settingsQuery.data.openingHours);
+    setDashboardWidgets(settingsQuery.data.dashboardWidgets);
   }, [settingsQuery.data]);
 
   const saveMutation = useMutation({
@@ -76,7 +87,9 @@ export function SettingsScreen() {
       if (!themeResult.ok) throw themeResult.error;
       const hoursResult = await repo.setOpeningHours(hours);
       if (!hoursResult.ok) throw hoursResult.error;
-      return { storeName: storeName.trim(), themePreference, hours };
+      const widgetsResult = await repo.setDashboardWidgets(dashboardWidgets);
+      if (!widgetsResult.ok) throw widgetsResult.error;
+      return { storeName: storeName.trim(), themePreference, hours, dashboardWidgets };
     },
     onSuccess: async (value) => {
       setStoreName(value.storeName);
@@ -84,6 +97,7 @@ export function SettingsScreen() {
       setMessage('Paramètres enregistrés');
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['settings'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
     onError: (err: Error) => {
       setError(err.message);
@@ -94,6 +108,12 @@ export function SettingsScreen() {
   const updateDay = (weekday: Weekday, patch: Partial<DayOpeningHours>) => {
     setHours((prev) =>
       prev.map((day) => (day.weekday === weekday ? { ...day, ...patch } : day)),
+    );
+  };
+
+  const updateWidget = (id: DashboardWidgetId, isEnabled: boolean) => {
+    setDashboardWidgets((prev) =>
+      prev.map((widget) => (widget.id === id ? { ...widget, isEnabled } : widget)),
     );
   };
 
@@ -139,6 +159,37 @@ export function SettingsScreen() {
             { value: 'dark', label: 'Sombre', icon: 'weather-night' },
           ]}
         />
+
+        <Text style={[typography.h3, { color: theme.colors.onSurface, marginTop: spacing.sm }]}>
+          Tableau de bord
+        </Text>
+        <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+          Choisissez les widgets affichés sur l’accueil.
+        </Text>
+        <View style={styles.widgetList}>
+          {dashboardWidgets.map((widget) => (
+            <View
+              key={widget.id}
+              style={[
+                styles.widgetRow,
+                shadows.sm,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.outline,
+                },
+              ]}
+            >
+              <Text style={[typography.bodyStrong, { color: theme.colors.onSurface, flex: 1 }]}>
+                {DASHBOARD_WIDGET_LABELS[widget.id]}
+              </Text>
+              <Switch
+                value={widget.isEnabled}
+                onValueChange={(value) => updateWidget(widget.id, value)}
+                color={Colors.primary}
+              />
+            </View>
+          ))}
+        </View>
 
         <Text style={[typography.h3, { color: theme.colors.onSurface, marginTop: spacing.sm }]}>
           Horaires d’ouverture
@@ -283,6 +334,18 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   hourPickers: {
+    gap: spacing.sm,
+  },
+  widgetList: {
+    gap: spacing.xs,
+  },
+  widgetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radii.input,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     gap: spacing.sm,
   },
   hourChip: {
