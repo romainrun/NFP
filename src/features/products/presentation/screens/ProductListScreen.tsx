@@ -24,6 +24,7 @@ import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { eurosToCents, parseEurosInput } from '@/shared/utils/money';
+import { Colors } from '@/shared/theme/colors';
 import { spacing } from '@/shared/theme/spacing';
 
 type ProductListNavigation = CompositeNavigationProp<
@@ -281,21 +282,35 @@ export function ProductListScreen() {
           showsHorizontalScrollIndicator={false}
           style={styles.categoryFilterList}
           data={[
-            { id: 'all', label: 'Tous' },
-            ...(categoriesQuery.data ?? []).map((c) => ({ id: c.id, label: c.name })),
+            { id: 'all', label: 'Tous', color: Colors.primary },
+            ...(categoriesQuery.data ?? []).map((c) => ({
+              id: c.id,
+              label: c.name,
+              color: c.color ?? Colors.primary,
+            })),
           ]}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.chipRow}
           renderItem={({ item }) => (
-            <Chip
-              selected={
-                item.id === 'all' ? categoryId === null : categoryId === item.id
-              }
-              onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
-              style={styles.chip}
-            >
-              {item.label}
-            </Chip>
+            (() => {
+              const selected = item.id === 'all' ? categoryId === null : categoryId === item.id;
+              return (
+                <Chip
+                  selected={selected}
+                  onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: item.color,
+                      backgroundColor: selected ? item.color : 'transparent',
+                    },
+                  ]}
+                  textStyle={{ color: selected ? Colors.white : item.color }}
+                >
+                  {item.label}
+                </Chip>
+              );
+            })()
           )}
         />
         <View style={styles.chipRow}>

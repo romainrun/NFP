@@ -317,6 +317,11 @@ export function PosScreen() {
   });
 
   const gridProducts = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
+  const categoryColors = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const category of categoriesQuery.data ?? []) map.set(category.id, category.color);
+    return map;
+  }, [categoriesQuery.data]);
   const activePromotions = useMemo(() => {
     const map = new Map<string, number>();
     for (const rule of promotionsQuery.data ?? []) {
@@ -420,23 +425,36 @@ export function PosScreen() {
         showsHorizontalScrollIndicator={false}
         style={styles.categoryFilterList}
         data={[
-          { id: 'all', label: 'Tous' },
+          { id: 'all', label: 'Tous', color: Colors.primary },
           ...(categoriesQuery.data ?? []).map((category) => ({
             id: category.id,
             label: category.name,
+            color: category.color ?? Colors.primary,
           })),
         ]}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.categoryChips}
         renderItem={({ item }) => (
-          <Chip
-            compact
-            selected={item.id === 'all' ? categoryId === null : categoryId === item.id}
-            onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
-            style={styles.categoryChip}
-          >
-            {item.label}
-          </Chip>
+          (() => {
+            const selected = item.id === 'all' ? categoryId === null : categoryId === item.id;
+            return (
+              <Chip
+                compact
+                selected={selected}
+                onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
+                style={[
+                  styles.categoryChip,
+                  {
+                    borderColor: item.color,
+                    backgroundColor: selected ? item.color : 'transparent',
+                  },
+                ]}
+                textStyle={{ color: selected ? Colors.white : item.color }}
+              >
+                {item.label}
+              </Chip>
+            );
+          })()
         )}
       />
 
@@ -457,6 +475,7 @@ export function PosScreen() {
           <ProductTile
             product={item}
             promotionBps={activePromotions.get(item.id) ?? 0}
+            categoryColor={item.categoryId ? categoryColors.get(item.categoryId) ?? null : null}
             onPress={() => addMutation.mutate(item.id)}
           />
         )}
@@ -762,10 +781,12 @@ export function PosScreen() {
 function ProductTile({
   product,
   promotionBps,
+  categoryColor,
   onPress,
 }: {
   product: Product;
   promotionBps: number;
+  categoryColor: string | null;
   onPress: () => void;
 }) {
   const theme = useTheme();
@@ -784,20 +805,15 @@ function ProductTile({
       ]}
       scaleTo={0.965}
     >
-      <View style={styles.tileBadges}>
-        <View
-          style={[
-            styles.categoryBadge,
-            { backgroundColor: theme.colors.primaryContainer },
-          ]}
-        >
-          <Text
-            numberOfLines={1}
-            style={[typography.caption, { color: theme.colors.onPrimaryContainer, fontSize: 11 }]}
-          >
-            {categoryLabel}
-          </Text>
-        </View>
+      {hasPromotion || product.isFavorite || product.isQuick ? (
+        <View style={styles.tileBadges}>
+          {hasPromotion ? (
+            <View style={[styles.promoBadge, { backgroundColor: theme.colors.primary }]}>
+              <Text style={[typography.caption, { color: Colors.white, fontSize: 11 }]}>
+                -{promotionBps / 100}%
+              </Text>
+            </View>
+          ) : null}
         {product.isFavorite ? (
           <Text style={[styles.miniBadge, { color: theme.colors.primary }]}>★</Text>
         ) : null}
@@ -805,12 +821,6 @@ function ProductTile({
           <Text style={[styles.miniBadge, { color: theme.colors.tertiary }]}>⚡</Text>
         ) : null}
       </View>
-      {hasPromotion ? (
-        <View style={[styles.promoBadge, { backgroundColor: theme.colors.primary }]}>
-          <Text style={[typography.caption, { color: Colors.white, fontSize: 11 }]}>
-            Promo -{promotionBps / 100}%
-          </Text>
-        </View>
       ) : null}
       {product.imageUri ? (
         <Image source={{ uri: product.imageUri }} style={styles.tileImage} />
@@ -833,6 +843,20 @@ function ProductTile({
       >
         {product.name}
       </Text>
+      <View style={styles.tileCategoryLine}>
+        <View
+          style={[
+            styles.categoryDot,
+            { backgroundColor: categoryColor ?? theme.colors.outline },
+          ]}
+        />
+        <Text
+          numberOfLines={1}
+          style={[typography.caption, { color: theme.colors.onSurfaceVariant, fontSize: 11 }]}
+        >
+          {categoryLabel}
+        </Text>
+      </View>
       <View style={styles.tileFooter}>
         <Text style={[typography.bodyStrong, { color: theme.colors.primary }]}>
           {formatMoney(product.priceCents)}
@@ -936,13 +960,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xxs,
-    minHeight: 22,
-  },
-  categoryBadge: {
-    flex: 1,
-    borderRadius: radii.pill,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
+    minHeight: 18,
   },
   miniBadge: {
     fontSize: 13,
@@ -953,6 +971,16 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
+  },
+  tileCategoryLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+  },
+  categoryDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
   },
   tileImage: {
     width: '100%',
