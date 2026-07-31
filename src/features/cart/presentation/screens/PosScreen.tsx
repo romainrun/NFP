@@ -346,6 +346,29 @@ export function PosScreen() {
         }
       />
 
+      <View style={styles.manualRowTop}>
+        <TextInput
+          mode="outlined"
+          dense
+          label="Code-barres / SKU"
+          value={manualCode}
+          onChangeText={setManualCode}
+          style={{ flex: 1 }}
+          autoCapitalize="characters"
+          onSubmitEditing={() => {
+            scanBarcode(manualCode);
+          }}
+          right={
+            <TextInput.Icon
+              icon="keyboard-return"
+              onPress={() => {
+                scanBarcode(manualCode);
+              }}
+            />
+          }
+        />
+      </View>
+
       <Searchbar
         placeholder="Rechercher un article"
         value={search}
@@ -388,29 +411,6 @@ export function PosScreen() {
           </Chip>
         )}
       />
-
-      <View style={styles.manualRow}>
-        <TextInput
-          mode="outlined"
-          dense
-          label="Code-barres / SKU"
-          value={manualCode}
-          onChangeText={setManualCode}
-          style={{ flex: 1 }}
-          autoCapitalize="characters"
-          onSubmitEditing={() => {
-            scanBarcode(manualCode);
-          }}
-          right={
-            <TextInput.Icon
-              icon="keyboard-return"
-              onPress={() => {
-                scanBarcode(manualCode);
-              }}
-            />
-          }
-        />
-      </View>
 
       <FlatList
         data={gridProducts}
@@ -831,9 +831,9 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
     marginBottom: spacing.xs,
   },
-  manualRow: {
+  manualRowTop: {
     paddingHorizontal: spacing.sm,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
   categoryChips: {
     paddingHorizontal: spacing.sm,
