@@ -26,7 +26,7 @@ const ITEMS: Item[] = [
   { key: 'pos', label: 'Caisse', icon: 'cash-register', route: 'Pos', section: 'Vente' },
   { key: 'history', label: 'Historique des ventes', icon: 'history', route: 'SalesHistory', section: 'Vente' },
   { key: 'closing', label: 'Clôture de caisse', icon: 'cash-check', route: 'CashClosing', section: 'Vente' },
-  { key: 'exports', label: 'Exports', icon: 'file-delimited-outline', route: 'Exports', section: 'Vente' },
+  { key: 'exports', label: 'Exports', icon: 'file-delimited-outline', route: 'Exports', section: 'Rapports' },
   { key: 'products', label: 'Articles', icon: 'barcode', route: 'ProductList', section: 'Catalogue' },
   { key: 'categories', label: 'Catégories', icon: 'shape-outline', route: 'CategoryList', section: 'Catalogue' },
   { key: 'inventory', label: 'Inventaire', icon: 'clipboard-list-outline', route: 'Inventory', section: 'Catalogue' },

@@ -91,6 +91,7 @@ export function SettingsScreen() {
     useState<DashboardWidgetSetting[]>(defaultDashboardWidgets());
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
 
   const settingsQuery = useQuery({
     queryKey: ['settings'],
@@ -110,6 +111,7 @@ export function SettingsScreen() {
     setHours(settingsQuery.data.openingHours);
     setHourTexts(hourTextsFromHours(settingsQuery.data.openingHours));
     setDashboardWidgets(settingsQuery.data.dashboardWidgets);
+    setIsSaved(false);
   }, [settingsQuery.data]);
 
   const saveMutation = useMutation({
@@ -149,6 +151,7 @@ export function SettingsScreen() {
       setThemePreference(value.themePreference);
       setHours(value.hours);
       setHourTexts(hourTextsFromHours(value.hours));
+      setIsSaved(true);
       setMessage('Paramètres enregistrés');
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['settings'] });
@@ -160,7 +163,10 @@ export function SettingsScreen() {
     },
   });
 
+  const markDirty = () => setIsSaved(false);
+
   const updateDay = (weekday: Weekday, patch: Partial<DayOpeningHours>) => {
+    markDirty();
     setHours((prev) =>
       prev.map((day) => (day.weekday === weekday ? { ...day, ...patch } : day)),
     );
@@ -171,6 +177,7 @@ export function SettingsScreen() {
     field: 'open' | 'close',
     value: string,
   ) => {
+    markDirty();
     setHourTexts((prev) => ({
       ...prev,
       [String(weekday)]: {
@@ -181,6 +188,7 @@ export function SettingsScreen() {
   };
 
   const updateWidget = (id: DashboardWidgetId, isEnabled: boolean) => {
+    markDirty();
     setDashboardWidgets((prev) =>
       prev.map((widget) => (widget.id === id ? { ...widget, isEnabled } : widget)),
     );
@@ -212,9 +220,11 @@ export function SettingsScreen() {
               compact
               buttonColor={Colors.primary}
               loading={saveMutation.isPending}
+              disabled={isSaved || saveMutation.isPending}
+              icon={isSaved ? 'check' : undefined}
               onPress={() => saveMutation.mutate()}
             >
-              Enregistrer
+              {isSaved ? 'Enregistré' : 'Enregistrer'}
             </Button>
           }
         />
@@ -224,7 +234,10 @@ export function SettingsScreen() {
           mode="outlined"
           label="Nom du magasin"
           value={storeName}
-          onChangeText={setLocalStoreName}
+          onChangeText={(value) => {
+            markDirty();
+            setLocalStoreName(value);
+          }}
           outlineColor={Colors.border}
           activeOutlineColor={Colors.primary}
           style={{ backgroundColor: theme.colors.surface }}
@@ -233,14 +246,20 @@ export function SettingsScreen() {
           mode="outlined"
           label="Adresse"
           value={shopInfo.address}
-          onChangeText={(address) => setShopInfo((prev) => ({ ...prev, address }))}
+          onChangeText={(address) => {
+            markDirty();
+            setShopInfo((prev) => ({ ...prev, address }));
+          }}
           style={{ backgroundColor: theme.colors.surface }}
         />
         <TextInput
           mode="outlined"
           label="Téléphone"
           value={shopInfo.phone}
-          onChangeText={(phone) => setShopInfo((prev) => ({ ...prev, phone }))}
+          onChangeText={(phone) => {
+            markDirty();
+            setShopInfo((prev) => ({ ...prev, phone }));
+          }}
           keyboardType="phone-pad"
           style={{ backgroundColor: theme.colors.surface }}
         />
@@ -248,7 +267,10 @@ export function SettingsScreen() {
           mode="outlined"
           label="SIRET"
           value={shopInfo.siret}
-          onChangeText={(siret) => setShopInfo((prev) => ({ ...prev, siret }))}
+          onChangeText={(siret) => {
+            markDirty();
+            setShopInfo((prev) => ({ ...prev, siret }));
+          }}
           keyboardType="number-pad"
           style={{ backgroundColor: theme.colors.surface }}
         />
@@ -258,7 +280,10 @@ export function SettingsScreen() {
         </Text>
         <SegmentedButtons
           value={themePreference}
-          onValueChange={(value) => setLocalThemePreference(value as ThemePreference)}
+          onValueChange={(value) => {
+            markDirty();
+            setLocalThemePreference(value as ThemePreference);
+          }}
           buttons={[
             { value: 'system', label: 'Système', icon: 'theme-light-dark' },
             { value: 'light', label: 'Clair', icon: 'white-balance-sunny' },
@@ -376,11 +401,13 @@ export function SettingsScreen() {
           mode="contained"
           buttonColor={Colors.primary}
           loading={saveMutation.isPending}
+          disabled={isSaved || saveMutation.isPending}
+          icon={isSaved ? 'check' : undefined}
           contentStyle={{ minHeight: 52 }}
           labelStyle={typography.button}
           onPress={() => saveMutation.mutate()}
         >
-          Enregistrer
+          {isSaved ? 'Enregistré' : 'Enregistrer'}
         </Button>
       </ScrollView>
     </Screen>
