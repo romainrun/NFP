@@ -8,14 +8,14 @@
 #   3) start/restart Metro via PM2
 #   4) health-check http://localhost:2000
 #
-# Usage (on the VPS, as the deploy user):
-#   bash /home/deploy/apps/nfp/scripts/deploy.sh
+# Usage (on the VPS, as the SSH deploy user):
+#   bash "$HOME/apps/nfp/scripts/deploy.sh"
 #
 set -euo pipefail
 
 APP_NAME="nfp-metro"
-APP_DIR="${APP_DIR:-/home/deploy/apps/nfp}"
-LOG_DIR="${LOG_DIR:-/home/deploy/logs/nfp}"
+APP_DIR="${APP_DIR:-$HOME/apps/nfp}"
+LOG_DIR="${LOG_DIR:-$HOME/logs/nfp}"
 REPO_URL="${REPO_URL:-https://github.com/romainrun/NFP.git}"
 BRANCH="${BRANCH:-main}"
 METRO_PORT="${METRO_PORT:-2000}"
@@ -136,6 +136,7 @@ main() {
   require_cmd npx
 
   log "Starting NFP development deploy"
+  log "USER=$(whoami) HOME=$HOME APP_DIR=$APP_DIR LOG_DIR=$LOG_DIR"
   ensure_layout
   sync_repository
   install_dependencies

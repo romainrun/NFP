@@ -5,9 +5,13 @@
 #
 # Required GitHub Secrets (Settings → Secrets and variables → Actions):
 #   HOST      — VPS hostname or IP
-#   PORT      — SSH port (optional, defaults to 22)
-#   USERNAME  — SSH user (e.g. deploy or root)
+#   PORT      — SSH port (optional, defaults to 22) — NOT Metro (2000)
+#   USERNAME  — SSH user (e.g. ubuntu, debian, deploy, root)
 #   SSH_KEY   — private key (full PEM / OpenSSH) for that user
+#
+# App path on the VPS (per SSH user):
+#   $HOME/apps/nfp
+#   $HOME/logs/nfp
 #
 # This is NOT a Play Store / production binary deploy.
 # It only refreshes the permanent Expo Metro development server.
@@ -74,14 +78,17 @@ jobs:
           timeout: 30s
           # Enough headroom for npm install + Metro boot + health checks.
           command_timeout: 15m
-          envs: REPO_URL,APP_DIR,LOG_DIR,BRANCH
+          envs: REPO_URL,BRANCH
           script: |
             set -euo pipefail
 
-            APP_DIR="${APP_DIR:-/home/deploy/apps/nfp}"
-            LOG_DIR="${LOG_DIR:-/home/deploy/logs/nfp}"
+            # Install under the SSH user's home — avoids /home/deploy permission errors.
+            APP_DIR="${HOME}/apps/nfp"
+            LOG_DIR="${HOME}/logs/nfp"
             REPO_URL="${REPO_URL:-https://github.com/romainrun/NFP.git}"
             BRANCH="${BRANCH:-main}"
+
+            echo "[gha] USER=$(whoami) HOME=$HOME APP_DIR=$APP_DIR"
 
             mkdir -p "$(dirname "$APP_DIR")" "$LOG_DIR"
             git config --global --add safe.directory "$APP_DIR" || true
@@ -103,6 +110,4 @@ jobs:
               bash scripts/deploy.sh
         env:
           REPO_URL: https://github.com/romainrun/NFP.git
-          APP_DIR: /home/deploy/apps/nfp
-          LOG_DIR: /home/deploy/logs/nfp
           BRANCH: main

@@ -13,7 +13,7 @@ GitHub Actions (.github/workflows/deploy.yml)
         ↓
 SSH (secrets: HOST, PORT, USERNAME, SSH_KEY)
         ↓
-/home/deploy/apps/nfp  →  scripts/deploy.sh
+$HOME/apps/nfp  →  scripts/deploy.sh
         ↓
 git reset --hard origin/main
 npm install
@@ -63,7 +63,7 @@ npm -v
 
 ```bash
 sudo adduser --disabled-password --gecos "" deploy || true
-sudo mkdir -p /home/deploy/apps /home/deploy/logs/nfp
+sudo mkdir -p $HOME/apps $HOME/logs/nfp
 sudo chown -R deploy:deploy /home/deploy
 ```
 
@@ -116,10 +116,10 @@ GitHub Actions clones automatically on the first run. Manual bootstrap:
 
 ```bash
 sudo -u deploy -i
-git clone https://github.com/romainrun/NFP.git /home/deploy/apps/nfp
-cd /home/deploy/apps/nfp
+git clone https://github.com/romainrun/NFP.git $HOME/apps/nfp
+cd $HOME/apps/nfp
 npm install
-mkdir -p /home/deploy/logs/nfp
+mkdir -p $HOME/logs/nfp
 pm2 start ecosystem.config.js --only nfp-metro
 pm2 save
 ```
@@ -188,8 +188,8 @@ pm2 save
 ## 6. View logs on disk
 
 ```bash
-tail -f /home/deploy/logs/nfp/metro-out.log
-tail -f /home/deploy/logs/nfp/metro-error.log
+tail -f $HOME/logs/nfp/metro-out.log
+tail -f $HOME/logs/nfp/metro-error.log
 ```
 
 ---
@@ -198,7 +198,7 @@ tail -f /home/deploy/logs/nfp/metro-error.log
 
 ```bash
 ssh deploy@YOUR_VPS_IP
-cd /home/deploy/apps/nfp
+cd $HOME/apps/nfp
 bash scripts/deploy.sh
 ```
 
@@ -216,7 +216,7 @@ node -v
 
 # Reinstall deps + restart Metro
 sudo -u deploy -i
-cd /home/deploy/apps/nfp
+cd $HOME/apps/nfp
 rm -rf node_modules
 npm install
 pm2 restart nfp-metro

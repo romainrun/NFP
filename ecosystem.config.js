@@ -5,13 +5,19 @@
  * Bind         : 0.0.0.0:2000
  * Mode         : development (--dev-client), not Expo production hosting
  *
- * Logs live under /home/deploy/logs/nfp/ (created by scripts/deploy.sh).
+ * Paths follow the SSH user home ($HOME/apps/nfp, $HOME/logs/nfp).
  */
+const path = require('path');
+const os = require('os');
+
+const appDir = __dirname;
+const logDir = path.join(os.homedir(), 'logs', 'nfp');
+
 module.exports = {
   apps: [
     {
       name: 'nfp-metro',
-      cwd: '/home/deploy/apps/nfp',
+      cwd: appDir,
       // Shell keeps `npx` resolution identical to a manual SSH session.
       script: 'bash',
       args: [
@@ -32,8 +38,8 @@ module.exports = {
         EXPO_NO_TELEMETRY: '1',
         CI: '1',
       },
-      out_file: '/home/deploy/logs/nfp/metro-out.log',
-      error_file: '/home/deploy/logs/nfp/metro-error.log',
+      out_file: path.join(logDir, 'metro-out.log'),
+      error_file: path.join(logDir, 'metro-error.log'),
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       merge_logs: true,
       time: true,
