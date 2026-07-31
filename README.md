@@ -72,6 +72,7 @@ Managers and admins can manage the offline catalog from the dashboard (**Article
 
 - create / edit / soft-deactivate products
 - categories, prices, VAT, cost, favorites, quick products
+- product photos (gallery or camera), stored offline on device
 - search (name / SKU / barcode) and stock adjustments
 
 ## Scripts

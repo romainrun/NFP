@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import type { Product } from '@/features/products/domain/types';
 import { formatMoney } from '@/shared/utils/money';
@@ -26,6 +26,22 @@ export function ProductListItem({ product, onPress }: Props) {
         },
       ]}
     >
+      {product.imageUri ? (
+        <Image source={{ uri: product.imageUri }} style={styles.thumb} resizeMode="cover" />
+      ) : (
+        <View
+          style={[
+            styles.thumb,
+            styles.thumbPlaceholder,
+            { backgroundColor: theme.colors.surfaceVariant },
+          ]}
+        >
+          <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+            —
+          </Text>
+        </View>
+      )}
+
       <View style={styles.main}>
         <View style={styles.titleRow}>
           <Text style={[typography.bodyStrong, { color: theme.colors.onSurface, flex: 1 }]}>
@@ -73,8 +89,20 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.md,
     marginBottom: spacing.sm,
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'center',
   },
-  main: { gap: spacing.xxs },
+  thumb: {
+    width: 64,
+    height: 64,
+    borderRadius: radii.sm,
+  },
+  thumbPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  main: { flex: 1, gap: spacing.xxs },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',

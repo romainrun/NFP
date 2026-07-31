@@ -31,7 +31,14 @@
     "plugins": [
       "expo-sqlite",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "NFP a besoin d’accéder à vos photos pour illustrer les articles.",
+          "cameraPermission": "NFP a besoin de la caméra pour photographier les articles."
+        }
+      ]
     ],
     "extra": {
       "appName": "NaturallyForme Paiement",

@@ -7,6 +7,7 @@ Full offline catalog management for the NFP POS:
 - Search by name, SKU, barcode
 - Filters: category, favorites, quick products, inactive
 - Price (cents), French VAT rates, cost, stock
+- Product photos (gallery or camera), stored offline in app documents
 - Stock adjustments with `inventory_movements` ledger + audit trail
 
 Access is gated by the `inventory.manage` permission (admin + manager).

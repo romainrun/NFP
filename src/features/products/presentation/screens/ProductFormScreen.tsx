@@ -21,7 +21,9 @@ import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { ICategoryRepository } from '@/features/products/data/CategoryRepository';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
+import { deleteProductImageIfOwned } from '@/features/products/data/productImageStorage';
 import { VAT_RATES } from '@/features/products/domain/types';
+import { ProductImageField } from '@/features/products/presentation/components/ProductImageField';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
 import type { AppStackParamList } from '@/navigation/types';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
@@ -71,6 +73,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
   const [stockReason, setStockReason] = useState('');
   const [stockMode, setStockMode] = useState<'in' | 'out' | 'adjustment'>('in');
   const [formError, setFormError] = useState<string | null>(null);
+  const [imageUri, setImageUri] = useState<string | null>(null);
 
   const productQuery = useQuery({
     queryKey: ['products', productId],
@@ -126,6 +129,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (!productQuery.data) return;
     const p = productQuery.data;
+    setImageUri(p.imageUri);
     reset({
       name: p.name,
       sku: p.sku,
@@ -160,6 +164,8 @@ export function ProductFormScreen({ navigation, route }: Props) {
       const cost = costRaw ? parseEurosInput(costRaw) : null;
       if (costRaw && cost === null) throw new Error('Coût d’achat invalide');
 
+      const previousImageUri = productQuery.data?.imageUri ?? null;
+
       if (isEdit && productId) {
         const result = await repo.update(
           {
@@ -175,10 +181,14 @@ export function ProductFormScreen({ navigation, route }: Props) {
             isFavorite: values.isFavorite,
             isQuick: values.isQuick,
             isActive: values.isActive,
+            imageUri,
           },
           userId,
         );
         if (!result.ok) throw result.error;
+        if (previousImageUri && previousImageUri !== imageUri) {
+          await deleteProductImageIfOwned(previousImageUri);
+        }
         return result.value;
       }
 
@@ -196,6 +206,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
           stockQuantity: Number.isFinite(stock) ? stock : 0,
           isFavorite: values.isFavorite,
           isQuick: values.isQuick,
+          imageUri,
         },
         userId,
       );
@@ -272,6 +283,12 @@ export function ProductFormScreen({ navigation, route }: Props) {
             Lecture seule — seuls les managers et admins peuvent modifier le catalogue.
           </HelperText>
         ) : null}
+
+        <ProductImageField
+          imageUri={imageUri}
+          editable={canManage}
+          onChange={setImageUri}
+        />
 
         <Controller
           control={control}
