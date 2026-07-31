@@ -66,6 +66,18 @@ All demo employees use PIN **`0000`** during development. The login screen also 
 
 Change these before any production deployment.
 
+## Caisse (POS)
+
+From the dashboard, open **Caisse**:
+
+- search products or tap quick/favorite tiles
+- scan with camera (**Scanner**) or type barcode / SKU
+- adjust cart quantities, then **Encaisser**
+- pay in cash (with change) or card (offline simulation)
+- sale writes an immutable ticket, payments, stock movements, and receipt hash chain
+
+Seed barcodes for quick scan tests: `3000000000001`, `3000000000002`, `3000000000006`.
+
 ## Catalogue (articles)
 
 Managers and admins can manage the offline catalog from the dashboard (**Articles**):

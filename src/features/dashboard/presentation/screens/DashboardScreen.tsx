@@ -51,12 +51,19 @@ export function DashboardScreen() {
               Bonjour, {session?.employee.displayName}
             </Text>
             <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: spacing.xs }}>
-              Tableau de bord · données locales (mock jusqu'aux ventes)
+              Caisse · catalogue · encaissement offline
             </Text>
           </View>
           <View style={styles.headerActions}>
             <Button
               mode="contained"
+              onPress={() => navigation.navigate('Pos')}
+              style={styles.logout}
+            >
+              Caisse
+            </Button>
+            <Button
+              mode="contained-tonal"
               onPress={() => navigation.navigate('ProductList')}
               style={styles.logout}
             >

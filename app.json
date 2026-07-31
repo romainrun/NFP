@@ -38,6 +38,14 @@
           "photosPermission": "NFP a besoin d’accéder à vos photos pour illustrer les articles.",
           "cameraPermission": "NFP a besoin de la caméra pour photographier les articles."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "NFP a besoin de la caméra pour scanner les codes-barres en caisse.",
+          "barcodeScannerPermission": "NFP a besoin de la caméra pour scanner les codes-barres en caisse.",
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "extra": {
