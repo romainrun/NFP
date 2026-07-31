@@ -7,6 +7,7 @@ import type { ICartRepository } from '@/features/cart/data/CartRepository';
 import type { Cart, CartLine } from '@/features/cart/domain/types';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
 import type { ProductPromotionRule } from '@/features/promotions/domain/types';
+import { isPromotionRuleActive } from '@/features/promotions/domain/types';
 import {
   applyDiscountBps,
   lineNetCents,
@@ -192,7 +193,7 @@ export class SqliteCartRepository implements ICartRepository {
     try {
       const rules = JSON.parse(row.value) as ProductPromotionRule[];
       const rule = Array.isArray(rules)
-        ? rules.find((item) => item.productId === productId && item.isActive)
+        ? rules.find((item) => item.productId === productId && isPromotionRuleActive(item))
         : null;
       if (!rule || !Number.isFinite(rule.discountBps)) return 0;
       return Math.min(10_000, Math.max(0, Math.round(rule.discountBps)));

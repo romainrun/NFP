@@ -21,6 +21,8 @@ function parseRules(raw: string | null | undefined): ProductPromotionRule[] {
         productId: rule.productId,
         discountBps: normalizeDiscountBps(Number(rule.discountBps)),
         isActive: Boolean(rule.isActive),
+        startsAt: rule.startsAt ?? null,
+        endsAt: rule.endsAt ?? null,
       }));
   } catch {
     return [];
@@ -50,6 +52,8 @@ export class SqlitePromotionRepository implements IPromotionRepository {
       productId: rule.productId,
       discountBps: normalizeDiscountBps(rule.discountBps),
       isActive: rule.isActive && normalizeDiscountBps(rule.discountBps) > 0,
+      startsAt: rule.startsAt ?? null,
+      endsAt: rule.endsAt ?? null,
     };
     const next = [
       ...current.value.filter((item) => item.productId !== normalized.productId),

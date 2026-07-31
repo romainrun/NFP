@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
   HelperText,
+  Searchbar,
   SegmentedButtons,
   Text,
 } from 'react-native-paper';
@@ -37,6 +38,7 @@ export function SalesHistoryScreen() {
   const [preset, setPreset] = useState<DayPreset>('today');
   const [fromDate, setFromDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [ticketSearch, setTicketSearch] = useState('');
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const period = useMemo(() => {
@@ -63,6 +65,22 @@ export function SalesHistoryScreen() {
   }
 
   const snapshot = historyQuery.data;
+  const filteredOrders = useMemo(() => {
+    const query = ticketSearch.trim().toLowerCase();
+    const orders = snapshot?.orders ?? [];
+    if (!query) return orders;
+    return orders.filter((order) => {
+      const haystack = [
+        `#${order.receiptNumber}`,
+        String(order.receiptNumber),
+        formatMoney(order.totalCents),
+        ...order.paymentMethods.map(paymentMethodLabel),
+      ]
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [snapshot?.orders, ticketSearch]);
   const maxHourTotal = Math.max(
     1,
     ...(snapshot?.hourly.map((h) => h.totalCents) ?? [1]),
@@ -167,13 +185,19 @@ export function SalesHistoryScreen() {
             Actualiser
           </Button>
         </View>
+        <Searchbar
+          placeholder="Rechercher ticket, montant, paiement"
+          value={ticketSearch}
+          onChangeText={setTicketSearch}
+          style={styles.ticketSearch}
+        />
 
-        {(snapshot?.orders.length ?? 0) === 0 ? (
+        {filteredOrders.length === 0 ? (
           <HelperText type="info" visible>
             Aucune vente sur cette période.
           </HelperText>
         ) : (
-          (snapshot?.orders ?? []).map((item) => (
+          filteredOrders.map((item) => (
             <OrderRow
               key={item.id}
               order={item}
@@ -296,6 +320,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  ticketSearch: {
+    elevation: 0,
   },
   orderRow: {
     flexDirection: 'row',

@@ -104,6 +104,15 @@ export function ExportsScreen() {
     await shareText('Export stock NFP', rows.join('\n'));
   };
 
+  const exportBackup = async () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      products: productsQuery.data ?? [],
+      salesToday: salesQuery.data ?? null,
+    };
+    await shareText('Backup NFP JSON', JSON.stringify(payload, null, 2));
+  };
+
   return (
     <Screen padded={false}>
       <View style={styles.content}>
@@ -121,6 +130,9 @@ export function ExportsScreen() {
           </Button>
           <Button mode="outlined" onPress={exportStock}>
             Export stock
+          </Button>
+          <Button mode="outlined" onPress={exportBackup}>
+            Backup JSON complet
           </Button>
         </View>
       </View>

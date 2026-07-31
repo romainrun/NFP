@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, Portal, Searchbar, Switch, Text, TextInput, useTheme } from 'react-native-paper';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
@@ -10,6 +11,7 @@ import type { IPromotionRepository } from '@/features/promotions/data/PromotionR
 import type { ProductPromotionRule } from '@/features/promotions/domain/types';
 import { normalizeDiscountBps } from '@/features/promotions/domain/types';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { DatePickerField } from '@/shared/components/DatePickerField';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { Colors, shadows } from '@/shared/theme/colors';
@@ -24,6 +26,8 @@ export function PromotionListScreen() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [discountPercent, setDiscountPercent] = useState('');
   const [isActive, setIsActive] = useState(true);
+  const [startsAt, setStartsAt] = useState<string | null>(null);
+  const [endsAt, setEndsAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const productsQuery = useQuery({
@@ -64,6 +68,8 @@ export function PromotionListScreen() {
         productId: editing.id,
         discountBps: normalizeDiscountBps(percent * 100),
         isActive,
+        startsAt,
+        endsAt,
       });
       if (!result.ok) throw result.error;
       return result.value;
@@ -105,6 +111,9 @@ export function PromotionListScreen() {
                 <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
                   {formatMoney(item.priceCents)}
                   {rule?.isActive ? ` · Promo -${percent}%` : ''}
+                  {rule?.startsAt || rule?.endsAt
+                    ? ` · ${rule.startsAt ?? 'maintenant'} → ${rule.endsAt ?? 'sans fin'}`
+                    : ''}
                 </Text>
               </View>
               <Button
@@ -113,6 +122,8 @@ export function PromotionListScreen() {
                   setEditing(item);
                   setDiscountPercent(rule ? String(rule.discountBps / 100).replace('.', ',') : '');
                   setIsActive(rule?.isActive ?? true);
+                  setStartsAt(rule?.startsAt ?? null);
+                  setEndsAt(rule?.endsAt ?? null);
                 }}
               >
                 Configurer
@@ -140,6 +151,22 @@ export function PromotionListScreen() {
             <View style={styles.switchRow}>
               <Text style={[typography.body, { color: theme.colors.onSurface }]}>Active</Text>
               <Switch value={isActive} onValueChange={setIsActive} color={Colors.primary} />
+            </View>
+            <View style={styles.dateRow}>
+              <DatePickerField
+                label="Début"
+                value={startsAt ? new Date(`${startsAt}T00:00:00`) : new Date()}
+                onChange={(date) => setStartsAt(format(date, 'yyyy-MM-dd'))}
+              />
+              <DatePickerField
+                label="Fin"
+                value={endsAt ? new Date(`${endsAt}T00:00:00`) : new Date()}
+                onChange={(date) => setEndsAt(format(date, 'yyyy-MM-dd'))}
+              />
+            </View>
+            <View style={styles.dateActions}>
+              <Button compact onPress={() => setStartsAt(null)}>Sans début</Button>
+              <Button compact onPress={() => setEndsAt(null)}>Sans fin</Button>
             </View>
             {error ? <HelperText type="error" visible>{error}</HelperText> : null}
           </Dialog.Content>
@@ -172,5 +199,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  dateRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  dateActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.xs,
   },
 });

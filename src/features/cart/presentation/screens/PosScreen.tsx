@@ -35,6 +35,8 @@ import type { ICategoryRepository } from '@/features/products/data/CategoryRepos
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
 import type { Product } from '@/features/products/domain/types';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
+import type { IPromotionRepository } from '@/features/promotions/data/PromotionRepository';
+import { isPromotionRuleActive } from '@/features/promotions/domain/types';
 import type { AppStackParamList, MainParamList } from '@/navigation/types';
 import { AnimatedPressable } from '@/shared/components/AnimatedPressable';
 import { AppHeader } from '@/shared/components/AppHeader';
@@ -124,6 +126,17 @@ export function PosScreen() {
     queryFn: async () => {
       const repo = container.resolve<ICategoryRepository>(TOKENS.CategoryRepository);
       const result = await repo.list(false);
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+  });
+
+  const promotionsQuery = useQuery({
+    queryKey: ['promotions', 'pos'],
+    enabled: canSell,
+    queryFn: async () => {
+      const repo = container.resolve<IPromotionRepository>(TOKENS.PromotionRepository);
+      const result = await repo.listRules();
       if (!result.ok) throw result.error;
       return result.value;
     },
@@ -304,6 +317,13 @@ export function PosScreen() {
   });
 
   const gridProducts = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
+  const activePromotions = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const rule of promotionsQuery.data ?? []) {
+      if (isPromotionRuleActive(rule)) map.set(rule.productId, rule.discountBps);
+    }
+    return map;
+  }, [promotionsQuery.data]);
   const associationProducts = useMemo(() => {
     const query = associationSearch.trim().toLowerCase();
     const products = barcodeProductsQuery.data ?? [];
@@ -436,6 +456,7 @@ export function PosScreen() {
         renderItem={({ item }) => (
           <ProductTile
             product={item}
+            promotionBps={activePromotions.get(item.id) ?? 0}
             onPress={() => addMutation.mutate(item.id)}
           />
         )}
@@ -740,14 +761,17 @@ export function PosScreen() {
 
 function ProductTile({
   product,
+  promotionBps,
   onPress,
 }: {
   product: Product;
+  promotionBps: number;
   onPress: () => void;
 }) {
   const theme = useTheme();
   const categoryLabel = product.categoryName ?? 'Sans catégorie';
   const lowStock = product.stockQuantity <= 5;
+  const hasPromotion = promotionBps > 0;
   return (
     <AnimatedPressable
       onPress={onPress}
@@ -781,6 +805,13 @@ function ProductTile({
           <Text style={[styles.miniBadge, { color: theme.colors.tertiary }]}>⚡</Text>
         ) : null}
       </View>
+      {hasPromotion ? (
+        <View style={[styles.promoBadge, { backgroundColor: theme.colors.primary }]}>
+          <Text style={[typography.caption, { color: Colors.white, fontSize: 11 }]}>
+            Promo -{promotionBps / 100}%
+          </Text>
+        </View>
+      ) : null}
       {product.imageUri ? (
         <Image source={{ uri: product.imageUri }} style={styles.tileImage} />
       ) : (
@@ -916,6 +947,12 @@ const styles = StyleSheet.create({
   miniBadge: {
     fontSize: 13,
     fontWeight: '700',
+  },
+  promoBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
   },
   tileImage: {
     width: '100%',
