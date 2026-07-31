@@ -24,6 +24,7 @@ type BarcodeEvent = {
 
 const FRAME_WIDTH_RATIO = 0.72;
 const FRAME_ASPECT_RATIO = 1.6;
+const FRAME_TOLERANCE_RATIO = 0.18;
 
 export function BarcodeScannerModal({ visible, onClose, onScan }: Props) {
   const theme = useTheme();
@@ -60,12 +61,34 @@ export function BarcodeScannerModal({ visible, onClose, onScan }: Props) {
 
   const isPointInsideFrame = (point: ScanPoint) => {
     const rect = frameRect();
+    const tolerance = rect.width * FRAME_TOLERANCE_RATIO;
     return (
-      point.x >= rect.x &&
-      point.x <= rect.x + rect.width &&
-      point.y >= rect.y &&
-      point.y <= rect.y + rect.height
+      point.x >= rect.x - tolerance &&
+      point.x <= rect.x + rect.width + tolerance &&
+      point.y >= rect.y - tolerance &&
+      point.y <= rect.y + rect.height + tolerance
     );
+  };
+
+  const pointsLookLikePreviewCoordinates = (points: ScanPoint[]) => {
+    // Some devices expose camera-buffer coordinates instead of preview
+    // coordinates; those cannot be compared reliably, so keep scanning usable.
+    const tolerance = Math.max(cameraSize.width, cameraSize.height) * 0.12;
+    return points.every(
+      (point) =>
+        point.x >= -tolerance &&
+        point.y >= -tolerance &&
+        point.x <= cameraSize.width + tolerance &&
+        point.y <= cameraSize.height + tolerance,
+    );
+  };
+
+  const centerOfPoints = (points: ScanPoint[]): ScanPoint => {
+    const sum = points.reduce(
+      (acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }),
+      { x: 0, y: 0 },
+    );
+    return { x: sum.x / points.length, y: sum.y / points.length };
   };
 
   const barcodePoints = (event: BarcodeEvent): ScanPoint[] | null => {
@@ -94,7 +117,11 @@ export function BarcodeScannerModal({ visible, onClose, onScan }: Props) {
     const code = data.trim();
     if (!code) return;
     const points = barcodePoints(event);
-    if (points && !points.every(isPointInsideFrame)) {
+    if (
+      points &&
+      pointsLookLikePreviewCoordinates(points) &&
+      !isPointInsideFrame(centerOfPoints(points))
+    ) {
       setHint('Centrez le code dans le cadre');
       return;
     }
