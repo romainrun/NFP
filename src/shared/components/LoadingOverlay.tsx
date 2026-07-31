@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
+import { Screen } from '@/shared/components/Screen';
 import { spacing } from '@/shared/theme/spacing';
 
 type Props = {
@@ -10,12 +11,14 @@ export function LoadingOverlay({ label = 'Chargement…' }: Props) {
   const theme = useTheme();
 
   return (
-    <View style={[styles.wrap, { backgroundColor: theme.colors.background }]}>
-      <ActivityIndicator size="large" color={theme.colors.primary} />
-      <Text style={{ marginTop: spacing.md, color: theme.colors.onSurfaceVariant }}>
-        {label}
-      </Text>
-    </View>
+    <Screen centered padded={false}>
+      <View style={styles.wrap}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={{ marginTop: spacing.md, color: theme.colors.onSurfaceVariant }}>
+          {label}
+        </Text>
+      </View>
+    </Screen>
   );
 }
 

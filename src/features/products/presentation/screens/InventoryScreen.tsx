@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Button, Dialog, HelperText, Portal, Searchbar, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
@@ -33,6 +33,7 @@ export function InventoryScreen() {
       if (!result.ok) throw result.error;
       return result.value;
     },
+    placeholderData: keepPreviousData,
   });
 
   const adjustMutation = useMutation({

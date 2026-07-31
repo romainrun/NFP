@@ -9,7 +9,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -155,6 +155,7 @@ export function ProductListScreen() {
       if (!result.ok) throw result.error;
       return result.value;
     },
+    placeholderData: keepPreviousData,
   });
 
   const importMutation = useMutation({
