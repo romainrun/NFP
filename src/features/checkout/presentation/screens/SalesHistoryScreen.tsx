@@ -7,7 +7,7 @@ import {
   SegmentedButtons,
   Text,
 } from 'react-native-paper';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { container } from '@/core/di/container';
@@ -58,17 +58,11 @@ export function SalesHistoryScreen() {
       if (!result.ok) throw result.error;
       return result.value;
     },
+    placeholderData: keepPreviousData,
   });
 
-  if (historyQuery.isLoading && !historyQuery.data) {
-    return (
-      <Screen padded={false}>
-        <SalesHistorySkeleton />
-      </Screen>
-    );
-  }
-
   const snapshot = historyQuery.data;
+
   const filteredOrders = useMemo(() => {
     const query = ticketSearch.trim().toLowerCase();
     const orders = snapshot?.orders ?? [];
@@ -85,10 +79,19 @@ export function SalesHistoryScreen() {
       return haystack.includes(query);
     });
   }, [snapshot?.orders, ticketSearch]);
-  const maxHourTotal = Math.max(
-    1,
-    ...(snapshot?.hourly.map((h) => h.totalCents) ?? [1]),
+
+  const maxHourTotal = useMemo(
+    () => Math.max(1, ...(snapshot?.hourly.map((h) => h.totalCents) ?? [1])),
+    [snapshot?.hourly],
   );
+
+  if (historyQuery.isLoading && !historyQuery.data) {
+    return (
+      <Screen padded={false}>
+        <SalesHistorySkeleton />
+      </Screen>
+    );
+  }
 
   return (
     <Screen padded={false}>

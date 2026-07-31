@@ -22,7 +22,7 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -122,6 +122,7 @@ export function PosScreen() {
       if (!top.ok) throw top.error;
       return top.value;
     },
+    placeholderData: keepPreviousData,
   });
 
   const categoriesQuery = useQuery({
@@ -473,92 +474,95 @@ export function PosScreen() {
         }
       />
 
-      <View style={styles.manualRowTop}>
-        <TextInput
-          mode="outlined"
-          dense
-          label="Code-barres / SKU"
-          value={manualCode}
-          onChangeText={setManualCode}
-          style={{ flex: 1 }}
-          autoCapitalize="characters"
-          onSubmitEditing={() => {
-            scanBarcode(manualCode);
-          }}
-          right={
-            <TextInput.Icon
-              icon="keyboard-return"
-              onPress={() => {
-                scanBarcode(manualCode);
-              }}
-            />
-          }
+      <View style={styles.filterBlock}>
+        <View style={styles.manualRowTop}>
+          <TextInput
+            mode="outlined"
+            dense
+            label="Code-barres / SKU"
+            value={manualCode}
+            onChangeText={setManualCode}
+            style={{ flex: 1 }}
+            autoCapitalize="characters"
+            onSubmitEditing={() => {
+              scanBarcode(manualCode);
+            }}
+            right={
+              <TextInput.Icon
+                icon="keyboard-return"
+                onPress={() => {
+                  scanBarcode(manualCode);
+                }}
+              />
+            }
+          />
+        </View>
+
+        <Searchbar
+          ref={searchRef as never}
+          placeholder="Rechercher un article"
+          value={search}
+          onChangeText={setSearch}
+          style={styles.search}
         />
+
+        {!search.trim() ? (
+          <SegmentedButtons
+            value={catalogTab}
+            onValueChange={(value) => setCatalogTab(value as CatalogTab)}
+            buttons={[
+              { value: 'top', label: 'Plus vendus', icon: 'fire' },
+              { value: 'favorites', label: 'Favoris', icon: 'star' },
+            ]}
+            style={styles.tabs}
+          />
+        ) : null}
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryFilterScroll}
+          contentContainerStyle={styles.categoryChips}
+        >
+          {[
+            { id: 'all', label: 'Tous', color: Colors.primary },
+            ...(categoriesQuery.data ?? []).map((category) => ({
+              id: category.id,
+              label: category.name,
+              color: category.color ?? Colors.primary,
+            })),
+          ].map((item) => {
+            const selected = item.id === 'all' ? categoryId === null : categoryId === item.id;
+            return (
+              <Chip
+                key={item.id}
+                selected={selected}
+                onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
+                style={[
+                  styles.categoryChip,
+                  {
+                    borderColor: item.color,
+                    backgroundColor: selected ? item.color : 'transparent',
+                  },
+                ]}
+                textStyle={[
+                  styles.categoryChipText,
+                  { color: selected ? Colors.white : item.color },
+                ]}
+              >
+                {item.label}
+              </Chip>
+            );
+          })}
+        </ScrollView>
       </View>
-
-      <Searchbar
-        ref={searchRef as never}
-        placeholder="Rechercher un article"
-        value={search}
-        onChangeText={setSearch}
-        style={styles.search}
-      />
-
-      {!search.trim() ? (
-        <SegmentedButtons
-          value={catalogTab}
-          onValueChange={(value) => setCatalogTab(value as CatalogTab)}
-          buttons={[
-            { value: 'top', label: 'Plus vendus', icon: 'fire' },
-            { value: 'favorites', label: 'Favoris', icon: 'star' },
-          ]}
-          style={styles.tabs}
-        />
-      ) : null}
-
-      <FlatList
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryFilterList}
-        contentContainerStyle={styles.categoryChips}
-        data={[
-          { id: 'all', label: 'Tous', color: Colors.primary },
-          ...(categoriesQuery.data ?? []).map((category) => ({
-            id: category.id,
-            label: category.name,
-            color: category.color ?? Colors.primary,
-          })),
-        ]}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          const selected = item.id === 'all' ? categoryId === null : categoryId === item.id;
-          return (
-            <Chip
-              selected={selected}
-              onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
-              style={[
-                styles.categoryChip,
-                {
-                  borderColor: item.color,
-                  backgroundColor: selected ? item.color : 'transparent',
-                },
-              ]}
-              textStyle={[
-                styles.categoryChipText,
-                { color: selected ? Colors.white : item.color },
-              ]}
-            >
-              {item.label}
-            </Chip>
-          );
-        }}
-      />
 
       <FlatList
         data={gridProducts}
         keyExtractor={(item) => item.id}
         numColumns={useSplitLayout ? 3 : 2}
         key={`${useSplitLayout ? 'tablet' : 'phone'}-${catalogTab}`}
+        style={styles.productGrid}
         contentContainerStyle={styles.grid}
         refreshing={productsQuery.isRefetching}
         onRefresh={() => void productsQuery.refetch()}
@@ -1119,6 +1123,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   pane: { flex: 1 },
+  filterBlock: {
+    flexShrink: 0,
+  },
   search: {
     marginHorizontal: spacing.sm,
     marginBottom: spacing.xs,
@@ -1127,6 +1134,7 @@ const styles = StyleSheet.create({
   tabs: {
     marginHorizontal: spacing.sm,
     marginBottom: spacing.xs,
+    minHeight: 44,
   },
   manualRowTop: {
     paddingHorizontal: spacing.sm,
@@ -1138,8 +1146,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
-  categoryFilterList: {
+  categoryFilterScroll: {
     flexGrow: 0,
+    flexShrink: 0,
     marginBottom: spacing.xs,
   },
   categoryChip: {
@@ -1150,6 +1159,9 @@ const styles = StyleSheet.create({
   categoryChipText: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  productGrid: {
+    flex: 1,
   },
   grid: {
     paddingHorizontal: spacing.xs,
