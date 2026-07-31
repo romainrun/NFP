@@ -11,7 +11,7 @@ type Props = {
   padded?: boolean;
   style?: ViewStyle;
   centered?: boolean;
-  /** Soft atmospheric gradient instead of flat background. */
+  /** Optional soft atmospheric gradient. Default stays flat for readability. */
   atmosphere?: boolean;
 };
 
@@ -20,7 +20,7 @@ export function Screen({
   padded = true,
   style,
   centered = false,
-  atmosphere = true,
+  atmosphere = false,
 }: Props) {
   const theme = useTheme();
   const tokens = theme.dark ? darkColors : lightColors;
