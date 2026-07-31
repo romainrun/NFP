@@ -46,8 +46,8 @@ function parseOpeningHours(raw: string | undefined): StoreOpeningHours {
       return {
         weekday,
         isClosed: Boolean(day.isClosed),
-        openHour: clamp(Number(day.openHour), 0, 23),
-        closeHour: clamp(Number(day.closeHour), 1, 24),
+        openHour: clampHour(Number(day.openHour), 0, 23.98),
+        closeHour: clampHour(Number(day.closeHour), 1, 24),
       };
     });
   } catch {
@@ -90,9 +90,9 @@ function parseShopInfo(raw: string | undefined): ShopInfo {
   }
 }
 
-function clamp(value: number, min: number, max: number): number {
+function clampHour(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
-  return Math.min(max, Math.max(min, Math.round(value)));
+  return Math.min(max, Math.max(min, Math.round(value * 100) / 100));
 }
 
 export class SqliteSettingsRepository implements ISettingsRepository {

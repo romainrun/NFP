@@ -26,9 +26,9 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 export type DayOpeningHours = {
   weekday: Weekday;
   isClosed: boolean;
-  /** Opening hour 0–23 */
+  /** Opening time as decimal hour (9.5 = 09:30). */
   openHour: number;
-  /** Closing hour 1–24 (24 = midnight) */
+  /** Closing time as decimal hour (19.5 = 19:30, 24 = midnight). */
   closeHour: number;
 };
 
@@ -92,8 +92,16 @@ export function defaultOpeningHours(): StoreOpeningHours {
 
 export function formatHourRange(day: DayOpeningHours): string {
   if (day.isClosed) return 'Fermé';
-  const open = `${String(day.openHour).padStart(2, '0')}h`;
-  const close =
-    day.closeHour >= 24 ? '00h' : `${String(day.closeHour).padStart(2, '0')}h`;
-  return `${open} → ${close}`;
+  return `${formatOpeningHour(day.openHour)} → ${formatOpeningHour(day.closeHour)}`;
+}
+
+export function formatOpeningHour(value: number): string {
+  if (value >= 24) return '00h00';
+  let hour = Math.floor(value);
+  let minutes = Math.round((value - hour) * 60);
+  if (minutes >= 60) {
+    hour += 1;
+    minutes = 0;
+  }
+  return `${String(hour).padStart(2, '0')}h${String(minutes).padStart(2, '0')}`;
 }

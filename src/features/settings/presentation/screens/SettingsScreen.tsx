@@ -29,6 +29,7 @@ import {
   defaultDashboardWidgets,
   defaultOpeningHours,
   defaultShopInfo,
+  formatOpeningHour,
   formatHourRange,
   type ThemePreference,
 } from '@/features/settings/domain/types';
@@ -40,7 +41,33 @@ import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
-const HOUR_OPTIONS = Array.from({ length: 25 }, (_, i) => i);
+type HourTextState = Record<string, { open: string; close: string }>;
+
+function formatHourInput(value: number): string {
+  return formatOpeningHour(value).replace('h', ':');
+}
+
+function parseHourInput(raw: string): number | null {
+  let normalized = raw.trim().toLowerCase().replace(',', ':').replace('h', ':');
+  if (normalized.endsWith(':')) normalized = normalized.slice(0, -1);
+  const match = /^(\d{1,2})(?::?(\d{2}))?$/.exec(normalized);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minutes = match[2] ? Number(match[2]) : 0;
+  if (!Number.isInteger(hour) || !Number.isInteger(minutes)) return null;
+  if (hour < 0 || hour > 24 || minutes < 0 || minutes > 59) return null;
+  if (hour === 24 && minutes !== 0) return null;
+  return hour + minutes / 60;
+}
+
+function hourTextsFromHours(hours: StoreOpeningHours): HourTextState {
+  return Object.fromEntries(
+    hours.map((day) => [
+      String(day.weekday),
+      { open: formatHourInput(day.openHour), close: formatHourInput(day.closeHour) },
+    ]),
+  );
+}
 
 export function SettingsScreen() {
   const theme = useTheme();
@@ -57,6 +84,9 @@ export function SettingsScreen() {
   const [themePreference, setLocalThemePreference] =
     useState<ThemePreference>('system');
   const [hours, setHours] = useState<StoreOpeningHours>(defaultOpeningHours());
+  const [hourTexts, setHourTexts] = useState<HourTextState>(
+    hourTextsFromHours(defaultOpeningHours()),
+  );
   const [dashboardWidgets, setDashboardWidgets] =
     useState<DashboardWidgetSetting[]>(defaultDashboardWidgets());
   const [message, setMessage] = useState<string | null>(null);
@@ -78,6 +108,7 @@ export function SettingsScreen() {
     setShopInfo(settingsQuery.data.shopInfo);
     setLocalThemePreference(settingsQuery.data.themePreference);
     setHours(settingsQuery.data.openingHours);
+    setHourTexts(hourTextsFromHours(settingsQuery.data.openingHours));
     setDashboardWidgets(settingsQuery.data.dashboardWidgets);
   }, [settingsQuery.data]);
 
@@ -91,15 +122,33 @@ export function SettingsScreen() {
       if (!shopResult.ok) throw shopResult.error;
       const themeResult = await repo.setThemePreference(themePreference);
       if (!themeResult.ok) throw themeResult.error;
-      const hoursResult = await repo.setOpeningHours(hours);
+      const normalizedHours = hours.map((day) => {
+        if (day.isClosed) return day;
+        const text = hourTexts[String(day.weekday)];
+        const openHour = parseHourInput(text?.open ?? '');
+        const closeHour = parseHourInput(text?.close ?? '');
+        if (openHour == null || closeHour == null) {
+          throw new Error(`Horaires invalides pour ${WEEKDAY_LABELS[day.weekday]}`);
+        }
+        return { ...day, openHour, closeHour };
+      });
+      const hoursResult = await repo.setOpeningHours(normalizedHours);
       if (!hoursResult.ok) throw hoursResult.error;
       const widgetsResult = await repo.setDashboardWidgets(dashboardWidgets);
       if (!widgetsResult.ok) throw widgetsResult.error;
-      return { storeName: storeName.trim(), themePreference, hours, dashboardWidgets, shopInfo };
+      return {
+        storeName: storeName.trim(),
+        themePreference,
+        hours: normalizedHours,
+        dashboardWidgets,
+        shopInfo,
+      };
     },
     onSuccess: async (value) => {
       setStoreName(value.storeName);
       setThemePreference(value.themePreference);
+      setHours(value.hours);
+      setHourTexts(hourTextsFromHours(value.hours));
       setMessage('Paramètres enregistrés');
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['settings'] });
@@ -115,6 +164,20 @@ export function SettingsScreen() {
     setHours((prev) =>
       prev.map((day) => (day.weekday === weekday ? { ...day, ...patch } : day)),
     );
+  };
+
+  const updateHourText = (
+    weekday: Weekday,
+    field: 'open' | 'close',
+    value: string,
+  ) => {
+    setHourTexts((prev) => ({
+      ...prev,
+      [String(weekday)]: {
+        ...(prev[String(weekday)] ?? { open: '09:00', close: '19:00' }),
+        [field]: value,
+      },
+    }));
   };
 
   const updateWidget = (id: DashboardWidgetId, isEnabled: boolean) => {
@@ -224,7 +287,7 @@ export function SettingsScreen() {
           Horaires d’ouverture
         </Text>
         <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
-          Définissez la tranche horaire pour chaque jour (ex. 09h → 19h).
+          Saisissez simplement les heures, par exemple 09:30, 9h30 ou 19h.
         </Text>
 
         {hours.map((day) => (
@@ -258,18 +321,26 @@ export function SettingsScreen() {
             </View>
 
             {!day.isClosed ? (
-              <View style={styles.hourPickers}>
-                <HourSelect
+              <View style={styles.timeInputs}>
+                <TextInput
+                  mode="outlined"
+                  dense
                   label="Ouverture"
-                  value={day.openHour}
-                  options={HOUR_OPTIONS.filter((h) => h < 24)}
-                  onChange={(openHour) => updateDay(day.weekday, { openHour })}
+                  value={hourTexts[String(day.weekday)]?.open ?? ''}
+                  onChangeText={(value) => updateHourText(day.weekday, 'open', value)}
+                  placeholder="09:30"
+                  keyboardType="numbers-and-punctuation"
+                  style={styles.timeInput}
                 />
-                <HourSelect
+                <TextInput
+                  mode="outlined"
+                  dense
                   label="Fermeture"
-                  value={day.closeHour}
-                  options={HOUR_OPTIONS.filter((h) => h >= 1)}
-                  onChange={(closeHour) => updateDay(day.weekday, { closeHour })}
+                  value={hourTexts[String(day.weekday)]?.close ?? ''}
+                  onChangeText={(value) => updateHourText(day.weekday, 'close', value)}
+                  placeholder="19:00"
+                  keyboardType="numbers-and-punctuation"
+                  style={styles.timeInput}
                 />
               </View>
             ) : null}
@@ -302,44 +373,6 @@ export function SettingsScreen() {
   );
 }
 
-function HourSelect({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  options: number[];
-  onChange: (value: number) => void;
-}) {
-  const theme = useTheme();
-  return (
-    <View style={{ flex: 1, gap: spacing.xxs }}>
-      <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {options.map((hour) => {
-          const selected = hour === value;
-          const labelText = hour >= 24 ? '00h' : `${String(hour).padStart(2, '0')}h`;
-          return (
-            <Button
-              key={`${label}-${hour}`}
-              mode={selected ? 'contained' : 'outlined'}
-              compact
-              onPress={() => onChange(hour)}
-              style={styles.hourChip}
-              buttonColor={selected ? Colors.primary : undefined}
-              textColor={selected ? Colors.onPrimary : theme.colors.onSurface}
-            >
-              {labelText}
-            </Button>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
@@ -362,8 +395,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
   },
-  hourPickers: {
+  timeInputs: {
+    flexDirection: 'row',
     gap: spacing.sm,
+  },
+  timeInput: {
+    flex: 1,
   },
   widgetList: {
     gap: spacing.xs,
@@ -376,9 +413,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     gap: spacing.sm,
-  },
-  hourChip: {
-    marginRight: spacing.xxs,
-    borderRadius: radii.button,
   },
 });
