@@ -57,11 +57,17 @@ export function DashboardScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.hero}
           >
-            <Text style={[typography.brand, { color: Colors.white, fontSize: 40 }]}>
+            <Text style={[typography.brand, { color: Colors.white, fontSize: 36 }]}>
               {APP_CONFIG.shortName}
             </Text>
-            <Text style={{ color: Colors.white, opacity: 0.95, marginTop: spacing.xs }}>
-              Caisse offline · Naturally Forme
+            <Text style={[typography.caption, { color: Colors.white, opacity: 0.9 }]}>
+              CA de la journée
+            </Text>
+            <Text style={[typography.amount, { color: Colors.white, marginTop: 2 }]}>
+              {snapshot.metrics.find((m) => m.id === 'revenue_today')?.value ?? '0,00 €'}
+            </Text>
+            <Text style={[typography.caption, { color: Colors.white, opacity: 0.85 }]}>
+              {snapshot.metrics.find((m) => m.id === 'revenue_today')?.deltaLabel ?? ''}
             </Text>
             <View style={styles.heroActions}>
               <Button
@@ -102,33 +108,45 @@ export function DashboardScreen() {
 
           <View style={[styles.sidePanel, shadows.sm]}>
             <Text style={[typography.h3, { color: Colors.text }]}>Top produits</Text>
-            {snapshot.topProducts.map((product) => (
-              <Pressable key={product.id} style={styles.productRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[typography.bodyStrong, { color: Colors.text }]}>
-                    {product.name}
+            {snapshot.topProducts.length === 0 ? (
+              <Text style={[typography.caption, { color: Colors.textSecondary }]}>
+                Aucune vente aujourd’hui
+              </Text>
+            ) : (
+              snapshot.topProducts.map((product) => (
+                <Pressable key={product.id} style={styles.productRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[typography.bodyStrong, { color: Colors.text }]}>
+                      {product.name}
+                    </Text>
+                    <Text style={[typography.caption, { color: Colors.textSecondary }]}>
+                      {product.quantitySold} vendus
+                    </Text>
+                  </View>
+                  <Text style={[typography.money, { color: Colors.primary }]}>
+                    {product.revenueLabel}
                   </Text>
-                  <Text style={[typography.caption, { color: Colors.textSecondary }]}>
-                    {product.quantitySold} vendus
-                  </Text>
-                </View>
-                <Text style={[typography.money, { color: Colors.primary }]}>
-                  {product.revenueLabel}
-                </Text>
-              </Pressable>
-            ))}
+                </Pressable>
+              ))
+            )}
 
             <Text style={[typography.h3, { color: Colors.text, marginTop: spacing.lg }]}>
               Alertes stock
             </Text>
-            {snapshot.inventoryAlerts.map((alert) => (
-              <Text
-                key={alert}
-                style={[typography.caption, { color: Colors.error, marginTop: spacing.xs }]}
-              >
-                {alert}
+            {snapshot.inventoryAlerts.length === 0 ? (
+              <Text style={[typography.caption, { color: Colors.textSecondary }]}>
+                Stock OK
               </Text>
-            ))}
+            ) : (
+              snapshot.inventoryAlerts.map((alert) => (
+                <Text
+                  key={alert}
+                  style={[typography.caption, { color: Colors.error, marginTop: spacing.xs }]}
+                >
+                  {alert}
+                </Text>
+              ))
+            )}
           </View>
         </View>
       </ScrollView>

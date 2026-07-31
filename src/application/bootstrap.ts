@@ -5,7 +5,7 @@ import { SqliteAuthRepository } from '@/features/authentication/data/SqliteAuthR
 import { SqliteUserRepository } from '@/features/authentication/data/SqliteUserRepository';
 import { SqliteCartRepository } from '@/features/cart/data/SqliteCartRepository';
 import { SqliteOrderRepository } from '@/features/checkout/data/SqliteOrderRepository';
-import { MockDashboardRepository } from '@/features/dashboard/data/MockDashboardRepository';
+import { SqliteDashboardRepository } from '@/features/dashboard/data/SqliteDashboardRepository';
 import { LocalPaymentProvider } from '@/features/payments/data/LocalPaymentProvider';
 import { SqliteCategoryRepository } from '@/features/products/data/SqliteCategoryRepository';
 import { SqliteProductRepository } from '@/features/products/data/SqliteProductRepository';
@@ -29,7 +29,7 @@ export async function bootstrap(): Promise<void> {
   const users = new SqliteUserRepository(db);
   const auth = new SqliteAuthRepository(db, users, secureStorage, audit);
   const settings = new SqliteSettingsRepository(db);
-  const dashboard = new MockDashboardRepository();
+  const dashboard = new SqliteDashboardRepository(db);
   const categories = new SqliteCategoryRepository(db);
   const products = new SqliteProductRepository(db, audit);
   const carts = new SqliteCartRepository(db, products);

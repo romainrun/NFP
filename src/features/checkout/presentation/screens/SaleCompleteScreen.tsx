@@ -6,6 +6,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
+import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import type { AppStackParamList } from '@/navigation/types';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
@@ -62,7 +63,7 @@ export function SaleCompleteScreen({ navigation, route }: Props) {
           {order.payments.map((payment) => (
             <Row
               key={payment.id}
-              label={payment.method === 'cash' ? 'Espèces' : 'Carte'}
+              label={paymentMethodLabel(payment.method)}
               value={formatMoney(payment.amountCents)}
             />
           ))}

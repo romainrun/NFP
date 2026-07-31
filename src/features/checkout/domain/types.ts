@@ -47,7 +47,10 @@ export type Order = {
 };
 
 export type SalePaymentInput = {
-  method: Extract<PaymentMethod, 'cash' | 'card'>;
+  method: Extract<
+    PaymentMethod,
+    'cash' | 'card' | 'online' | 'remote' | 'transfer' | 'amex'
+  >;
   amountCents: number;
   /** Cash tendered (for change calculation). Defaults to amountCents. */
   tenderedCents?: number;

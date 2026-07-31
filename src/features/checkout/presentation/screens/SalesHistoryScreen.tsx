@@ -15,6 +15,7 @@ import { TOKENS } from '@/core/di/tokens';
 import { OrderDetailDialog } from '@/features/checkout/presentation/components/OrderDetailDialog';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
 import type { OrderSummary } from '@/features/checkout/domain/salesHistory';
+import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
@@ -245,7 +246,9 @@ function OrderRow({
           {format(new Date(order.createdAt), "EEE d MMM · HH:mm", { locale: fr })}
           {' · '}
           {order.itemCount} art.
-          {order.paymentMethods.length ? ` · ${order.paymentMethods.join('+')}` : ''}
+          {order.paymentMethods.length
+            ? ` · ${order.paymentMethods.map(paymentMethodLabel).join(' + ')}`
+            : ''}
         </Text>
       </View>
       <Text style={[typography.amount, { color: Colors.primary, fontSize: 18 }]}>

@@ -127,6 +127,28 @@ export class SqliteProductRepository implements IProductRepository {
     }
   }
 
+  async listTopSelling(limit = 24): Promise<Result<Product[]>> {
+    try {
+      const rows = await this.db.getAllAsync<ProductRow & { sold_qty: number }>(
+        `${PRODUCT_SELECT}
+         LEFT JOIN (
+           SELECT ol.product_id AS pid, SUM(ol.quantity) AS sold_qty
+           FROM order_lines ol
+           INNER JOIN orders o ON o.id = ol.order_id AND o.status = 'completed'
+           WHERE ol.product_id IS NOT NULL
+           GROUP BY ol.product_id
+         ) sales ON sales.pid = p.id
+         WHERE p.is_active = 1
+         ORDER BY COALESCE(sales.sold_qty, 0) DESC, p.is_favorite DESC, p.name ASC
+         LIMIT ?`,
+        limit,
+      );
+      return ok(rows.map(mapProduct));
+    } catch (cause) {
+      return err(AppError.database('Impossible de charger les plus vendus', cause));
+    }
+  }
+
   async getById(id: string): Promise<Result<Product>> {
     try {
       const row = await this.db.getFirstAsync<ProductRow>(

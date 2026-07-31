@@ -6,6 +6,7 @@ import { fr } from 'date-fns/locale';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
+import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import { Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -81,7 +82,7 @@ export function OrderDetailDialog({ orderId, visible, onDismiss }: Props) {
                 {orderQuery.data.payments.map((payment) => (
                   <Row
                     key={payment.id}
-                    label={payment.method === 'cash' ? 'Espèces' : 'Carte'}
+                    label={paymentMethodLabel(payment.method)}
                     value={formatMoney(payment.amountCents)}
                   />
                 ))}

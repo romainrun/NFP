@@ -9,6 +9,8 @@ import type {
 
 export interface IProductRepository {
   list(filter?: ProductListFilter): Promise<Result<Product[]>>;
+  /** Active products ordered by lifetime quantity sold (then name). */
+  listTopSelling(limit?: number): Promise<Result<Product[]>>;
   getById(id: string): Promise<Result<Product>>;
   getBySku(sku: string): Promise<Result<Product>>;
   getByBarcode(barcode: string): Promise<Result<Product>>;

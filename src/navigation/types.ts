@@ -11,6 +11,8 @@ export type MainParamList = {
   SalesHistory: undefined;
   ProductList: undefined;
   CategoryList: undefined;
+  Members: undefined;
+  Settings: undefined;
 };
 
 /** @deprecated Use MainParamList */

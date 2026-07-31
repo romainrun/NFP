@@ -6,6 +6,10 @@
 export type PaymentMethod =
   | 'cash'
   | 'card'
+  | 'online'
+  | 'remote'
+  | 'transfer'
+  | 'amex'
   | 'gift_card'
   | 'store_credit'
   | 'split';

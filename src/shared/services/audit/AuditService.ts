@@ -18,6 +18,7 @@ export type AuditAction =
   | 'product_update'
   | 'product_deactivate'
   | 'category_change'
+  | 'user_change'
   | 'sync'
   | 'error'
   | 'config_change';

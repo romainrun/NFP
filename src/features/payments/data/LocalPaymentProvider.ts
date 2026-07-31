@@ -4,10 +4,11 @@ import type {
   PaymentRequest,
   PaymentResult,
 } from '@/features/payments/domain/PaymentProvider';
+import { PAYMENT_METHOD_LABELS } from '@/features/payments/domain/paymentMethods';
 
 /**
- * Offline / local tender capture for cash + simulated card.
- * Replace with Stripe Terminal / Worldline adapter later via DI.
+ * Offline / local tender capture.
+ * Cash is immediate; other methods are simulated success (ready for real TPE / PSP).
  */
 export class LocalPaymentProvider implements PaymentProvider {
   readonly id = 'local';
@@ -21,6 +22,14 @@ export class LocalPaymentProvider implements PaymentProvider {
       };
     }
 
+    if (request.method === 'gift_card' || request.method === 'store_credit' || request.method === 'split') {
+      return {
+        success: false,
+        provider: this.id,
+        message: `Moyen de paiement non supporté: ${PAYMENT_METHOD_LABELS[request.method]}`,
+      };
+    }
+
     if (request.method === 'cash') {
       return {
         success: true,
@@ -30,21 +39,13 @@ export class LocalPaymentProvider implements PaymentProvider {
       };
     }
 
-    if (request.method === 'card') {
-      // Simulated card capture — always succeeds in offline mode.
-      await new Promise((resolve) => setTimeout(resolve, 350));
-      return {
-        success: true,
-        provider: this.id,
-        providerReference: `CARD-${Crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-        message: 'Carte acceptée (simulation)',
-      };
-    }
-
+    await new Promise((resolve) => setTimeout(resolve, 280));
+    const prefix = request.method.toUpperCase().slice(0, 6);
     return {
-      success: false,
+      success: true,
       provider: this.id,
-      message: `Moyen de paiement non supporté: ${request.method}`,
+      providerReference: `${prefix}-${Crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      message: `${PAYMENT_METHOD_LABELS[request.method]} accepté (simulation)`,
     };
   }
 }

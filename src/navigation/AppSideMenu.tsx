@@ -27,6 +27,8 @@ const ITEMS: Item[] = [
   { key: 'history', label: 'Historique des ventes', icon: 'history', route: 'SalesHistory', section: 'Vente' },
   { key: 'products', label: 'Articles', icon: 'barcode', route: 'ProductList', section: 'Catalogue' },
   { key: 'categories', label: 'Catégories', icon: 'shape-outline', route: 'CategoryList', section: 'Catalogue' },
+  { key: 'members', label: 'Membres', icon: 'account-group-outline', route: 'Members', section: 'Administration' },
+  { key: 'settings', label: 'Paramètres', icon: 'cog-outline', route: 'Settings', section: 'Administration' },
 ];
 
 /**
@@ -47,9 +49,17 @@ export function AppSideMenu() {
   const canManageCatalog = Boolean(
     session && hasPermission(session.employee.role, 'inventory.manage'),
   );
+  const canManageUsers = Boolean(
+    session && hasPermission(session.employee.role, 'users.manage'),
+  );
+  const canManageSettings = Boolean(
+    session && hasPermission(session.employee.role, 'settings.manage'),
+  );
 
   const visible = ITEMS.filter((item) => {
     if (item.route === 'CategoryList') return canManageCatalog;
+    if (item.route === 'Members') return canManageUsers;
+    if (item.route === 'Settings') return canManageSettings;
     return true;
   });
 

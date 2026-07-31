@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
   HelperText,
   IconButton,
-  SegmentedButtons,
   Text,
   TextInput,
-  useTheme,
 } from 'react-native-paper';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,18 +14,24 @@ import { TOKENS } from '@/core/di/tokens';
 import type { ICartRepository } from '@/features/cart/data/CartRepository';
 import { useSalesAccess } from '@/features/cart/presentation/hooks/useSalesAccess';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
+import {
+  PAYMENT_METHOD_ICONS,
+  PAYMENT_METHOD_LABELS,
+  TENDER_METHODS,
+  isCashMethod,
+  type TenderMethod,
+} from '@/features/payments/domain/paymentMethods';
 import type { AppStackParamList } from '@/navigation/types';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { eurosToCents, formatMoney, parseEurosInput } from '@/shared/utils/money';
+import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Checkout'>;
-type TenderMethod = 'cash' | 'card';
 
 export function CheckoutScreen({ navigation }: Props) {
-  const theme = useTheme();
   const queryClient = useQueryClient();
   const { canSell, userId } = useSalesAccess();
   const [method, setMethod] = useState<TenderMethod>('cash');
@@ -48,7 +52,7 @@ export function CheckoutScreen({ navigation }: Props) {
   const totalCents = cartQuery.data?.totalCents ?? 0;
 
   const tenderedCents = useMemo(() => {
-    if (method === 'card') return totalCents;
+    if (!isCashMethod(method)) return totalCents;
     if (!tendered.trim()) return totalCents;
     const euros = parseEurosInput(tendered);
     return euros == null ? null : eurosToCents(euros);
@@ -83,6 +87,8 @@ export function CheckoutScreen({ navigation }: Props) {
     onSuccess: async (sale) => {
       await queryClient.invalidateQueries({ queryKey: ['cart', userId] });
       await queryClient.invalidateQueries({ queryKey: ['products'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      await queryClient.invalidateQueries({ queryKey: ['sales-history'] });
       navigation.replace('SaleComplete', {
         orderId: sale.order.id,
         changeCents: sale.changeCents,
@@ -106,9 +112,7 @@ export function CheckoutScreen({ navigation }: Props) {
   if (cartQuery.data.lines.length === 0) {
     return (
       <Screen centered>
-        <Text style={[typography.h2, { color: theme.colors.onSurface }]}>
-          Panier vide
-        </Text>
+        <Text style={[typography.h2, { color: Colors.text }]}>Panier vide</Text>
         <Button onPress={() => navigation.goBack()}>Retour caisse</Button>
       </Screen>
     );
@@ -118,46 +122,61 @@ export function CheckoutScreen({ navigation }: Props) {
     <Screen padded={false}>
       <View style={styles.header}>
         <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
-        <Text style={[typography.h2, { color: theme.colors.onSurface, flex: 1 }]}>
-          Encaissement
-        </Text>
+        <Text style={[typography.h2, { color: Colors.text, flex: 1 }]}>Encaissement</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <View
-          style={[
-            styles.totalCard,
-            { backgroundColor: theme.colors.primaryContainer },
-          ]}
-        >
-          <Text style={{ color: theme.colors.onPrimaryContainer }}>À encaisser</Text>
-          <Text
-            style={[
-              typography.brand,
-              { color: theme.colors.onPrimaryContainer, fontSize: 40 },
-            ]}
-          >
+        <View style={[styles.totalCard, shadows.sm]}>
+          <Text style={{ color: Colors.primaryDark }}>À encaisser</Text>
+          <Text style={[typography.amount, { color: Colors.text }]}>
             {formatMoney(totalCents)}
           </Text>
-          <Text style={{ color: theme.colors.onPrimaryContainer }}>
+          <Text style={[typography.caption, { color: Colors.textSecondary }]}>
             {cartQuery.data.itemCount} article
             {cartQuery.data.itemCount > 1 ? 's' : ''}
           </Text>
         </View>
 
-        <Text style={[typography.h3, { color: theme.colors.onSurface }]}>
-          Moyen de paiement
-        </Text>
-        <SegmentedButtons
-          value={method}
-          onValueChange={(value) => setMethod(value as TenderMethod)}
-          buttons={[
-            { value: 'cash', label: 'Espèces', icon: 'cash' },
-            { value: 'card', label: 'Carte', icon: 'credit-card' },
-          ]}
-        />
+        <Text style={[typography.h3, { color: Colors.text }]}>Moyen de paiement</Text>
+        <View style={styles.methodGrid}>
+          {TENDER_METHODS.map((value) => {
+            const selected = method === value;
+            return (
+              <Pressable
+                key={value}
+                onPress={() => setMethod(value)}
+                style={[
+                  styles.methodTile,
+                  shadows.sm,
+                  selected && styles.methodTileSelected,
+                ]}
+              >
+                <IconButton
+                  icon={PAYMENT_METHOD_ICONS[value]}
+                  size={22}
+                  iconColor={selected ? Colors.primaryDark : Colors.iconInactive}
+                  style={{ margin: 0 }}
+                />
+                <Text
+                  style={[
+                    typography.caption,
+                    {
+                      color: selected ? Colors.primaryDark : Colors.text,
+                      textAlign: 'center',
+                      fontFamily: selected
+                        ? typography.button.fontFamily
+                        : typography.caption.fontFamily,
+                    },
+                  ]}
+                >
+                  {PAYMENT_METHOD_LABELS[value]}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-        {method === 'cash' ? (
+        {isCashMethod(method) ? (
           <View style={styles.cashBlock}>
             <TextInput
               mode="outlined"
@@ -166,6 +185,9 @@ export function CheckoutScreen({ navigation }: Props) {
               onChangeText={setTendered}
               keyboardType="decimal-pad"
               placeholder={String(totalCents / 100).replace('.', ',')}
+              outlineColor={Colors.border}
+              activeOutlineColor={Colors.primary}
+              style={{ backgroundColor: Colors.surface }}
             />
             <View style={styles.quickCash}>
               {[totalCents, 1000, 2000, 5000].map((cents) => (
@@ -173,21 +195,22 @@ export function CheckoutScreen({ navigation }: Props) {
                   key={cents}
                   mode="outlined"
                   compact
-                  onPress={() =>
-                    setTendered(String(cents / 100).replace('.', ','))
-                  }
+                  textColor={Colors.primary}
+                  style={{ borderColor: Colors.primary }}
+                  onPress={() => setTendered(String(cents / 100).replace('.', ','))}
                 >
                   {formatMoney(cents)}
                 </Button>
               ))}
             </View>
-            <Text style={[typography.h3, { color: theme.colors.primary }]}>
+            <Text style={[typography.h3, { color: Colors.primary }]}>
               Monnaie : {formatMoney(changeCents)}
             </Text>
           </View>
         ) : (
           <HelperText type="info" visible>
-            Paiement carte simulé hors ligne (prêt pour un TPE réel plus tard).
+            {PAYMENT_METHOD_LABELS[method]} — montant exact {formatMoney(totalCents)}{' '}
+            (simulation hors ligne).
           </HelperText>
         )}
 
@@ -199,15 +222,17 @@ export function CheckoutScreen({ navigation }: Props) {
 
         <Button
           mode="contained"
+          buttonColor={Colors.primary}
           loading={payMutation.isPending}
           disabled={payMutation.isPending}
           contentStyle={{ minHeight: 56 }}
+          labelStyle={typography.button}
           onPress={() => {
             setError(null);
             payMutation.mutate();
           }}
         >
-          Valider le paiement
+          Valider · {PAYMENT_METHOD_LABELS[method]}
         </Button>
       </ScrollView>
     </Screen>
@@ -227,9 +252,34 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   totalCard: {
-    borderRadius: radii.lg,
+    borderRadius: radii.card,
     padding: spacing.lg,
     gap: spacing.xs,
+    backgroundColor: Colors.primaryLight,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+  },
+  methodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  methodTile: {
+    width: '48%',
+    flexGrow: 1,
+    minWidth: 140,
+    borderRadius: radii.button,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    alignItems: 'center',
+    gap: 2,
+  },
+  methodTileSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
   },
   cashBlock: {
     gap: spacing.sm,

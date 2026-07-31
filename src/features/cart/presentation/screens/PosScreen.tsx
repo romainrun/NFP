@@ -11,6 +11,7 @@ import {
   Button,
   HelperText,
   Searchbar,
+  SegmentedButtons,
   Snackbar,
   Text,
   TextInput,
@@ -34,6 +35,7 @@ import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
 import { formatMoney } from '@/shared/utils/money';
+import { Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
@@ -41,6 +43,8 @@ type PosNavigation = CompositeNavigationProp<
   NativeStackNavigationProp<MainParamList, 'Pos'>,
   NativeStackNavigationProp<AppStackParamList>
 >;
+
+type CatalogTab = 'top' | 'favorites';
 
 export function PosScreen() {
   const navigation = useNavigation<PosNavigation>();
@@ -52,6 +56,7 @@ export function PosScreen() {
   const [manualCode, setManualCode] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   const [snack, setSnack] = useState<string | null>(null);
+  const [catalogTab, setCatalogTab] = useState<CatalogTab>('top');
 
   const cartQuery = useQuery({
     queryKey: ['cart', userId],
@@ -65,16 +70,27 @@ export function PosScreen() {
   });
 
   const productsQuery = useQuery({
-    queryKey: ['products', 'pos', search],
+    queryKey: ['products', 'pos', search, catalogTab],
     enabled: canSell,
     queryFn: async () => {
       const repo = container.resolve<IProductRepository>(TOKENS.ProductRepository);
-      const result = await repo.list({
-        search: search.trim() || undefined,
-        includeInactive: false,
-      });
-      if (!result.ok) throw result.error;
-      return result.value;
+      if (search.trim()) {
+        const result = await repo.list({
+          search: search.trim(),
+          includeInactive: false,
+        });
+        if (!result.ok) throw result.error;
+        return result.value;
+      }
+      if (catalogTab === 'favorites') {
+        const result = await repo.list({ includeInactive: false });
+        if (!result.ok) throw result.error;
+        const favorites = result.value.filter((p) => p.isFavorite || p.isQuick);
+        return favorites.length ? favorites : result.value.slice(0, 24);
+      }
+      const top = await repo.listTopSelling(24);
+      if (!top.ok) throw top.error;
+      return top.value;
     },
   });
 
@@ -131,12 +147,7 @@ export function PosScreen() {
     onSuccess: (cart) => queryClient.setQueryData(['cart', userId], cart),
   });
 
-  const quickProducts = useMemo(() => {
-    const all = productsQuery.data ?? [];
-    if (search.trim()) return all;
-    const quick = all.filter((p) => p.isQuick || p.isFavorite);
-    return quick.length ? quick : all.slice(0, 24);
-  }, [productsQuery.data, search]);
+  const gridProducts = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
 
   if (!canSell) {
     return (
@@ -159,7 +170,7 @@ export function PosScreen() {
     <View style={styles.pane}>
       <AppHeader
         title="Caisse"
-        subtitle="Scan, recherche ou produits rapides"
+        subtitle="Scan, plus vendus ou favoris"
         right={
           <Button mode="contained-tonal" icon="barcode-scan" onPress={() => setScannerOpen(true)}>
             Scanner
@@ -173,6 +184,18 @@ export function PosScreen() {
         onChangeText={setSearch}
         style={styles.search}
       />
+
+      {!search.trim() ? (
+        <SegmentedButtons
+          value={catalogTab}
+          onValueChange={(value) => setCatalogTab(value as CatalogTab)}
+          buttons={[
+            { value: 'top', label: 'Plus vendus', icon: 'fire' },
+            { value: 'favorites', label: 'Favoris', icon: 'star' },
+          ]}
+          style={styles.tabs}
+        />
+      ) : null}
 
       <View style={styles.manualRow}>
         <TextInput
@@ -198,15 +221,15 @@ export function PosScreen() {
       </View>
 
       <FlatList
-        data={quickProducts}
+        data={gridProducts}
         keyExtractor={(item) => item.id}
         numColumns={useSplitLayout ? 3 : 2}
-        key={useSplitLayout ? 'tablet-grid' : 'phone-grid'}
+        key={`${useSplitLayout ? 'tablet' : 'phone'}-${catalogTab}`}
         contentContainerStyle={styles.grid}
         refreshing={productsQuery.isRefetching}
         onRefresh={() => void productsQuery.refetch()}
         ListEmptyComponent={
-          <Text style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+          <Text style={{ color: Colors.textSecondary, textAlign: 'center' }}>
             Aucun article trouvé
           </Text>
         }
@@ -414,6 +437,10 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.sm,
     marginBottom: spacing.xs,
     elevation: 0,
+  },
+  tabs: {
+    marginHorizontal: spacing.sm,
+    marginBottom: spacing.xs,
   },
   manualRow: {
     paddingHorizontal: spacing.sm,
