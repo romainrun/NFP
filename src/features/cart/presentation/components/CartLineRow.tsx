@@ -21,6 +21,10 @@ export function CartLineRow({
   onRemove,
 }: Props) {
   const theme = useTheme();
+  const hasPromotion = line.discountBps > 0;
+  const discountPercent = line.discountBps / 100;
+  const originalLineTotalCents = Math.round(line.unitPriceCents * line.quantity);
+  const savedCents = Math.max(0, originalLineTotalCents - line.lineTotalCents);
 
   return (
     <View
@@ -36,6 +40,12 @@ export function CartLineRow({
         <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
           {formatMoney(line.unitPriceCents)} · TVA {line.vatRate}%
         </Text>
+        {hasPromotion ? (
+          <Text style={[typography.caption, { color: theme.colors.primary }]}>
+            Promo -{discountPercent}% · avant {formatMoney(originalLineTotalCents)}
+            {savedCents > 0 ? ` · économie ${formatMoney(savedCents)}` : ''}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.qty}>
