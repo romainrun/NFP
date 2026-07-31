@@ -247,3 +247,5 @@ Do **not** clear `node_modules` on every normal deploy — only when changing No
 - Safe (no PM2 restart if install fails)
 - Observed (health check fails the workflow if Metro is down)
 - Persistent (`pm2 save` + startup unit)
+
+<!-- cicd-trigger: 2026-07-31T10:30:36Z -->
