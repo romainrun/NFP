@@ -13,6 +13,8 @@ export const TOKENS = {
   PromotionRepository: 'PromotionRepository',
   CartRepository: 'CartRepository',
   OrderRepository: 'OrderRepository',
+  CashClosingRepository: 'CashClosingRepository',
+  SyncRepository: 'SyncRepository',
   PaymentProvider: 'PaymentProvider',
   AuditService: 'AuditService',
   SecureStorage: 'SecureStorage',

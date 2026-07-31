@@ -21,6 +21,7 @@ import { ProductListItem } from '@/features/products/presentation/components/Pro
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
 import type { AppStackParamList, MainParamList } from '@/navigation/types';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { QueryErrorPanel } from '@/shared/components/QueryErrorPanel';
 import { Screen } from '@/shared/components/Screen';
 import { ProductListSkeleton } from '@/shared/components/skeletons';
 import { eurosToCents, parseEurosInput } from '@/shared/utils/money';
@@ -238,6 +239,16 @@ export function ProductListScreen() {
     if (search.trim()) return 'Aucun article ne correspond à la recherche.';
     return 'Aucun article pour le moment.';
   }, [search]);
+
+  if (productsQuery.isError) {
+    return (
+      <QueryErrorPanel
+        onRetry={() => {
+          void productsQuery.refetch();
+        }}
+      />
+    );
+  }
 
   if (productsQuery.isLoading && !productsQuery.data) {
     return (

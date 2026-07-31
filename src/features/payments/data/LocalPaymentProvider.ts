@@ -22,11 +22,22 @@ export class LocalPaymentProvider implements PaymentProvider {
       };
     }
 
-    if (request.method === 'gift_card' || request.method === 'store_credit' || request.method === 'split') {
+    if (request.method === 'split') {
       return {
         success: false,
         provider: this.id,
-        message: `Moyen de paiement non supporté: ${PAYMENT_METHOD_LABELS[request.method]}`,
+        message: 'Utilisez le mode paiement mixte dans l’encaissement',
+      };
+    }
+
+    if (request.method === 'gift_card' || request.method === 'store_credit') {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+      const prefix = request.method === 'gift_card' ? 'GIFT' : 'CREDIT';
+      return {
+        success: true,
+        provider: this.id,
+        providerReference: `${prefix}-${Crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+        message: `${PAYMENT_METHOD_LABELS[request.method]} accepté (simulation)`,
       };
     }
 

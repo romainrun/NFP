@@ -18,6 +18,7 @@ import type { OrderSummary } from '@/features/checkout/domain/salesHistory';
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import { AppHeader } from '@/shared/components/AppHeader';
 import { DatePickerField } from '@/shared/components/DatePickerField';
+import { QueryErrorPanel } from '@/shared/components/QueryErrorPanel';
 import { Screen } from '@/shared/components/Screen';
 import { SalesHistorySkeleton } from '@/shared/components/skeletons';
 import { Colors, shadows } from '@/shared/theme/colors';
@@ -84,6 +85,16 @@ export function SalesHistoryScreen() {
     () => Math.max(1, ...(snapshot?.hourly.map((h) => h.totalCents) ?? [1])),
     [snapshot?.hourly],
   );
+
+  if (historyQuery.isError) {
+    return (
+      <QueryErrorPanel
+        onRetry={() => {
+          void historyQuery.refetch();
+        }}
+      />
+    );
+  }
 
   if (historyQuery.isLoading && !historyQuery.data) {
     return (

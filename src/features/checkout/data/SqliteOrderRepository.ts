@@ -24,6 +24,7 @@ import type {
   OrderPayment,
 } from '@/features/checkout/domain/types';
 import type { PaymentProvider } from '@/features/payments/domain/PaymentProvider';
+import type { ISyncRepository } from '@/features/sync/data/SyncRepository';
 import type { IAuditService } from '@/shared/services/audit/AuditService';
 import { vatFromTtc } from '@/shared/utils/pricing';
 
@@ -105,6 +106,7 @@ export class SqliteOrderRepository implements IOrderRepository {
     private readonly carts: ICartRepository,
     private readonly payments: PaymentProvider,
     private readonly audit: IAuditService,
+    private readonly sync?: ISyncRepository,
   ) {}
 
   async getById(orderId: string): Promise<Result<Order>> {
@@ -350,6 +352,20 @@ export class SqliteOrderRepository implements IOrderRepository {
           methods: input.payments.map((p) => p.method),
         },
       });
+
+      if (this.sync) {
+        await this.sync.enqueue({
+          entityType: 'order',
+          entityId: orderId,
+          operation: 'create',
+          payload: {
+            orderId,
+            receiptNumber: order.value.receiptNumber,
+            totalCents: order.value.totalCents,
+            createdAt: order.value.createdAt,
+          },
+        });
+      }
 
       return ok({ order: order.value, changeCents });
     } catch (cause) {

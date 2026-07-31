@@ -4,6 +4,7 @@ export type Permission =
   | 'sales.create'
   | 'sales.refund'
   | 'sales.void'
+  | 'sales.oversell'
   | 'inventory.manage'
   | 'reports.view'
   | 'reports.export'

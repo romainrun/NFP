@@ -2,13 +2,13 @@ import { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Image,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Button,
   Chip,
@@ -31,6 +31,9 @@ import { TOKENS } from '@/core/di/tokens';
 import type { ICartRepository } from '@/features/cart/data/CartRepository';
 import { BarcodeScannerModal } from '@/features/cart/presentation/components/BarcodeScannerModal';
 import { CartLineRow } from '@/features/cart/presentation/components/CartLineRow';
+import { PosProductTile } from '@/features/cart/presentation/components/PosProductTile';
+import { hasPermission } from '@/features/authentication/domain/permissions';
+import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import { useSalesAccess } from '@/features/cart/presentation/hooks/useSalesAccess';
 import type { ICategoryRepository } from '@/features/products/data/CategoryRepository';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
@@ -41,6 +44,7 @@ import { isPromotionRuleActive } from '@/features/promotions/domain/types';
 import type { AppStackParamList, MainParamList } from '@/navigation/types';
 import { AnimatedPressable } from '@/shared/components/AnimatedPressable';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { QueryErrorPanel } from '@/shared/components/QueryErrorPanel';
 import { PosSkeleton } from '@/shared/components/skeletons';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
@@ -59,13 +63,21 @@ type CatalogTab = 'top' | 'favorites';
 type DiscountTarget = 'cart' | 'line';
 const DISCOUNT_PRESETS = [5, 10, 15, 20, 25, 30] as const;
 
+function isStockErrorMessage(message: string): boolean {
+  const lower = message.toLowerCase();
+  return lower.includes('stock') || lower.includes('épuisé');
+}
+
 export function PosScreen() {
   const navigation = useNavigation<PosNavigation>();
   const searchRef = useRef<{ focus?: () => void } | null>(null);
   const theme = useTheme();
   const queryClient = useQueryClient();
-  const { useSplitLayout } = useResponsiveLayout();
+  const insets = useSafeAreaInsets();
+  const { useSplitLayout, isPhone } = useResponsiveLayout();
+  const { session } = useAuth();
   const { canSell, userId } = useSalesAccess();
+  const canOversell = Boolean(session && hasPermission(session.employee.role, 'sales.oversell'));
   const { canManage: canManageCatalog, userId: catalogUserId } = useCatalogAccess();
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -167,9 +179,11 @@ export function PosScreen() {
   });
 
   const addMutation = useMutation({
-    mutationFn: async (productId: string) => {
+    mutationFn: async ({ productId, bypass }: { productId: string; bypass?: boolean }) => {
       const repo = container.resolve<ICartRepository>(TOKENS.CartRepository);
-      const result = await repo.addProduct(userId!, productId, 1);
+      const result = await repo.addProduct(userId!, productId, 1, {
+        bypassStockCheck: bypass,
+      });
       if (!result.ok) throw result.error;
       return result.value;
     },
@@ -178,7 +192,24 @@ export function PosScreen() {
       vibrateTap();
       setSnack('Article ajouté');
     },
-    onError: (error: Error) => setSnack(error.message),
+    onError: (error: Error, { productId }) => {
+      if (canOversell && isStockErrorMessage(error.message)) {
+        Alert.alert(
+          'Stock insuffisant',
+          `${error.message}\n\nForcer l’ajout au panier ?`,
+          [
+            { text: 'Annuler', style: 'cancel' },
+            {
+              text: 'Forcer',
+              style: 'destructive',
+              onPress: () => addMutation.mutate({ productId, bypass: true }),
+            },
+          ],
+        );
+        return;
+      }
+      setSnack(error.message);
+    },
   });
 
   const associateBarcodeMutation = useMutation({
@@ -212,18 +243,18 @@ export function PosScreen() {
       await queryClient.invalidateQueries({ queryKey: ['products'] });
       setUnknownBarcode(null);
       setAssociationSearch('');
-      barcodeMutation.mutate(barcode);
+      barcodeMutation.mutate({ code: barcode });
     },
     onError: (error: Error) => setSnack(error.message),
   });
 
   const barcodeMutation = useMutation({
-    mutationFn: async (code: string) => {
+    mutationFn: async ({ code, bypass }: { code: string; bypass?: boolean }) => {
       const repo = container.resolve<ICartRepository>(TOKENS.CartRepository);
-      // Try barcode first, then SKU.
-      const byBarcode = await repo.addByBarcode(userId!, code, 1);
+      const options = { bypassStockCheck: bypass };
+      const byBarcode = await repo.addByBarcode(userId!, code, 1, options);
       if (byBarcode.ok) return byBarcode.value;
-      const bySku = await repo.addBySku(userId!, code, 1);
+      const bySku = await repo.addBySku(userId!, code, 1, options);
       if (bySku.ok) return bySku.value;
       throw byBarcode.error;
     },
@@ -233,9 +264,24 @@ export function PosScreen() {
       vibrateSuccess();
       setSnack('Article scanné');
     },
-    onError: (error: Error, code) => {
+    onError: (error: Error, { code }) => {
       if (canManageCatalog) {
         setUnknownBarcode(code);
+        return;
+      }
+      if (canOversell && isStockErrorMessage(error.message)) {
+        Alert.alert(
+          'Stock insuffisant',
+          `${error.message}\n\nForcer l’ajout au panier ?`,
+          [
+            { text: 'Annuler', style: 'cancel' },
+            {
+              text: 'Forcer',
+              style: 'destructive',
+              onPress: () => barcodeMutation.mutate({ code, bypass: true }),
+            },
+          ],
+        );
         return;
       }
       setSnack(error.message);
@@ -246,7 +292,7 @@ export function PosScreen() {
     const code = rawCode.trim();
     if (!code) return;
     vibrateScan();
-    barcodeMutation.mutate(code);
+    barcodeMutation.mutate({ code });
   };
 
   const focusProductSearch = () => {
@@ -452,6 +498,16 @@ export function PosScreen() {
     );
   }
 
+  if (cartQuery.isError) {
+    return (
+      <QueryErrorPanel
+        onRetry={() => {
+          void cartQuery.refetch();
+        }}
+      />
+    );
+  }
+
   if (cartQuery.isLoading || !cartQuery.data) {
     return (
       <Screen padded={false}>
@@ -460,7 +516,18 @@ export function PosScreen() {
     );
   }
 
+  const cartBarBottom = spacing.md + insets.bottom;
+  const phoneGridPadding = isPhone ? spacing.xxl + 72 + insets.bottom : spacing.xl;
+
   const cart = cartQuery.data;
+
+  const handleProductPress = (product: Product) => {
+    if (product.stockQuantity <= 0 && !canOversell) {
+      setSnack(`« ${product.name} » — stock épuisé`);
+      return;
+    }
+    addMutation.mutate({ productId: product.id });
+  };
 
   const catalog = (
     <View style={styles.pane}>
@@ -563,7 +630,7 @@ export function PosScreen() {
         numColumns={useSplitLayout ? 3 : 2}
         key={`${useSplitLayout ? 'tablet' : 'phone'}-${catalogTab}`}
         style={styles.productGrid}
-        contentContainerStyle={styles.grid}
+        contentContainerStyle={[styles.grid, { paddingBottom: phoneGridPadding }]}
         refreshing={productsQuery.isRefetching}
         onRefresh={() => void productsQuery.refetch()}
         ListEmptyComponent={
@@ -572,11 +639,11 @@ export function PosScreen() {
           </Text>
         }
         renderItem={({ item }) => (
-          <ProductTile
+          <PosProductTile
             product={item}
             promotionBps={activePromotions.get(item.id) ?? 0}
             categoryColor={item.categoryId ? categoryColors.get(item.categoryId) ?? null : null}
-            onPress={() => addMutation.mutate(item.id)}
+            onPress={() => handleProductPress(item)}
           />
         )}
       />
@@ -691,7 +758,10 @@ export function PosScreen() {
         <>
           <AnimatedPressable
             onPress={() => setCartSheetOpen(true)}
-            style={[styles.cartBar, { backgroundColor: theme.colors.surface }]}
+            style={[
+              styles.cartBar,
+              { backgroundColor: theme.colors.surface, bottom: cartBarBottom },
+            ]}
             scaleTo={0.985}
           >
             <View>
@@ -981,102 +1051,6 @@ export function PosScreen() {
   );
 }
 
-function ProductTile({
-  product,
-  promotionBps,
-  categoryColor,
-  onPress,
-}: {
-  product: Product;
-  promotionBps: number;
-  categoryColor: string | null;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  const categoryLabel = product.categoryName ?? 'Sans catégorie';
-  const lowStock = product.stockQuantity <= 5;
-  const hasPromotion = promotionBps > 0;
-  return (
-    <AnimatedPressable
-      onPress={onPress}
-      style={[
-        styles.tile,
-        {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.outline,
-        },
-      ]}
-      scaleTo={0.965}
-    >
-      <View style={styles.tileImageWrap}>
-        {product.imageUri ? (
-          <Image source={{ uri: product.imageUri }} style={styles.tileImage} resizeMode="cover" />
-        ) : (
-          <View
-            style={[
-              styles.tileImage,
-              styles.tilePlaceholder,
-              { backgroundColor: theme.colors.surfaceVariant },
-            ]}
-          >
-            <Text style={{ color: theme.colors.onSurfaceVariant }}>
-              {product.name.slice(0, 1).toUpperCase()}
-            </Text>
-          </View>
-        )}
-        {product.isFavorite || product.isQuick ? (
-          <View style={styles.tileOverlayTopLeft}>
-            {product.isFavorite ? (
-              <Text style={styles.tileOverlayIcon}>★</Text>
-            ) : null}
-            {product.isQuick ? (
-              <Text style={styles.tileOverlayIcon}>⚡</Text>
-            ) : null}
-          </View>
-        ) : null}
-        {hasPromotion ? (
-          <View style={[styles.tileOverlayTopRight, { backgroundColor: theme.colors.primary }]}>
-            <Text style={styles.tilePromoText}>-{promotionBps / 100}%</Text>
-          </View>
-        ) : null}
-      </View>
-      <Text
-        numberOfLines={2}
-        style={[typography.caption, { color: theme.colors.onSurface, fontWeight: '600' }]}
-      >
-        {product.name}
-      </Text>
-      <View style={styles.tileCategoryLine}>
-        <View
-          style={[
-            styles.categoryDot,
-            { backgroundColor: categoryColor ?? theme.colors.outline },
-          ]}
-        />
-        <Text
-          numberOfLines={1}
-          style={[typography.caption, { color: theme.colors.onSurfaceVariant, fontSize: 11 }]}
-        >
-          {categoryLabel}
-        </Text>
-      </View>
-      <View style={styles.tileFooter}>
-        <Text style={[typography.bodyStrong, { color: theme.colors.primary }]}>
-          {formatMoney(product.priceCents)}
-        </Text>
-        <Text
-          style={[
-            styles.tileStock,
-            { color: lowStock ? theme.colors.error : theme.colors.onSurfaceVariant },
-          ]}
-        >
-          Stock {product.stockQuantity}
-        </Text>
-      </View>
-    </AnimatedPressable>
-  );
-}
-
 function TotalRow({
   label,
   value,
@@ -1165,81 +1139,6 @@ const styles = StyleSheet.create({
   },
   grid: {
     paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.xl,
-  },
-  tile: {
-    flex: 1,
-    margin: spacing.xs,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    gap: spacing.xxs,
-    minHeight: 148,
-  },
-  tileImageWrap: {
-    position: 'relative',
-    width: '100%',
-    marginBottom: spacing.xxs,
-  },
-  tileOverlayTopLeft: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: radii.pill,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  tileOverlayTopRight: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    borderRadius: radii.pill,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  tileOverlayIcon: {
-    color: Colors.white,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  tilePromoText: {
-    color: Colors.white,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  tileCategoryLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxs,
-  },
-  categoryDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  tileImage: {
-    width: '100%',
-    height: 56,
-    borderRadius: radii.sm,
-  },
-  tilePlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tileFooter: {
-    marginTop: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.xs,
-  },
-  tileStock: {
-    fontSize: 10,
-    lineHeight: 14,
   },
   cartPane: {
     flex: 1,
@@ -1308,7 +1207,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.md,
     right: spacing.md,
-    bottom: spacing.md,
     borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,

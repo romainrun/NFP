@@ -18,6 +18,7 @@ import {
 } from '@/features/settings/domain/types';
 import type { MainParamList } from '@/navigation/types';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { QueryErrorPanel } from '@/shared/components/QueryErrorPanel';
 import { Screen } from '@/shared/components/Screen';
 import { DashboardSkeleton } from '@/shared/components/skeletons';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
@@ -53,6 +54,16 @@ export function DashboardScreen() {
       return result.value.dashboardWidgets;
     },
   });
+
+  if (snapshotQuery.isError) {
+    return (
+      <QueryErrorPanel
+        onRetry={() => {
+          void snapshotQuery.refetch();
+        }}
+      />
+    );
+  }
 
   if (snapshotQuery.isLoading || !snapshotQuery.data) {
     return (

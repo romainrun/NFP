@@ -123,6 +123,7 @@ export class SqliteCartRepository implements ICartRepository {
     userId: string,
     productId: string,
     quantity = 1,
+    options?: { bypassStockCheck?: boolean },
   ): Promise<Result<Cart>> {
     if (!Number.isFinite(quantity) || quantity <= 0) {
       return err(AppError.validation('Quantité invalide'));
@@ -135,6 +136,27 @@ export class SqliteCartRepository implements ICartRepository {
     if (!productResult.ok) return err(productResult.error);
     if (!productResult.value.isActive) {
       return err(AppError.validation('Cet article est inactif'));
+    }
+
+    const product = productResult.value;
+    const cartQtyRow = await this.db.getFirstAsync<{ qty: number }>(
+      `SELECT COALESCE(SUM(quantity), 0) as qty FROM cart_lines
+       WHERE cart_id = ? AND product_id = ?`,
+      cartResult.value.id,
+      productId,
+    );
+    const inCart = cartQtyRow?.qty ?? 0;
+    const requestedTotal = inCart + quantity;
+
+    if (!options?.bypassStockCheck && product.stockQuantity < requestedTotal) {
+      if (product.stockQuantity <= 0) {
+        return err(AppError.validation(`« ${product.name} » — stock épuisé`));
+      }
+      return err(
+        AppError.validation(
+          `Stock insuffisant pour « ${product.name} » (${product.stockQuantity} dispo, ${requestedTotal} demandé)`,
+        ),
+      );
     }
 
     try {
@@ -206,6 +228,7 @@ export class SqliteCartRepository implements ICartRepository {
     userId: string,
     barcode: string,
     quantity = 1,
+    options?: { bypassStockCheck?: boolean },
   ): Promise<Result<Cart>> {
     const code = barcode.trim();
     if (!code) return err(AppError.validation('Code-barres vide'));
@@ -214,10 +237,15 @@ export class SqliteCartRepository implements ICartRepository {
     if (!product.ok) {
       return err(AppError.notFound(`Aucun article pour le code ${code}`));
     }
-    return this.addProduct(userId, product.value.id, quantity);
+    return this.addProduct(userId, product.value.id, quantity, options);
   }
 
-  async addBySku(userId: string, sku: string, quantity = 1): Promise<Result<Cart>> {
+  async addBySku(
+    userId: string,
+    sku: string,
+    quantity = 1,
+    options?: { bypassStockCheck?: boolean },
+  ): Promise<Result<Cart>> {
     const code = sku.trim();
     if (!code) return err(AppError.validation('SKU vide'));
 
@@ -225,7 +253,7 @@ export class SqliteCartRepository implements ICartRepository {
     if (!product.ok) {
       return err(AppError.notFound(`Aucun article pour le SKU ${code}`));
     }
-    return this.addProduct(userId, product.value.id, quantity);
+    return this.addProduct(userId, product.value.id, quantity, options);
   }
 
   async setLineQuantity(lineId: string, quantity: number): Promise<Result<Cart>> {

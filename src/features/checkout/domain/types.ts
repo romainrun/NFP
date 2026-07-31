@@ -47,13 +47,12 @@ export type Order = {
 };
 
 export type SalePaymentInput = {
-  method: Extract<
-    PaymentMethod,
-    'cash' | 'card' | 'online' | 'remote' | 'transfer' | 'amex'
-  >;
+  method: import('@/features/payments/domain/PaymentProvider').PaymentMethod;
   amountCents: number;
   /** Cash tendered (for change calculation). Defaults to amountCents. */
   tenderedCents?: number;
+  /** Reference for gift card or store credit. */
+  reference?: string | null;
 };
 
 export type CompleteSaleInput = {

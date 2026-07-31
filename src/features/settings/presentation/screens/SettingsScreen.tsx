@@ -15,6 +15,7 @@ import { TOKENS } from '@/core/di/tokens';
 import { hasPermission } from '@/features/authentication/domain/permissions';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
+import type { ISyncRepository } from '@/features/sync/data/SyncRepository';
 import type {
   DashboardWidgetId,
   DashboardWidgetSetting,
@@ -35,6 +36,7 @@ import {
 } from '@/features/settings/domain/types';
 import { useSettingsStore } from '@/features/settings/presentation/store/settingsStore';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { QueryErrorPanel } from '@/shared/components/QueryErrorPanel';
 import { Screen } from '@/shared/components/Screen';
 import { SettingsSkeleton } from '@/shared/components/skeletons';
 import { Colors, shadows } from '@/shared/theme/colors';
@@ -98,6 +100,16 @@ export function SettingsScreen() {
     queryFn: async () => {
       const repo = container.resolve<ISettingsRepository>(TOKENS.SettingsRepository);
       const result = await repo.getSettings();
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+  });
+
+  const syncPendingQuery = useQuery({
+    queryKey: ['sync', 'pending-count'],
+    queryFn: async () => {
+      const repo = container.resolve<ISyncRepository>(TOKENS.SyncRepository);
+      const result = await repo.countPending();
       if (!result.ok) throw result.error;
       return result.value;
     },
@@ -201,6 +213,16 @@ export function SettingsScreen() {
           Accès paramètres réservé
         </Text>
       </Screen>
+    );
+  }
+
+  if (settingsQuery.isError) {
+    return (
+      <QueryErrorPanel
+        onRetry={() => {
+          void settingsQuery.refetch();
+        }}
+      />
     );
   }
 
@@ -324,6 +346,37 @@ export function SettingsScreen() {
               />
             </View>
           ))}
+        </View>
+
+        <Text style={[typography.h3, { color: theme.colors.onSurface, marginTop: spacing.sm }]}>
+          Synchronisation
+        </Text>
+        <View
+          style={[
+            styles.syncCard,
+            shadows.sm,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.outline,
+            },
+          ]}
+        >
+          <Text style={[typography.body, { color: theme.colors.onSurface }]}>
+            {syncPendingQuery.data ?? 0} événement(s) en attente de synchronisation cloud.
+          </Text>
+          <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+            Les ventes finalisées sont mises en file locale jusqu’à la prochaine sync.
+          </Text>
+          <Button
+            mode="outlined"
+            compact
+            loading={syncPendingQuery.isFetching}
+            onPress={() => {
+              void syncPendingQuery.refetch();
+            }}
+          >
+            Actualiser
+          </Button>
         </View>
 
         <Text style={[typography.h3, { color: theme.colors.onSurface, marginTop: spacing.sm }]}>
@@ -457,6 +510,12 @@ const styles = StyleSheet.create({
     borderRadius: radii.input,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+    gap: spacing.sm,
+  },
+  syncCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radii.card,
+    padding: spacing.md,
     gap: spacing.sm,
   },
 });

@@ -1,5 +1,3 @@
-import type { PaymentMethod } from '@/features/payments/domain/PaymentProvider';
-
 /** Tender methods available at checkout (Naturally Forme). */
 export const TENDER_METHODS = [
   'cash',
@@ -8,11 +6,16 @@ export const TENDER_METHODS = [
   'remote',
   'transfer',
   'amex',
-] as const satisfies readonly PaymentMethod[];
+  'gift_card',
+  'store_credit',
+] as const satisfies readonly import('@/features/payments/domain/PaymentProvider').PaymentMethod[];
 
 export type TenderMethod = (typeof TENDER_METHODS)[number];
 
-export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+export const PAYMENT_METHOD_LABELS: Record<
+  import('@/features/payments/domain/PaymentProvider').PaymentMethod,
+  string
+> = {
   cash: 'Espèces',
   card: 'CB',
   online: 'Ventes en ligne',
@@ -31,13 +34,22 @@ export const PAYMENT_METHOD_ICONS: Record<TenderMethod, string> = {
   remote: 'phone',
   transfer: 'bank',
   amex: 'credit-card-outline',
+  gift_card: 'gift',
+  store_credit: 'ticket-percent',
 };
 
 export function paymentMethodLabel(method: string): string {
-  return PAYMENT_METHOD_LABELS[method as PaymentMethod] ?? method;
+  return PAYMENT_METHOD_LABELS[method as TenderMethod] ?? method;
 }
 
 /** Only cash needs a tendered amount / change. */
-export function isCashMethod(method: PaymentMethod): boolean {
+export function isCashMethod(
+  method: import('@/features/payments/domain/PaymentProvider').PaymentMethod,
+): boolean {
   return method === 'cash';
+}
+
+/** Methods that accept partial amounts in split checkout. */
+export function isPartialTenderMethod(method: TenderMethod): boolean {
+  return method !== 'cash';
 }

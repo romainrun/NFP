@@ -11,6 +11,7 @@ export function useResponsiveLayout() {
     height,
     isTablet,
     isLandscape,
+    isPhone: !isTablet,
     /** Two-pane POS shell on tablets. */
     useSplitLayout: isTablet,
     contentMaxWidth: isTablet ? 1200 : undefined,

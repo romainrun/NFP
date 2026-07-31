@@ -4,6 +4,7 @@ import { openDatabase } from '@/database/client';
 import { SqliteAuthRepository } from '@/features/authentication/data/SqliteAuthRepository';
 import { SqliteUserRepository } from '@/features/authentication/data/SqliteUserRepository';
 import { SqliteCartRepository } from '@/features/cart/data/SqliteCartRepository';
+import { SqliteCashClosingRepository } from '@/features/checkout/data/SqliteCashClosingRepository';
 import { SqliteOrderRepository } from '@/features/checkout/data/SqliteOrderRepository';
 import { SqliteDashboardRepository } from '@/features/dashboard/data/SqliteDashboardRepository';
 import { LocalPaymentProvider } from '@/features/payments/data/LocalPaymentProvider';
@@ -11,6 +12,7 @@ import { SqliteCategoryRepository } from '@/features/products/data/SqliteCategor
 import { SqliteProductRepository } from '@/features/products/data/SqliteProductRepository';
 import { SqlitePromotionRepository } from '@/features/promotions/data/SqlitePromotionRepository';
 import { SqliteSettingsRepository } from '@/features/settings/data/SqliteSettingsRepository';
+import { SqliteSyncRepository } from '@/features/sync/data/SqliteSyncRepository';
 import { useSettingsStore } from '@/features/settings/presentation/store/settingsStore';
 import { SqliteAuditService } from '@/shared/services/audit/AuditService';
 import { ExpoSecureStorage } from '@/shared/services/storage/SecureStorage';
@@ -36,7 +38,9 @@ export async function bootstrap(): Promise<void> {
   const promotions = new SqlitePromotionRepository(db);
   const carts = new SqliteCartRepository(db, products);
   const paymentProvider = new LocalPaymentProvider();
-  const orders = new SqliteOrderRepository(db, carts, paymentProvider, audit);
+  const sync = new SqliteSyncRepository(db);
+  const cashClosing = new SqliteCashClosingRepository(db);
+  const orders = new SqliteOrderRepository(db, carts, paymentProvider, audit, sync);
 
   container.registerInstance(TOKENS.Database, db);
   container.registerInstance(TOKENS.SecureStorage, secureStorage);
@@ -52,6 +56,8 @@ export async function bootstrap(): Promise<void> {
   container.registerInstance(TOKENS.CartRepository, carts);
   container.registerInstance(TOKENS.PaymentProvider, paymentProvider);
   container.registerInstance(TOKENS.OrderRepository, orders);
+  container.registerInstance(TOKENS.CashClosingRepository, cashClosing);
+  container.registerInstance(TOKENS.SyncRepository, sync);
 
   const settingsResult = await settings.getSettings();
   if (settingsResult.ok) {

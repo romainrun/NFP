@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import { APP_CONFIG } from '@/core/config/appConfig';
 import { AppError } from '@/core/errors/AppError';
 import { migrateToV1 } from '@/database/migrations/001_initial';
+import { migrateToV2 } from '@/database/migrations/002_cash_closings';
 import { SCHEMA_VERSION } from '@/database/schema';
 import { seedDemoUsers } from '@/database/seed';
 import { withWriteTransaction } from '@/database/transaction';
@@ -25,6 +26,10 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     await withWriteTransaction(db, async (txn) => {
       await migrateToV1(txn);
     });
+  }
+
+  if (current < 2) {
+    await migrateToV2(db);
   }
 
   if (SCHEMA_VERSION < current) {
