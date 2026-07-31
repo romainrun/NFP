@@ -746,6 +746,8 @@ function ProductTile({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const categoryLabel = product.categoryName ?? 'Sans catégorie';
+  const lowStock = product.stockQuantity <= 5;
   return (
     <AnimatedPressable
       onPress={onPress}
@@ -758,6 +760,27 @@ function ProductTile({
       ]}
       scaleTo={0.965}
     >
+      <View style={styles.tileBadges}>
+        <View
+          style={[
+            styles.categoryBadge,
+            { backgroundColor: theme.colors.primaryContainer },
+          ]}
+        >
+          <Text
+            numberOfLines={1}
+            style={[typography.caption, { color: theme.colors.onPrimaryContainer, fontSize: 11 }]}
+          >
+            {categoryLabel}
+          </Text>
+        </View>
+        {product.isFavorite ? (
+          <Text style={[styles.miniBadge, { color: theme.colors.primary }]}>★</Text>
+        ) : null}
+        {product.isQuick ? (
+          <Text style={[styles.miniBadge, { color: theme.colors.tertiary }]}>⚡</Text>
+        ) : null}
+      </View>
       {product.imageUri ? (
         <Image source={{ uri: product.imageUri }} style={styles.tileImage} />
       ) : (
@@ -779,9 +802,19 @@ function ProductTile({
       >
         {product.name}
       </Text>
-      <Text style={[typography.bodyStrong, { color: theme.colors.primary }]}>
-        {formatMoney(product.priceCents)}
-      </Text>
+      <View style={styles.tileFooter}>
+        <Text style={[typography.bodyStrong, { color: theme.colors.primary }]}>
+          {formatMoney(product.priceCents)}
+        </Text>
+        <Text
+          style={[
+            typography.caption,
+            { color: lowStock ? theme.colors.error : theme.colors.onSurfaceVariant },
+          ]}
+        >
+          Stock {product.stockQuantity}
+        </Text>
+      </View>
     </AnimatedPressable>
   );
 }
@@ -866,7 +899,23 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.sm,
     gap: spacing.xxs,
-    minHeight: 140,
+    minHeight: 168,
+  },
+  tileBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxs,
+    minHeight: 22,
+  },
+  categoryBadge: {
+    flex: 1,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+  },
+  miniBadge: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   tileImage: {
     width: '100%',
@@ -876,6 +925,13 @@ const styles = StyleSheet.create({
   tilePlaceholder: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  tileFooter: {
+    marginTop: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
   },
   cartPane: {
     flex: 1,
