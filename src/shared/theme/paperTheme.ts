@@ -18,13 +18,17 @@ export function createPaperTheme(mode: 'light' | 'dark'): MD3Theme {
   return {
     ...base,
     fonts: configureFonts({ config: fontConfig }),
-    roundness: 16,
+    roundness: 18,
     colors: {
       ...base.colors,
       primary: colors.primary,
       onPrimary: colors.onPrimary,
       primaryContainer: colors.primaryMuted,
-      secondary: colors.textSecondary,
+      onPrimaryContainer: colors.text,
+      secondary: colors.accent,
+      onSecondary: colors.onPrimary,
+      secondaryContainer: colors.accentMuted,
+      tertiary: colors.accent,
       background: colors.background,
       surface: colors.surface,
       surfaceVariant: colors.surfaceMuted,
@@ -33,6 +37,15 @@ export function createPaperTheme(mode: 'light' | 'dark'): MD3Theme {
       onBackground: colors.text,
       onSurface: colors.text,
       onSurfaceVariant: colors.textSecondary,
+      elevation: {
+        ...base.colors.elevation,
+        level0: 'transparent',
+        level1: colors.surface,
+        level2: colors.surfaceMuted,
+        level3: colors.surfaceMuted,
+        level4: colors.surface,
+        level5: colors.surface,
+      },
     },
   };
 }

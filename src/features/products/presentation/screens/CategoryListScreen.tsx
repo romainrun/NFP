@@ -4,36 +4,33 @@ import {
   Button,
   Dialog,
   HelperText,
-  IconButton,
   Portal,
   Text,
   TextInput,
   useTheme,
 } from 'react-native-paper';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { ICategoryRepository } from '@/features/products/data/CategoryRepository';
 import type { Category } from '@/features/products/domain/types';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
-import type { AppStackParamList } from '@/navigation/types';
+import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import type { IAuditService } from '@/shared/services/audit/AuditService';
+import { palette } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'CategoryList'>;
-
-export function CategoryListScreen({ navigation }: Props) {
+export function CategoryListScreen() {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const { canManage, userId } = useCatalogAccess();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState('');
-  const [color, setColor] = useState('#0F766E');
+  const [color, setColor] = useState<string>(palette.pine700);
   const [error, setError] = useState<string | null>(null);
 
   const categoriesQuery = useQuery({
@@ -49,7 +46,7 @@ export function CategoryListScreen({ navigation }: Props) {
   const openCreate = () => {
     setEditing(null);
     setName('');
-    setColor('#0F766E');
+    setColor(palette.pine700);
     setError(null);
     setDialogOpen(true);
   };
@@ -57,7 +54,7 @@ export function CategoryListScreen({ navigation }: Props) {
   const openEdit = (category: Category) => {
     setEditing(category);
     setName(category.name);
-    setColor(category.color ?? '#0F766E');
+    setColor(category.color ?? palette.pine700);
     setError(null);
     setDialogOpen(true);
   };
@@ -132,18 +129,17 @@ export function CategoryListScreen({ navigation }: Props) {
   return (
     <Screen padded={false}>
       <View style={styles.header}>
-        <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
-        <View style={{ flex: 1 }}>
-          <Text style={[typography.h2, { color: theme.colors.onSurface }]}>Catégories</Text>
-          <Text style={{ color: theme.colors.onSurfaceVariant }}>
-            Organisation du catalogue
-          </Text>
-        </View>
-        {canManage ? (
-          <Button mode="contained" onPress={openCreate}>
-            Ajouter
-          </Button>
-        ) : null}
+        <AppHeader
+          title="Catégories"
+          subtitle="Organisation du catalogue"
+          right={
+            canManage ? (
+              <Button mode="contained" onPress={openCreate}>
+                Ajouter
+              </Button>
+            ) : undefined
+          }
+        />
       </View>
 
       <FlatList

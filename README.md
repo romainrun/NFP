@@ -66,9 +66,18 @@ All demo employees use PIN **`0000`** during development. The login screen also 
 
 Change these before any production deployment.
 
+## Navigation
+
+Authenticated screens live in a **drawer menu** (permanent on tablet):
+
+- Tableau de bord
+- Caisse
+- Historique des ventes
+- Articles / Catégories
+
 ## Caisse (POS)
 
-From the dashboard, open **Caisse**:
+From the drawer or dashboard, open **Caisse**:
 
 - search products or tap quick/favorite tiles
 - scan with camera (**Scanner**) or type barcode / SKU
@@ -77,6 +86,12 @@ From the dashboard, open **Caisse**:
 - sale writes an immutable ticket, payments, stock movements, and receipt hash chain
 
 Seed barcodes for quick scan tests: `3000000000001`, `3000000000002`, `3000000000006`.
+
+## Historique des ventes
+
+Filter by **Aujourd’hui**, **Hier**, or a custom date range.
+Default day hours are **00h → minuit**; refine with start/end hour chips.
+View hourly bars, totals, and ticket details.
 
 ## Catalogue (articles)
 

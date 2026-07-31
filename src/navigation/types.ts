@@ -1,15 +1,23 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type AuthStackParamList = {
   PinLogin: undefined;
 };
 
-export type AppStackParamList = {
+export type DrawerParamList = {
   Dashboard: undefined;
   Pos: undefined;
+  SalesHistory: undefined;
+  ProductList: undefined;
+  CategoryList: undefined;
+};
+
+export type AppStackParamList = {
+  Main: NavigatorScreenParams<DrawerParamList> | undefined;
   Checkout: undefined;
   SaleComplete: { orderId: string; changeCents?: number };
-  ProductList: undefined;
   ProductForm: { productId?: string };
-  CategoryList: undefined;
+  OrderDetail: { orderId: string };
 };
 
 export type RootStackParamList = {

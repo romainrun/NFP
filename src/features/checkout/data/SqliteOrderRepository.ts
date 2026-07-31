@@ -10,6 +10,12 @@ import { withWriteTransaction } from '@/database/transaction';
 import type { ICartRepository } from '@/features/cart/data/CartRepository';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
 import type {
+  HourlySalesBucket,
+  OrderSummary,
+  SalesHistoryQuery,
+  SalesHistorySnapshot,
+} from '@/features/checkout/domain/salesHistory';
+import type {
   CompleteSaleInput,
   CompleteSaleResult,
   Order,
@@ -348,6 +354,92 @@ export class SqliteOrderRepository implements IOrderRepository {
     } catch (cause) {
       if (cause instanceof AppError) return err(cause);
       return err(AppError.database('Impossible de finaliser la vente', cause));
+    }
+  }
+
+  async getSalesHistory(
+    query: SalesHistoryQuery,
+  ): Promise<Result<SalesHistorySnapshot>> {
+    try {
+      const rows = await this.db.getAllAsync<{
+        id: string;
+        receipt_number: number;
+        created_at: string;
+        total_cents: number;
+        vat_cents: number;
+        discount_cents: number;
+        status: 'completed' | 'voided';
+        item_count: number | null;
+        payment_methods: string | null;
+      }>(
+        `SELECT
+           o.id,
+           o.receipt_number,
+           o.created_at,
+           o.total_cents,
+           o.vat_cents,
+           o.discount_cents,
+           o.status,
+           (SELECT COALESCE(SUM(ol.quantity), 0) FROM order_lines ol WHERE ol.order_id = o.id) AS item_count,
+           (SELECT GROUP_CONCAT(DISTINCT p.method) FROM payments p WHERE p.order_id = o.id) AS payment_methods
+         FROM orders o
+         WHERE o.status = 'completed'
+           AND o.created_at >= ?
+           AND o.created_at < ?
+         ORDER BY o.created_at DESC`,
+        query.fromIso,
+        query.toIso,
+      );
+
+      const orders: OrderSummary[] = rows.map((row) => ({
+        id: row.id,
+        receiptNumber: row.receipt_number,
+        createdAt: row.created_at,
+        totalCents: row.total_cents,
+        vatCents: row.vat_cents,
+        discountCents: row.discount_cents,
+        status: row.status,
+        itemCount: row.item_count ?? 0,
+        paymentMethods: row.payment_methods
+          ? row.payment_methods.split(',').filter(Boolean)
+          : [],
+      }));
+
+      const hourlyMap = new Map<number, HourlySalesBucket>();
+      for (let hour = 0; hour < 24; hour += 1) {
+        hourlyMap.set(hour, { hour, orderCount: 0, totalCents: 0 });
+      }
+
+      let totalCents = 0;
+      let vatCents = 0;
+      let discountCents = 0;
+
+      for (const order of orders) {
+        totalCents += order.totalCents;
+        vatCents += order.vatCents;
+        discountCents += order.discountCents;
+        const hour = new Date(order.createdAt).getHours();
+        const bucket = hourlyMap.get(hour);
+        if (bucket) {
+          bucket.orderCount += 1;
+          bucket.totalCents += order.totalCents;
+        }
+      }
+
+      const orderCount = orders.length;
+      return ok({
+        fromIso: query.fromIso,
+        toIso: query.toIso,
+        orderCount,
+        totalCents,
+        vatCents,
+        discountCents,
+        averageTicketCents: orderCount ? Math.round(totalCents / orderCount) : 0,
+        hourly: Array.from(hourlyMap.values()),
+        orders,
+      });
+    } catch (cause) {
+      return err(AppError.database('Impossible de charger l’historique', cause));
     }
   }
 }

@@ -13,7 +13,7 @@ export function MetricCard({ metric }: Props) {
 
   const toneColor =
     metric.tone === 'positive'
-      ? '#059669'
+      ? theme.colors.tertiary
       : metric.tone === 'warning'
         ? theme.colors.error
         : theme.colors.onSurfaceVariant;
@@ -31,7 +31,7 @@ export function MetricCard({ metric }: Props) {
       <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
         {metric.label}
       </Text>
-      <Text style={[typography.h1, { color: theme.colors.onSurface, marginTop: spacing.xs }]}>
+      <Text style={[typography.h1, { color: theme.colors.primary, marginTop: spacing.xs, fontSize: 26 }]}>
         {metric.value}
       </Text>
       {metric.deltaLabel ? (
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   card: {
     flexGrow: 1,
     minWidth: 160,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
     padding: spacing.md,
   },

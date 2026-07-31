@@ -1,1 +1,4 @@
-# Reserved for upcoming roadmap phase. Do not implement until Phase 1 is validated.
+# Reports
+
+Sales history (day / range / hourly) lives under `features/checkout` for now.
+Broader fiscal / export reports can expand here later.

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { APP_CONFIG } from '@/core/config/appConfig';
 import { container } from '@/core/di/container';
@@ -12,11 +13,13 @@ import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import { PinPad } from '@/shared/components/PinPad';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
+import { darkColors, lightColors, palette } from '@/shared/theme/colors';
 import { radii, spacing, touchTarget } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
 export function PinLoginScreen() {
   const theme = useTheme();
+  const tokens = theme.dark ? darkColors : lightColors;
   const { useSplitLayout } = useResponsiveLayout();
   const { loginWithPin, isSubmitting, errorMessage, clearError } = useAuth();
   const [selected, setSelected] = useState<Employee | null>(null);
@@ -166,26 +169,25 @@ export function PinLoginScreen() {
 
   return (
     <Screen padded={false}>
-      <View
-        style={[
-          styles.root,
-          useSplitLayout ? styles.rootSplit : styles.rootStack,
-          { backgroundColor: theme.colors.background },
-        ]}
-      >
+      <View style={[styles.root, useSplitLayout ? styles.rootSplit : styles.rootStack]}>
         {useSplitLayout ? (
           <>
-            <View style={[styles.hero, { backgroundColor: theme.colors.primary }]}>
-              <Text style={[typography.brand, { color: theme.colors.onPrimary }]}>NFP</Text>
+            <LinearGradient
+              colors={[tokens.heroInk, tokens.primary, palette.seafoam500]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.hero}
+            >
+              <Text style={[typography.brand, { color: tokens.onPrimary }]}>NFP</Text>
               <Text
                 style={[
                   typography.h2,
-                  { color: theme.colors.onPrimary, marginTop: spacing.sm, opacity: 0.92 },
+                  { color: tokens.onPrimary, marginTop: spacing.sm, opacity: 0.92 },
                 ]}
               >
                 Caisse prête. Mode hors-ligne.
               </Text>
-            </View>
+            </LinearGradient>
             <View style={styles.splitContent}>
               {employeeList}
               {pinPane}

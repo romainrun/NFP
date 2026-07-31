@@ -10,7 +10,6 @@ import {
 import {
   Button,
   HelperText,
-  IconButton,
   Searchbar,
   Snackbar,
   Text,
@@ -18,7 +17,10 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { DrawerNavigationProp } from '@react-navigation/drawer';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { ICartRepository } from '@/features/cart/data/CartRepository';
@@ -27,7 +29,8 @@ import { CartLineRow } from '@/features/cart/presentation/components/CartLineRow
 import { useSalesAccess } from '@/features/cart/presentation/hooks/useSalesAccess';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
 import type { Product } from '@/features/products/domain/types';
-import type { AppStackParamList } from '@/navigation/types';
+import type { AppStackParamList, DrawerParamList } from '@/navigation/types';
+import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
@@ -35,9 +38,13 @@ import { formatMoney } from '@/shared/utils/money';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Pos'>;
+type PosNavigation = CompositeNavigationProp<
+  DrawerNavigationProp<DrawerParamList, 'Pos'>,
+  NativeStackNavigationProp<AppStackParamList>
+>;
 
-export function PosScreen({ navigation }: Props) {
+export function PosScreen() {
+  const navigation = useNavigation<PosNavigation>();
   const theme = useTheme();
   const queryClient = useQueryClient();
   const { useSplitLayout } = useResponsiveLayout();
@@ -151,18 +158,15 @@ export function PosScreen({ navigation }: Props) {
 
   const catalog = (
     <View style={styles.pane}>
-      <View style={styles.catalogHeader}>
-        <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
-        <View style={{ flex: 1 }}>
-          <Text style={[typography.h2, { color: theme.colors.onSurface }]}>Caisse</Text>
-          <Text style={{ color: theme.colors.onSurfaceVariant }}>
-            Scan, recherche ou produits rapides
-          </Text>
-        </View>
-        <Button mode="contained-tonal" icon="barcode-scan" onPress={() => setScannerOpen(true)}>
-          Scanner
-        </Button>
-      </View>
+      <AppHeader
+        title="Caisse"
+        subtitle="Scan, recherche ou produits rapides"
+        right={
+          <Button mode="contained-tonal" icon="barcode-scan" onPress={() => setScannerOpen(true)}>
+            Scanner
+          </Button>
+        }
+      />
 
       <Searchbar
         placeholder="Rechercher un article"
@@ -407,11 +411,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   pane: { flex: 1 },
-  catalogHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
   search: {
     marginHorizontal: spacing.sm,
     marginBottom: spacing.xs,

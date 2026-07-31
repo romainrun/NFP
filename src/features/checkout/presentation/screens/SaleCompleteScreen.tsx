@@ -75,11 +75,14 @@ export function SaleCompleteScreen({ navigation, route }: Props) {
           <Button
             mode="contained"
             contentStyle={{ minHeight: 52 }}
-            onPress={() => navigation.navigate('Pos')}
+            onPress={() => navigation.navigate('Main', { screen: 'Pos' })}
           >
             Nouvelle vente
           </Button>
-          <Button mode="outlined" onPress={() => navigation.navigate('Dashboard')}>
+          <Button
+            mode="outlined"
+            onPress={() => navigation.navigate('Main', { screen: 'Dashboard' })}
+          >
             Tableau de bord
           </Button>
         </Animated.View>

@@ -3,29 +3,35 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import {
   Button,
   Chip,
-  IconButton,
   Searchbar,
   Text,
   useTheme,
 } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { DrawerNavigationProp } from '@react-navigation/drawer';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { ICategoryRepository } from '@/features/products/data/CategoryRepository';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
 import { ProductListItem } from '@/features/products/presentation/components/ProductListItem';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
-import type { AppStackParamList } from '@/navigation/types';
+import type { AppStackParamList, DrawerParamList } from '@/navigation/types';
+import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
 import { spacing } from '@/shared/theme/spacing';
-import { typography } from '@/shared/theme/typography';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'ProductList'>;
+type ProductListNavigation = CompositeNavigationProp<
+  DrawerNavigationProp<DrawerParamList, 'ProductList'>,
+  NativeStackNavigationProp<AppStackParamList>
+>;
 
-export function ProductListScreen({ navigation }: Props) {
+export function ProductListScreen() {
   const theme = useTheme();
+  const navigation = useNavigation<ProductListNavigation>();
   const { canManage } = useCatalogAccess();
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -79,24 +85,22 @@ export function ProductListScreen({ navigation }: Props) {
   return (
     <Screen padded={false}>
       <View style={styles.header}>
-        <IconButton icon="arrow-left" onPress={() => navigation.goBack()} />
-        <View style={{ flex: 1 }}>
-          <Text style={[typography.h2, { color: theme.colors.onSurface }]}>Articles</Text>
-          <Text style={{ color: theme.colors.onSurfaceVariant }}>
-            {productsQuery.data?.length ?? 0} produit
-            {(productsQuery.data?.length ?? 0) > 1 ? 's' : ''}
-          </Text>
-        </View>
-        {canManage ? (
-          <View style={styles.headerActions}>
-            <Button mode="outlined" onPress={() => navigation.navigate('CategoryList')}>
-              Catégories
-            </Button>
-            <Button mode="contained" onPress={() => navigation.navigate('ProductForm', {})}>
-              Ajouter
-            </Button>
-          </View>
-        ) : null}
+        <AppHeader
+          title="Articles"
+          subtitle={`${productsQuery.data?.length ?? 0} produit${(productsQuery.data?.length ?? 0) > 1 ? 's' : ''}`}
+          right={
+            canManage ? (
+              <View style={styles.headerActions}>
+                <Button mode="outlined" onPress={() => navigation.navigate('CategoryList')}>
+                  Catégories
+                </Button>
+                <Button mode="contained" onPress={() => navigation.navigate('ProductForm', {})}>
+                  Ajouter
+                </Button>
+              </View>
+            ) : undefined
+          }
+        />
       </View>
 
       <View style={styles.filters}>

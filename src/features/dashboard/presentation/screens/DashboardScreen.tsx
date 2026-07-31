@@ -1,26 +1,31 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { DrawerNavigationProp } from '@react-navigation/drawer';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { APP_CONFIG } from '@/core/config/appConfig';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
+import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import type { IDashboardRepository } from '@/features/dashboard/data/DashboardRepository';
 import { MetricCard } from '@/features/dashboard/presentation/components/MetricCard';
 import { SalesSparkBars } from '@/features/dashboard/presentation/components/SalesSparkBars';
-import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
-import type { AppStackParamList } from '@/navigation/types';
-import { Screen } from '@/shared/components/Screen';
+import type { DrawerParamList } from '@/navigation/types';
+import { AppHeader } from '@/shared/components/AppHeader';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
+import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
+import { darkColors, lightColors, palette } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
-import { APP_CONFIG } from '@/core/config/appConfig';
 
 export function DashboardScreen() {
   const theme = useTheme();
-  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
-  const { session, logout } = useAuth();
+  const tokens = theme.dark ? darkColors : lightColors;
+  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const { session } = useAuth();
   const { useSplitLayout } = useResponsiveLayout();
 
   const snapshotQuery = useQuery({
@@ -42,44 +47,54 @@ export function DashboardScreen() {
   return (
     <Screen padded={false}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.brand, { color: theme.colors.primary, fontSize: 32 }]}>
+        <AppHeader
+          title="Tableau de bord"
+          subtitle={`Bonjour, ${session?.employee.displayName ?? ''}`}
+        />
+
+        <Animated.View entering={FadeInDown.duration(420)}>
+          <LinearGradient
+            colors={[tokens.heroInk, tokens.primary, palette.seafoam500]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.hero}
+          >
+            <Text style={[typography.brand, { color: tokens.onPrimary, fontSize: 42 }]}>
               {APP_CONFIG.shortName}
             </Text>
-            <Text style={[typography.h2, { color: theme.colors.onSurface }]}>
-              Bonjour, {session?.employee.displayName}
+            <Text style={{ color: tokens.onPrimary, opacity: 0.9, marginTop: spacing.xs }}>
+              Caisse offline · NaturallyForme
             </Text>
-            <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: spacing.xs }}>
-              Caisse · catalogue · encaissement offline
-            </Text>
-          </View>
-          <View style={styles.headerActions}>
-            <Button
-              mode="contained"
-              onPress={() => navigation.navigate('Pos')}
-              style={styles.logout}
-            >
-              Caisse
-            </Button>
-            <Button
-              mode="contained-tonal"
-              onPress={() => navigation.navigate('ProductList')}
-              style={styles.logout}
-            >
-              Articles
-            </Button>
-            <Button mode="outlined" onPress={() => void logout()} style={styles.logout}>
-              Verrouiller
-            </Button>
-          </View>
-        </View>
+            <View style={styles.heroActions}>
+              <Button
+                mode="contained"
+                buttonColor={tokens.accent}
+                textColor={palette.ink}
+                onPress={() => navigation.navigate('Pos')}
+                contentStyle={{ minHeight: 48 }}
+              >
+                Ouvrir la caisse
+              </Button>
+              <Button
+                mode="outlined"
+                textColor={tokens.onPrimary}
+                style={{ borderColor: tokens.onPrimary }}
+                onPress={() => navigation.navigate('SalesHistory')}
+              >
+                Historique
+              </Button>
+            </View>
+          </LinearGradient>
+        </Animated.View>
 
-        <View style={[styles.metrics, useSplitLayout && styles.metricsTablet]}>
+        <Animated.View
+          entering={FadeInUp.delay(80).duration(400)}
+          style={[styles.metrics, useSplitLayout && styles.metricsTablet]}
+        >
           {snapshot.metrics.map((metric) => (
             <MetricCard key={metric.id} metric={metric} />
           ))}
-        </View>
+        </Animated.View>
 
         <View style={[styles.lower, useSplitLayout && styles.lowerTablet]}>
           <View style={{ flex: 1.4 }}>
@@ -99,7 +114,7 @@ export function DashboardScreen() {
               Top produits
             </Text>
             {snapshot.topProducts.map((product) => (
-              <View key={product.id} style={styles.productRow}>
+              <Pressable key={product.id} style={styles.productRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={[typography.bodyStrong, { color: theme.colors.onSurface }]}>
                     {product.name}
@@ -108,10 +123,10 @@ export function DashboardScreen() {
                     {product.quantitySold} vendus
                   </Text>
                 </View>
-                <Text style={[typography.bodyStrong, { color: theme.colors.primary }]}>
+                <Text style={[typography.money, { color: theme.colors.primary }]}>
                   {product.revenueLabel}
                 </Text>
-              </View>
+              </Pressable>
             ))}
 
             <Text
@@ -139,24 +154,20 @@ export function DashboardScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    padding: spacing.lg,
+    padding: spacing.md,
     gap: spacing.lg,
     paddingBottom: spacing.xxl,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
+  hero: {
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    overflow: 'hidden',
   },
-  headerActions: {
+  heroActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
-    justifyContent: 'flex-end',
-  },
-  logout: {
-    minHeight: 48,
-    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
   metrics: {
     flexDirection: 'row',
@@ -175,7 +186,7 @@ const styles = StyleSheet.create({
   },
   sidePanel: {
     flex: 1,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
     padding: spacing.md,
     gap: spacing.sm,
