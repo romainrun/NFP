@@ -36,6 +36,36 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
 }
 
+# Non-interactive SSH sessions often skip .bashrc.
+# Load common Node/PM2 locations used on VPS images.
+load_runtime_path() {
+  export PATH="/usr/local/bin:/usr/bin:$HOME/.local/bin:$PATH"
+
+  # nvm
+  if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+    # shellcheck disable=SC1091
+    . "$HOME/.nvm/nvm.sh"
+  fi
+
+  # fnm
+  if [[ -s "$HOME/.local/share/fnm/fnm" ]] || command -v fnm >/dev/null 2>&1; then
+    eval "$(fnm env --shell bash 2>/dev/null)" || true
+  fi
+
+  # Login profiles (ignore interactive-only failures)
+  [[ -f /etc/profile ]] && . /etc/profile 2>/dev/null || true
+  [[ -f "$HOME/.profile" ]] && . "$HOME/.profile" 2>/dev/null || true
+  [[ -f "$HOME/.bash_profile" ]] && . "$HOME/.bash_profile" 2>/dev/null || true
+  [[ -f "$HOME/.bashrc" ]] && . "$HOME/.bashrc" 2>/dev/null || true
+
+  # Global npm prefix bins (pm2, expo often land here)
+  if command -v npm >/dev/null 2>&1; then
+    local npm_bin
+    npm_bin="$(npm bin -g 2>/dev/null || true)"
+    [[ -n "${npm_bin}" ]] && export PATH="${npm_bin}:$PATH"
+  fi
+}
+
 ensure_layout() {
   mkdir -p "$(dirname "$APP_DIR")" "$LOG_DIR"
 
@@ -129,14 +159,19 @@ health_check() {
 }
 
 main() {
-  require_cmd git
-  require_cmd npm
-  require_cmd pm2
-  require_cmd curl
-  require_cmd npx
+  load_runtime_path
 
   log "Starting NFP development deploy"
   log "USER=$(whoami) HOME=$HOME APP_DIR=$APP_DIR LOG_DIR=$LOG_DIR"
+  log "node=$(command -v node || echo missing) npm=$(command -v npm || echo missing) pm2=$(command -v pm2 || echo missing)"
+
+  require_cmd git
+  require_cmd curl
+  require_cmd node
+  require_cmd npm
+  require_cmd npx
+  require_cmd pm2
+
   ensure_layout
   sync_repository
   install_dependencies
