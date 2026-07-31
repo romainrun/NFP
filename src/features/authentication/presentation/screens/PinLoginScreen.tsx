@@ -57,7 +57,8 @@ export function PinLoginScreen() {
     clearError();
     const employee =
       selected ??
-      employeesQuery.data?.find((item) => item.employeeCode === 'ADMIN') ??
+      employeesQuery.data?.find((item) => item.employeeCode === 'ROMAIN') ??
+      employeesQuery.data?.find((item) => item.role === 'admin') ??
       employeesQuery.data?.[0];
 
     if (!employee || isSubmitting) return;

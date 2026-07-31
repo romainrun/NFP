@@ -4,6 +4,9 @@ export type AuthStackParamList = {
 
 export type AppStackParamList = {
   Dashboard: undefined;
+  ProductList: undefined;
+  ProductForm: { productId?: string };
+  CategoryList: undefined;
 };
 
 export type RootStackParamList = {

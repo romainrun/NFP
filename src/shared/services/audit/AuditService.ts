@@ -14,6 +14,10 @@ export type AuditAction =
   | 'void'
   | 'discount'
   | 'inventory_change'
+  | 'product_create'
+  | 'product_update'
+  | 'product_deactivate'
+  | 'category_change'
   | 'sync'
   | 'error'
   | 'config_change';

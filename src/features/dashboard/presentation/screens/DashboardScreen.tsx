@@ -1,12 +1,15 @@
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { IDashboardRepository } from '@/features/dashboard/data/DashboardRepository';
 import { MetricCard } from '@/features/dashboard/presentation/components/MetricCard';
 import { SalesSparkBars } from '@/features/dashboard/presentation/components/SalesSparkBars';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
+import type { AppStackParamList } from '@/navigation/types';
 import { Screen } from '@/shared/components/Screen';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
@@ -16,6 +19,7 @@ import { APP_CONFIG } from '@/core/config/appConfig';
 
 export function DashboardScreen() {
   const theme = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
   const { session, logout } = useAuth();
   const { useSplitLayout } = useResponsiveLayout();
 
@@ -50,9 +54,18 @@ export function DashboardScreen() {
               Tableau de bord · données locales (mock jusqu'aux ventes)
             </Text>
           </View>
-          <Button mode="outlined" onPress={() => void logout()} style={styles.logout}>
-            Verrouiller
-          </Button>
+          <View style={styles.headerActions}>
+            <Button
+              mode="contained"
+              onPress={() => navigation.navigate('ProductList')}
+              style={styles.logout}
+            >
+              Articles
+            </Button>
+            <Button mode="outlined" onPress={() => void logout()} style={styles.logout}>
+              Verrouiller
+            </Button>
+          </View>
         </View>
 
         <View style={[styles.metrics, useSplitLayout && styles.metricsTablet]}>
@@ -127,6 +140,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    justifyContent: 'flex-end',
   },
   logout: {
     minHeight: 48,

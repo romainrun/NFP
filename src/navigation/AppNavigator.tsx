@@ -1,11 +1,14 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { DashboardScreen } from '@/features/dashboard/presentation/screens/DashboardScreen';
+import { CategoryListScreen } from '@/features/products/presentation/screens/CategoryListScreen';
+import { ProductFormScreen } from '@/features/products/presentation/screens/ProductFormScreen';
+import { ProductListScreen } from '@/features/products/presentation/screens/ProductListScreen';
 import type { AppStackParamList } from '@/navigation/types';
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
 /**
- * Authenticated shell. Drawer / rail navigation for POS modules arrives next phase.
+ * Authenticated shell with catalog management screens.
  */
 export function AppNavigator() {
   return (
@@ -16,6 +19,9 @@ export function AppNavigator() {
       }}
     >
       <Stack.Screen name="Dashboard" component={DashboardScreen} />
+      <Stack.Screen name="ProductList" component={ProductListScreen} />
+      <Stack.Screen name="ProductForm" component={ProductFormScreen} />
+      <Stack.Screen name="CategoryList" component={CategoryListScreen} />
     </Stack.Navigator>
   );
 }

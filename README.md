@@ -56,15 +56,23 @@ Then open on a tablet emulator / Expo Go (Android) or iOS Simulator.
 
 ## Demo PINs (seeded offline)
 
-All demo employees use PIN **`0000`** during development. The login screen also has a **Passer** button that skips PIN entry (logs in as the selected employee, or ADMIN by default).
+All demo employees use PIN **`0000`** during development. The login screen also has a **Passer** button that skips PIN entry (logs in as the selected employee, or Romain by default).
 
-| Code   | Name            | Role     | PIN  |
-|--------|-----------------|----------|------|
-| ADMIN  | Admin NFP       | admin    | 0000 |
-| MGR01  | Marie Manager   | manager  | 0000 |
-| CASH1  | Paul Caissier   | cashier  | 0000 |
+| Code   | Name     | Role    | PIN  |
+|--------|----------|---------|------|
+| MANU   | Manuella | admin   | 0000 |
+| ROMAIN | Romain   | admin   | 0000 |
+| MEDDY  | Meddy    | manager | 0000 |
 
 Change these before any production deployment.
+
+## Catalogue (articles)
+
+Managers and admins can manage the offline catalog from the dashboard (**Articles**):
+
+- create / edit / soft-deactivate products
+- categories, prices, VAT, cost, favorites, quick products
+- search (name / SKU / barcode) and stock adjustments
 
 ## Scripts
 

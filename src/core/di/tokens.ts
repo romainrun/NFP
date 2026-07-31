@@ -8,6 +8,8 @@ export const TOKENS = {
   UserRepository: 'UserRepository',
   DashboardRepository: 'DashboardRepository',
   SettingsRepository: 'SettingsRepository',
+  ProductRepository: 'ProductRepository',
+  CategoryRepository: 'CategoryRepository',
   AuditService: 'AuditService',
   SecureStorage: 'SecureStorage',
   KeyValueStorage: 'KeyValueStorage',

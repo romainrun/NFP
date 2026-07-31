@@ -6,6 +6,8 @@ import { SqliteUserRepository } from '@/features/authentication/data/SqliteUserR
 import { MockDashboardRepository } from '@/features/dashboard/data/MockDashboardRepository';
 import { SqliteSettingsRepository } from '@/features/settings/data/SqliteSettingsRepository';
 import { useSettingsStore } from '@/features/settings/presentation/store/settingsStore';
+import { SqliteCategoryRepository } from '@/features/products/data/SqliteCategoryRepository';
+import { SqliteProductRepository } from '@/features/products/data/SqliteProductRepository';
 import { SqliteAuditService } from '@/shared/services/audit/AuditService';
 import { ExpoSecureStorage } from '@/shared/services/storage/SecureStorage';
 import { MemoryKeyValueStorage } from '@/shared/services/storage/KeyValueStorage';
@@ -25,6 +27,8 @@ export async function bootstrap(): Promise<void> {
   const auth = new SqliteAuthRepository(db, users, secureStorage, audit);
   const settings = new SqliteSettingsRepository(db);
   const dashboard = new MockDashboardRepository();
+  const categories = new SqliteCategoryRepository(db);
+  const products = new SqliteProductRepository(db, audit);
 
   container.registerInstance(TOKENS.Database, db);
   container.registerInstance(TOKENS.SecureStorage, secureStorage);
@@ -34,6 +38,8 @@ export async function bootstrap(): Promise<void> {
   container.registerInstance(TOKENS.AuthRepository, auth);
   container.registerInstance(TOKENS.SettingsRepository, settings);
   container.registerInstance(TOKENS.DashboardRepository, dashboard);
+  container.registerInstance(TOKENS.CategoryRepository, categories);
+  container.registerInstance(TOKENS.ProductRepository, products);
 
   const settingsResult = await settings.getSettings();
   if (settingsResult.ok) {

@@ -89,8 +89,9 @@ Phase 1 repositories return mock data behind interfaces:
 - `IUserRepository`
 - `IDashboardRepository`
 - `ISettingsRepository`
+- `IProductRepository` / `ICategoryRepository` (SQLite catalog CRUD + stock adjustments)
 
-Local SQLite repositories are wired for users/settings/audit so offline-first path is real from day one; dashboard metrics stay mocked until sales exist.
+Local SQLite repositories are wired for users/settings/audit/catalog so offline-first path is real from day one; dashboard metrics stay mocked until sales exist.
 
 ## Authentication (Phase 1)
 
