@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -57,6 +57,7 @@ const DISCOUNT_PRESETS = [5, 10, 15, 20, 25, 30] as const;
 
 export function PosScreen() {
   const navigation = useNavigation<PosNavigation>();
+  const searchRef = useRef<{ focus?: () => void } | null>(null);
   const theme = useTheme();
   const queryClient = useQueryClient();
   const { useSplitLayout } = useResponsiveLayout();
@@ -222,6 +223,11 @@ export function PosScreen() {
     barcodeMutation.mutate(code);
   };
 
+  const focusProductSearch = () => {
+    setCartSheetOpen(false);
+    requestAnimationFrame(() => searchRef.current?.focus?.());
+  };
+
   const qtyMutation = useMutation({
     mutationFn: async ({ lineId, quantity }: { lineId: string; quantity: number }) => {
       const repo = container.resolve<ICartRepository>(TOKENS.CartRepository);
@@ -370,6 +376,7 @@ export function PosScreen() {
       </View>
 
       <Searchbar
+        ref={searchRef as never}
         placeholder="Rechercher un article"
         value={search}
         onChangeText={setSearch}
@@ -470,9 +477,11 @@ export function PosScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: spacing.md }}
         ListEmptyComponent={
-          <HelperText type="info" visible>
-            Scannez ou touchez un article pour commencer.
-          </HelperText>
+          <Pressable onPress={focusProductSearch} style={styles.emptyCartSearch}>
+            <HelperText type="info" visible>
+              Panier vide — touchez ici pour rechercher un produit.
+            </HelperText>
+          </Pressable>
         }
         renderItem={({ item }) => (
           <CartLineRow
@@ -875,6 +884,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
+  },
+  emptyCartSearch: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderStyle: 'dashed',
+    borderColor: Colors.border,
+    borderRadius: radii.button,
+    paddingVertical: spacing.sm,
   },
   totals: {
     gap: spacing.xxs,
