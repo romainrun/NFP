@@ -7,11 +7,19 @@ import type {
   UpdateProductInput,
 } from '@/features/products/domain/types';
 
+export type ProductSalesStats = {
+  quantitySold: number;
+  revenueCents: number;
+  ticketCount: number;
+  lastSoldAt: string | null;
+};
+
 export interface IProductRepository {
   list(filter?: ProductListFilter): Promise<Result<Product[]>>;
   /** Active products ordered by lifetime quantity sold (then name). */
   listTopSelling(limit?: number): Promise<Result<Product[]>>;
   getById(id: string): Promise<Result<Product>>;
+  getSalesStats(productId: string): Promise<Result<ProductSalesStats>>;
   getBySku(sku: string): Promise<Result<Product>>;
   getByBarcode(barcode: string): Promise<Result<Product>>;
   create(input: CreateProductInput, actorUserId?: string): Promise<Result<Product>>;

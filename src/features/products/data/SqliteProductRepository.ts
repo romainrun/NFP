@@ -4,6 +4,7 @@ import { AppError } from '@/core/errors/AppError';
 import { err, ok, type Result } from '@/core/types/Result';
 import { withWriteTransaction } from '@/database/transaction';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
+import type { ProductSalesStats } from '@/features/products/data/ProductRepository';
 import type {
   AdjustStockInput,
   CreateProductInput,
@@ -159,6 +160,37 @@ export class SqliteProductRepository implements IProductRepository {
       return ok(mapProduct(row));
     } catch (cause) {
       return err(AppError.database('Impossible de charger l’article', cause));
+    }
+  }
+
+  async getSalesStats(productId: string): Promise<Result<ProductSalesStats>> {
+    try {
+      const row = await this.db.getFirstAsync<{
+        quantity_sold: number | null;
+        revenue_cents: number | null;
+        ticket_count: number;
+        last_sold_at: string | null;
+      }>(
+        `SELECT
+           COALESCE(SUM(ol.quantity), 0) AS quantity_sold,
+           COALESCE(SUM(ol.line_total_cents), 0) AS revenue_cents,
+           COUNT(DISTINCT o.id) AS ticket_count,
+           MAX(o.created_at) AS last_sold_at
+         FROM order_lines ol
+         INNER JOIN orders o ON o.id = ol.order_id
+         WHERE ol.product_id = ?
+           AND o.status = 'completed'`,
+        productId,
+      );
+
+      return ok({
+        quantitySold: row?.quantity_sold ?? 0,
+        revenueCents: row?.revenue_cents ?? 0,
+        ticketCount: row?.ticket_count ?? 0,
+        lastSoldAt: row?.last_sold_at ?? null,
+      });
+    } catch (cause) {
+      return err(AppError.database('Impossible de charger les statistiques produit', cause));
     }
   }
 

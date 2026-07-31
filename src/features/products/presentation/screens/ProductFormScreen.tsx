@@ -28,7 +28,7 @@ import { useCatalogAccess } from '@/features/products/presentation/hooks/useCata
 import type { AppStackParamList } from '@/navigation/types';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
 import { Screen } from '@/shared/components/Screen';
-import { centsToEuros, eurosToCents, parseEurosInput } from '@/shared/utils/money';
+import { centsToEuros, eurosToCents, formatMoney, parseEurosInput } from '@/shared/utils/money';
 import { spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
@@ -92,6 +92,17 @@ export function ProductFormScreen({ navigation, route }: Props) {
     queryFn: async () => {
       const repo = container.resolve<ICategoryRepository>(TOKENS.CategoryRepository);
       const result = await repo.list(false);
+      if (!result.ok) throw result.error;
+      return result.value;
+    },
+  });
+
+  const salesStatsQuery = useQuery({
+    queryKey: ['products', productId, 'sales-stats'],
+    enabled: Boolean(productId),
+    queryFn: async () => {
+      const repo = container.resolve<IProductRepository>(TOKENS.ProductRepository);
+      const result = await repo.getSalesStats(productId!);
       if (!result.ok) throw result.error;
       return result.value;
     },
@@ -306,6 +317,41 @@ export function ProductFormScreen({ navigation, route }: Props) {
           onChange={setImageUri}
           compact
         />
+
+        {isEdit ? (
+          <View
+            style={[
+              styles.statsCard,
+              { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline },
+            ]}
+          >
+            <Text style={[typography.h3, { color: theme.colors.onSurface }]}>
+              Statistiques de vente
+            </Text>
+            <View style={styles.statsGrid}>
+              <StatTile
+                label="Vendus"
+                value={String(salesStatsQuery.data?.quantitySold ?? 0)}
+              />
+              <StatTile
+                label="CA"
+                value={formatMoney(salesStatsQuery.data?.revenueCents ?? 0)}
+              />
+              <StatTile
+                label="Tickets"
+                value={String(salesStatsQuery.data?.ticketCount ?? 0)}
+              />
+              <StatTile
+                label="Dernière vente"
+                value={
+                  salesStatsQuery.data?.lastSoldAt
+                    ? new Date(salesStatsQuery.data.lastSoldAt).toLocaleDateString('fr-FR')
+                    : '—'
+                }
+              />
+            </View>
+          </View>
+        ) : null}
 
         <Controller
           control={control}
@@ -632,6 +678,20 @@ export function ProductFormScreen({ navigation, route }: Props) {
   );
 }
 
+function StatTile({ label, value }: { label: string; value: string }) {
+  const theme = useTheme();
+  return (
+    <View style={[styles.statTile, { backgroundColor: theme.colors.surfaceVariant }]}>
+      <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+        {label}
+      </Text>
+      <Text style={[typography.bodyStrong, { color: theme.colors.onSurface }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
@@ -672,6 +732,24 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.sm,
     alignItems: 'center',
+  },
+  statsCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 18,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  statTile: {
+    minWidth: '47%',
+    flexGrow: 1,
+    borderRadius: 12,
+    padding: spacing.sm,
+    gap: 2,
   },
   flag: {
     flexDirection: 'row',
