@@ -33,7 +33,7 @@ Repository → **Settings → Secrets and variables → Actions**
 | Secret     | Example              | Description                          |
 |------------|----------------------|--------------------------------------|
 | `HOST`     | `203.0.113.10`       | VPS public hostname or IP            |
-| `PORT`     | `22`                 | SSH port                             |
+| `PORT`     | `22`                 | SSH port (NOT Metro; Metro uses 2000)|
 | `USERNAME` | `deploy`             | Linux user that owns the app         |
 | `SSH_KEY`  | `-----BEGIN … KEY---`| Private key for that user (full PEM) |
 
