@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTheme } from 'react-native-paper';
 import { CheckoutScreen } from '@/features/checkout/presentation/screens/CheckoutScreen';
 import { SaleCompleteScreen } from '@/features/checkout/presentation/screens/SaleCompleteScreen';
 import { ProductFormScreen } from '@/features/products/presentation/screens/ProductFormScreen';
@@ -11,11 +12,14 @@ const Stack = createNativeStackNavigator<AppStackParamList>();
  * Authenticated shell: drawer destinations + modal sale/catalog flows.
  */
 export function AppNavigator() {
+  const theme = useTheme();
+
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        animation: 'fade',
+        animation: 'none',
+        contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
       <Stack.Screen name="Main" component={MainDrawer} />

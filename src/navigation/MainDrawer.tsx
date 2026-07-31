@@ -22,11 +22,11 @@ export function MainDrawer() {
   const setActiveRoute = useDrawerStore((s) => s.setActiveRoute);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          animation: 'fade',
+          animation: 'none',
           contentStyle: { backgroundColor: theme.colors.background },
         }}
         screenListeners={{

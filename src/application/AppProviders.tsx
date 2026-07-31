@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -25,6 +26,15 @@ const queryClient = new QueryClient({
 function StatusBarBridge() {
   const theme = useTheme();
   return <StatusBar style={theme.dark ? 'light' : 'dark'} />;
+}
+
+function AppSurface({ children }: { children: ReactNode }) {
+  const theme = useTheme();
+  return (
+    <View style={[styles.appSurface, { backgroundColor: theme.colors.background }]}>
+      {children}
+    </View>
+  );
 }
 
 type Props = {
@@ -71,7 +81,9 @@ export function AppProviders({ children }: Props) {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <AppThemeProvider>
-            <LoadingOverlay label="Initialisation NFP…" />
+            <AppSurface>
+              <LoadingOverlay label="Initialisation NFP…" />
+            </AppSurface>
           </AppThemeProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
@@ -83,11 +95,19 @@ export function AppProviders({ children }: Props) {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AppThemeProvider>
-            <StatusBarBridge />
-            {children ?? <RootNavigator />}
+            <AppSurface>
+              <StatusBarBridge />
+              {children ?? <RootNavigator />}
+            </AppSurface>
           </AppThemeProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  appSurface: {
+    flex: 1,
+  },
+});
