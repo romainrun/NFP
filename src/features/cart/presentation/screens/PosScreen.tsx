@@ -53,6 +53,7 @@ type PosNavigation = CompositeNavigationProp<
 >;
 
 type CatalogTab = 'top' | 'favorites';
+const DISCOUNT_PRESETS = [5, 10, 15, 20, 25, 30] as const;
 
 export function PosScreen() {
   const navigation = useNavigation<PosNavigation>();
@@ -608,9 +609,31 @@ export function PosScreen() {
                 { value: 'amount', label: '€' },
               ]}
             />
+            <Text style={[typography.caption, { color: theme.colors.onSurfaceVariant }]}>
+              Raccourcis fréquents
+            </Text>
+            <View style={styles.discountPresets}>
+              {DISCOUNT_PRESETS.map((preset) => {
+                const selected = discountValue.trim().replace(',', '.') === String(preset);
+                return (
+                  <Chip
+                    key={`${discountMode}-${preset}`}
+                    selected={selected}
+                    compact
+                    onPress={() => {
+                      setDiscountValue(String(preset));
+                      vibrateTap();
+                    }}
+                    style={styles.discountPresetChip}
+                  >
+                    {discountMode === 'percent' ? `${preset}%` : `${preset} €`}
+                  </Chip>
+                );
+              })}
+            </View>
             <TextInput
               mode="outlined"
-              label={discountMode === 'percent' ? 'Remise (%)' : 'Remise (€)'}
+              label={discountMode === 'percent' ? 'Remise custom (%)' : 'Remise custom (€)'}
               value={discountValue}
               onChangeText={setDiscountValue}
               keyboardType="decimal-pad"
@@ -862,6 +885,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  discountPresets: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  discountPresetChip: {
+    marginRight: spacing.xs,
     marginBottom: spacing.xs,
   },
   totalRow: {
