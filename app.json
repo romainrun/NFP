@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "NFP",
+    "slug": "nfp",
+    "version": "0.1.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "nfp",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.naturallyforme.nfp",
+      "infoPlist": {
+        "UIRequiresFullScreen": false
+      }
+    },
+    "android": {
+      "package": "com.naturallyforme.nfp",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F766E",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "appName": "NaturallyForme Paiement",
+      "appShortName": "NFP"
+    }
+  }
+}
