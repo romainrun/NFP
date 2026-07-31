@@ -578,8 +578,20 @@ export function PosScreen() {
             value={catalogTab}
             onValueChange={(value) => setCatalogTab(value as CatalogTab)}
             buttons={[
-              { value: 'top', label: 'Plus vendus', icon: 'fire' },
-              { value: 'favorites', label: 'Favoris', icon: 'star' },
+              {
+                value: 'top',
+                label: 'Plus vendus',
+                icon: 'fire',
+                style: styles.tabButton,
+                labelStyle: styles.tabButtonLabel,
+              },
+              {
+                value: 'favorites',
+                label: 'Favoris',
+                icon: 'star',
+                style: styles.tabButton,
+                labelStyle: styles.tabButtonLabel,
+              },
             ]}
             style={styles.tabs}
           />
@@ -604,6 +616,7 @@ export function PosScreen() {
               <Chip
                 key={item.id}
                 selected={selected}
+                compact
                 onPress={() => setCategoryId(item.id === 'all' ? null : item.id)}
                 style={[
                   styles.categoryChip,
@@ -694,6 +707,7 @@ export function PosScreen() {
         renderItem={({ item }) => (
           <CartLineRow
             line={item}
+            compact={!useSplitLayout}
             onIncrement={() =>
               qtyMutation.mutate({ lineId: item.id, quantity: item.quantity + 1 })
             }
@@ -1110,6 +1124,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
     minHeight: 44,
   },
+  tabButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tabButtonLabel: {
+    textAlign: 'center',
+    lineHeight: 18,
+  },
   manualRowTop: {
     paddingHorizontal: spacing.sm,
     marginBottom: spacing.sm,
@@ -1129,10 +1152,15 @@ const styles = StyleSheet.create({
     marginRight: spacing.xs,
     borderWidth: StyleSheet.hairlineWidth,
     minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
   },
   categoryChipText: {
     fontSize: 13,
     lineHeight: 18,
+    textAlign: 'center',
+    marginVertical: 0,
   },
   productGrid: {
     flex: 1,
