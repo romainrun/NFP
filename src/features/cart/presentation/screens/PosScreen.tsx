@@ -534,6 +534,7 @@ export function PosScreen() {
       <AppHeader
         title="Caisse"
         subtitle="Scan, plus vendus ou favoris"
+        showBrandMark
         right={
           <Button mode="contained-tonal" icon="barcode-scan" onPress={() => setScannerOpen(true)}>
             Scanner
@@ -749,8 +750,10 @@ export function PosScreen() {
       <Button
         mode="contained"
         disabled={cart.lines.length === 0}
+        buttonColor={Colors.primary}
         style={styles.checkoutBtn}
         contentStyle={{ minHeight: 52 }}
+        labelStyle={typography.button}
         onPress={() => {
           setCartSheetOpen(false);
           navigation.navigate('Checkout');
@@ -1229,12 +1232,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkoutBtn: {
-    borderRadius: radii.md,
+    borderRadius: radii.button,
   },
   cartBar: {
     position: 'absolute',
     left: spacing.md,
     right: spacing.md,
+    borderTopWidth: 3,
+    borderTopColor: Colors.primary,
     borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.border,

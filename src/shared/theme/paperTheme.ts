@@ -19,7 +19,7 @@ export function createPaperTheme(mode: 'light' | 'dark' = 'light'): MD3Theme {
         fontFamily: fonts.regular,
       },
     }),
-    roundness: 8,
+    roundness: 12,
     colors: {
       ...baseTheme.colors,
       primary: colors.primary,

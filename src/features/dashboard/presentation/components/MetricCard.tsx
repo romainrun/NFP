@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 import type { DashboardMetric } from '@/features/dashboard/domain/types';
+import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
@@ -22,6 +23,7 @@ export function MetricCard({ metric }: Props) {
     <View
       style={[
         styles.card,
+        shadows.sm,
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.outline,
@@ -47,8 +49,10 @@ const styles = StyleSheet.create({
   card: {
     flexGrow: 1,
     minWidth: 160,
-    borderRadius: radii.lg,
+    borderRadius: radii.card,
     borderWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 3,
+    borderTopColor: Colors.primary,
     padding: spacing.md,
   },
 });

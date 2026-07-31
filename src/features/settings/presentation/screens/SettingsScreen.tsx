@@ -235,7 +235,7 @@ export function SettingsScreen() {
   }
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} atmosphere>
       <ScrollView contentContainerStyle={styles.content}>
         <AppHeader
           title="Paramètres"

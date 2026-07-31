@@ -11,7 +11,7 @@ import { bootstrap } from '@/application/bootstrap';
 import { useAuthStore } from '@/features/authentication/presentation/store/authStore';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { LoadingOverlay } from '@/shared/components/LoadingOverlay';
-import { interFontMap } from '@/shared/theme/loadFonts';
+import { appFontMap } from '@/shared/theme/loadFonts';
 import { AppThemeProvider } from '@/shared/theme/ThemeProvider';
 
 const queryClient = new QueryClient({
@@ -45,7 +45,7 @@ export function AppProviders({ children }: Props) {
   const [ready, setReady] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const setBootstrapping = useAuthStore((s) => s.setBootstrapping);
-  const [fontsLoaded, fontError] = useFonts(interFontMap);
+  const [fontsLoaded, fontError] = useFonts(appFontMap);
 
   useEffect(() => {
     let mounted = true;

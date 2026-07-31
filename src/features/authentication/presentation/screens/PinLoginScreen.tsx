@@ -2,18 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { APP_CONFIG } from '@/core/config/appConfig';
+import { BRAND } from '@/shared/theme/brand';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import type { IAuthRepository } from '@/features/authentication/data/AuthRepository';
 import type { Employee } from '@/features/authentication/domain/types';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
+import { BrandHero } from '@/shared/components/BrandHero';
 import { PinPad } from '@/shared/components/PinPad';
 import { Screen } from '@/shared/components/Screen';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
-import { brandGradient, Colors } from '@/shared/theme/colors';
 import { radii, spacing, touchTarget } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
@@ -116,11 +116,14 @@ export function PinLoginScreen() {
 
   const pinPane = (
     <Animated.View entering={FadeInUp.duration(480)} style={styles.pinPane}>
-      <Text style={[typography.brand, { color: theme.colors.primary }]}>
+      <Text style={[typography.tagline, { color: theme.colors.primary, marginBottom: spacing.xs }]}>
+        {BRAND.name}
+      </Text>
+      <Text style={[typography.brand, { color: theme.colors.primary, fontSize: 32 }]}>
         {APP_CONFIG.shortName}
       </Text>
-      <Text style={[typography.h2, { color: theme.colors.onSurface, marginTop: spacing.xs }]}>
-        {APP_CONFIG.name}
+      <Text style={[typography.h3, { color: theme.colors.onSurface, marginTop: spacing.xs }]}>
+        {BRAND.tagline}
       </Text>
       <Text
         style={{
@@ -128,11 +131,12 @@ export function PinLoginScreen() {
           marginTop: spacing.sm,
           marginBottom: spacing.lg,
           textAlign: 'center',
+          maxWidth: 320,
         }}
       >
         {selected
-          ? `PIN de ${selected.displayName} (dev: ${APP_CONFIG.devPin})`
-          : 'Choisissez un profil pour déverrouiller la caisse'}
+          ? `PIN de ${selected.displayName}`
+          : BRAND.subtitle}
       </Text>
 
       {selected ? (
@@ -167,26 +171,16 @@ export function PinLoginScreen() {
   );
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} atmosphere>
       <View style={[styles.root, useSplitLayout ? styles.rootSplit : styles.rootStack]}>
         {useSplitLayout ? (
           <>
-            <LinearGradient
-              colors={[...brandGradient]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.hero}
-            >
-              <Text style={[typography.brand, { color: Colors.white }]}>NFP</Text>
-              <Text
-                style={[
-                  typography.h2,
-                  { color: Colors.white, marginTop: spacing.sm, opacity: 0.95 },
-                ]}
-              >
-                Caisse prête. Mode hors-ligne.
-              </Text>
-            </LinearGradient>
+            <BrandHero
+              title={BRAND.shortName}
+              subtitle={`${BRAND.tagline} · Mode hors-ligne`}
+              compact
+              style={styles.heroPanel}
+            />
             <View style={styles.splitContent}>
               {employeeList}
               {pinPane}
@@ -207,11 +201,12 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   rootSplit: { flexDirection: 'row' },
   rootStack: { padding: spacing.lg, gap: spacing.lg },
-  hero: {
+  heroPanel: {
     width: '38%',
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
     justifyContent: 'flex-end',
+    borderRadius: 0,
   },
   splitContent: {
     flex: 1,

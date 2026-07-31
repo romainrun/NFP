@@ -1,10 +1,9 @@
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
@@ -18,11 +17,13 @@ import {
 } from '@/features/settings/domain/types';
 import type { MainParamList } from '@/navigation/types';
 import { AppHeader } from '@/shared/components/AppHeader';
+import { BrandHero } from '@/shared/components/BrandHero';
 import { QueryErrorPanel } from '@/shared/components/QueryErrorPanel';
 import { Screen } from '@/shared/components/Screen';
 import { DashboardSkeleton } from '@/shared/components/skeletons';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
-import { brandGradient, Colors, darkColors, lightColors, shadows } from '@/shared/theme/colors';
+import { BRAND } from '@/shared/theme/brand';
+import { Colors, darkColors, lightColors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
 
@@ -94,31 +95,22 @@ export function DashboardScreen() {
   const showSidePanel = showTopProducts || showStockAlerts;
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} atmosphere>
       <ScrollView contentContainerStyle={styles.content}>
         <AppHeader
           title="Tableau de bord"
           subtitle={`Bonjour, ${session?.employee.displayName ?? ''}`}
+          showBrandMark
         />
 
         {revenueToday ? (
           <Animated.View entering={FadeInDown.duration(420)}>
-            <LinearGradient
-              colors={[...brandGradient]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.hero}
+            <BrandHero
+              eyebrow="CA de la journée"
+              title={revenueToday.value}
+              subtitle={revenueToday.deltaLabel ?? BRAND.tagline}
+              logoSource={logoSource}
             >
-              <Image source={logoSource} style={styles.logo} resizeMode="contain" />
-              <Text style={[typography.caption, { color: Colors.white, opacity: 0.9 }]}>
-                CA de la journée
-              </Text>
-              <Text style={[typography.amount, { color: Colors.white, marginTop: 2 }]}>
-                {revenueToday.value}
-              </Text>
-              <Text style={[typography.caption, { color: Colors.white, opacity: 0.85 }]}>
-                {revenueToday.deltaLabel ?? ''}
-              </Text>
               <View style={styles.heroActions}>
                 <Button
                   mode="contained"
@@ -127,6 +119,7 @@ export function DashboardScreen() {
                   onPress={() => navigation.navigate('Pos')}
                   contentStyle={{ minHeight: 48 }}
                   labelStyle={typography.button}
+                  style={styles.heroCta}
                 >
                   Ouvrir la caisse
                 </Button>
@@ -137,11 +130,12 @@ export function DashboardScreen() {
                   onPress={() => navigation.navigate('SalesHistory')}
                   contentStyle={{ minHeight: 48 }}
                   labelStyle={typography.button}
+                  style={styles.heroCta}
                 >
                   Voir l’historique
                 </Button>
               </View>
-            </LinearGradient>
+            </BrandHero>
           </Animated.View>
         ) : null}
 
@@ -238,21 +232,13 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     paddingBottom: spacing.xxl,
   },
-  hero: {
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    overflow: 'hidden',
-  },
-  logo: {
-    width: 112,
-    height: 58,
-    marginBottom: spacing.xs,
-  },
   heroActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
-    marginTop: spacing.lg,
+  },
+  heroCta: {
+    borderRadius: radii.button,
   },
   metrics: {
     flexDirection: 'row',

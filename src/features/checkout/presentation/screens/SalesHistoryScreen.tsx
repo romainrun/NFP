@@ -105,7 +105,7 @@ export function SalesHistoryScreen() {
   }
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} atmosphere>
       <ScrollView contentContainerStyle={styles.container}>
         <AppHeader
           title="Historique des ventes"

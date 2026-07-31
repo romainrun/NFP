@@ -1,19 +1,19 @@
+import { Colors } from '@/shared/theme/colors';
+
 /**
- * Inter — single typeface for NFP (loaded via expo-font).
- * Expo font keys use Inter_700Bold form; Typography mirrors the design system.
+ * Montserrat — Naturally Forme website (nf.tikilote.re).
  */
 export const fonts = {
-  light: 'Inter_300Light',
-  regular: 'Inter_400Regular',
-  medium: 'Inter_500Medium',
-  semiBold: 'Inter_600SemiBold',
-  bold: 'Inter_700Bold',
-  display: 'Inter_700Bold',
-  body: 'Inter_400Regular',
-  mono: 'Inter_600SemiBold',
+  light: 'Montserrat_300Light',
+  regular: 'Montserrat_400Regular',
+  medium: 'Montserrat_500Medium',
+  semiBold: 'Montserrat_600SemiBold',
+  bold: 'Montserrat_700Bold',
+  display: 'Montserrat_700Bold',
+  body: 'Montserrat_400Regular',
+  mono: 'Montserrat_600SemiBold',
 } as const;
 
-/** Alias matching design-system naming (Inter-Bold → loaded key). */
 export const FontFamily = {
   light: fonts.light,
   regular: fonts.regular,
@@ -22,61 +22,63 @@ export const FontFamily = {
   bold: fonts.bold,
 } as const;
 
-/** Design-system Typography (Naturally Forme). */
 export const Typography = {
   h1: {
     fontFamily: fonts.bold,
     fontSize: 32,
     fontWeight: '700' as const,
-    letterSpacing: -0.5,
-    color: '#222222',
+    letterSpacing: -0.4,
+    color: Colors.text,
   },
   h2: {
     fontFamily: fonts.semiBold,
     fontSize: 24,
     fontWeight: '600' as const,
-    letterSpacing: -0.3,
-    color: '#222222',
+    letterSpacing: -0.2,
+    color: Colors.text,
   },
   h3: {
     fontFamily: fonts.semiBold,
     fontSize: 20,
     fontWeight: '600' as const,
-    color: '#222222',
+    color: Colors.text,
   },
   subtitle: {
     fontFamily: fonts.medium,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '500' as const,
-    color: '#666666',
+    color: Colors.textSecondary,
+    lineHeight: 24,
   },
   body: {
     fontFamily: fonts.regular,
     fontSize: 16,
     fontWeight: '400' as const,
-    color: '#222222',
+    color: Colors.text,
+    lineHeight: 24,
   },
   caption: {
     fontFamily: fonts.regular,
     fontSize: 14,
     fontWeight: '400' as const,
-    color: '#666666',
+    color: Colors.textSecondary,
+    lineHeight: 20,
   },
   button: {
     fontFamily: fonts.semiBold,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600' as const,
+    letterSpacing: 0.3,
   },
   amount: {
     fontFamily: fonts.bold,
     fontSize: 36,
     fontWeight: '700' as const,
     letterSpacing: -0.5,
-    color: '#222222',
+    color: Colors.text,
   },
 } as const;
 
-/** App-wide style aliases (keeps existing screen imports working). */
 export const typography = {
   brand: { ...Typography.amount, fontSize: 36 },
   h1: Typography.h1,
@@ -88,7 +90,7 @@ export const typography = {
     fontFamily: fonts.semiBold,
     fontSize: 16,
     fontWeight: '600' as const,
-    color: '#222222',
+    color: Colors.text,
   },
   caption: Typography.caption,
   button: Typography.button,
@@ -103,5 +105,13 @@ export const typography = {
     fontSize: 28,
     fontWeight: '600' as const,
     letterSpacing: 8,
+  },
+  tagline: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    fontWeight: '500' as const,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase' as const,
+    color: Colors.primaryDark,
   },
 };

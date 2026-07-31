@@ -4,11 +4,11 @@ import { Button, Divider, IconButton, Text } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { APP_CONFIG } from '@/core/config/appConfig';
 import { hasPermission } from '@/features/authentication/domain/permissions';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import { useDrawerStore } from '@/navigation/drawerStore';
 import type { AppStackParamList, MainParamList } from '@/navigation/types';
+import { BRAND } from '@/shared/theme/brand';
 import { brandGradient, Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -105,8 +105,8 @@ export function AppSideMenu() {
             style={styles.hero}
           >
             <View style={styles.heroTop}>
-              <Text style={[typography.brand, { color: Colors.white, fontSize: 32, flex: 1 }]}>
-                {APP_CONFIG.shortName}
+              <Text style={[typography.brand, { color: Colors.white, fontSize: 28, flex: 1 }]}>
+                {BRAND.shortName}
               </Text>
               <IconButton
                 icon="close"
@@ -120,7 +120,10 @@ export function AppSideMenu() {
               {session?.employee.displayName ?? 'Collaborateur'}
             </Text>
             <Text style={[typography.caption, { color: Colors.white, opacity: 0.85 }]}>
-              {session?.employee.role?.toUpperCase()} · Naturally Forme
+              {session?.employee.role?.toUpperCase()} · {BRAND.name}
+            </Text>
+            <Text style={[typography.caption, { color: Colors.white, opacity: 0.75, fontSize: 12 }]}>
+              {BRAND.tagline}
             </Text>
           </LinearGradient>
 

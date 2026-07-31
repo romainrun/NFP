@@ -7,14 +7,14 @@ export const Colors = {
   primaryPressed: '#9F7B30',
   primaryLight: '#E7D3A2',
 
-  background: '#F8F6F2',
-  backgroundSecondary: '#FAF8F5',
+  background: '#FAF8F5',
+  backgroundSecondary: '#F5F2EC',
   section: '#F4F1EB',
 
   surface: '#FFFFFF',
 
-  text: '#222222',
-  textSecondary: '#666666',
+  text: '#2E2A26',
+  textSecondary: '#6F6A64',
   textDisabled: '#9A9A9A',
   onPrimary: '#FFFFFF',
 
