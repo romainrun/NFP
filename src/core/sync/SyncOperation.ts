@@ -13,6 +13,7 @@ export const SyncOperation = {
   SETTINGS_UPDATE: 'SETTINGS_UPDATE',
   PAYMENT_CREATE: 'PAYMENT_CREATE',
   PROMOTION_UPDATE: 'PROMOTION_UPDATE',
+  CASH_CLOSING_CREATE: 'CASH_CLOSING_CREATE',
 } as const;
 
 export type SyncOperationType = (typeof SyncOperation)[keyof typeof SyncOperation];
@@ -25,6 +26,7 @@ export const SyncEntityType = {
   SETTINGS: 'settings',
   PAYMENT: 'payment',
   PROMOTION: 'promotion',
+  CASH_CLOSING: 'cash_closing',
 } as const;
 
 export type SyncEntityTypeValue = (typeof SyncEntityType)[keyof typeof SyncEntityType];

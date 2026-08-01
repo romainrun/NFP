@@ -60,10 +60,26 @@ const ACTION_META: Record<string, ActionMeta> = {
     title: 'Paramètres modifiés',
     subtitleFromPayload: (p) => String(p?.section ?? 'Administration'),
   },
-  sync: {
+  sync_started: {
     icon: 'cloud-sync-outline',
+    title: 'Synchronisation démarrée',
+    subtitleFromPayload: () => 'Sync en cours',
+  },
+  sync_finished: {
+    icon: 'cloud-check-outline',
     title: 'Synchronisation terminée',
-    subtitleFromPayload: (p) => String(p?.message ?? 'Données synchronisées'),
+    subtitleFromPayload: (p) => String(p?.message ?? 'OK'),
+  },
+  sync_failed: {
+    icon: 'cloud-alert-outline',
+    title: 'Synchronisation échouée',
+    subtitleFromPayload: (p) => String(p?.reason ?? p?.message ?? 'Échec'),
+  },
+  cash_closing: {
+    icon: 'cash-register',
+    title: 'Clôture de caisse',
+    subtitleFromPayload: (p) =>
+      p?.totalCents != null ? `${(p.totalCents as number) / 100} €` : 'Clôture enregistrée',
   },
   user_change: {
     icon: 'account-edit-outline',
@@ -122,6 +138,10 @@ export const VISIBLE_ACTIVITY_ACTIONS: AuditAction[] = [
   'inventory_change',
   'config_change',
   'sync',
+  'sync_started',
+  'sync_finished',
+  'sync_failed',
+  'cash_closing',
   'user_change',
   'discount',
 ];

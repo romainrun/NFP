@@ -32,6 +32,9 @@ export async function runSyncNow(): Promise<SyncRunResult> {
   const deviceRepo = container.resolve<IDeviceRepository>(TOKENS.DeviceRepository);
   const activityRepo = container.resolve<IActivityHistoryRepository>(TOKENS.ActivityHistoryRepository);
   const settingsLocal = container.resolve<LocalAdminSettingsDataSource>(TOKENS.LocalAdminSettingsDataSource);
+  const audit = container.resolve<IAuditService>(TOKENS.AuditService);
+
+  await audit.log({ action: 'sync_started', entityType: 'sync', metadata: { source: 'runSyncNow' } });
 
   const bundle = await adminRepo.getBundle();
   const syncMeta = bundle.ok ? bundle.value.sync : defaultSyncMetaSettings();
@@ -147,22 +150,27 @@ export async function runSyncNow(): Promise<SyncRunResult> {
     backendAvailable ? now : null,
   );
 
-  const audit = container.resolve<IAuditService>(TOKENS.AuditService);
-  await audit.log({
-    action: 'sync',
-    payload: {
-      message:
-        backendAvailable && syncedCount > 0
-          ? `${syncedCount} opération(s)`
-          : simulateOffline
-            ? 'Mode hors-ligne simulé'
-            : backendAvailable
-              ? 'Synchronisation terminée'
-              : 'Backend indisponible',
-    },
-  });
-
   await trackActivity();
+
+  if (backendAvailable && failedCount === 0) {
+    await audit.log({
+      action: 'sync_finished',
+      entityType: 'sync',
+      metadata: { syncedCount, failedCount },
+    });
+  } else if (!simulateOffline && !backendAvailable) {
+    await audit.log({
+      action: 'sync_failed',
+      entityType: 'sync',
+      metadata: { reason: 'backend_unavailable' },
+    });
+  } else if (!simulateOffline && backendAvailable && failedCount > 0) {
+    await audit.log({
+      action: 'sync_failed',
+      entityType: 'sync',
+      metadata: { syncedCount, failedCount },
+    });
+  }
 
   return {
     ok: backendAvailable && failedCount === 0,

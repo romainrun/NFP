@@ -1,10 +1,13 @@
 import * as Crypto from 'expo-crypto';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { APP_CONFIG } from '@/core/config/appConfig';
 import { AppError } from '@/core/errors/AppError';
-import { chainHash } from '@/core/security/hash';
+import { resolveDeviceId } from '@/core/compliance/deviceContext';
+import {
+  buildReceiptHashPayload,
+  computeReceiptHash,
+} from '@/core/compliance/receiptHash';
+import { buildSyncEnvelope } from '@/core/compliance/syncPayload';
 import { err, ok, type Result } from '@/core/types/Result';
 import { withWriteTransaction } from '@/database/transaction';
 import type { ICartRepository } from '@/features/cart/data/CartRepository';
@@ -26,6 +29,7 @@ import type {
 import type { PaymentProvider } from '@/features/payments/domain/PaymentProvider';
 import { SyncEntityType, SyncOperation } from '@/core/sync/SyncOperation';
 import type { ISyncRepository } from '@/features/sync/data/SyncRepository';
+import type { SqliteComplianceRepository } from '@/features/compliance/data/SqliteComplianceRepository';
 import type { IAuditService } from '@/shared/services/audit/AuditService';
 import { vatFromTtc } from '@/shared/utils/pricing';
 
@@ -72,7 +76,7 @@ type PaymentRow = {
 };
 
 function deviceId(): string {
-  return `${Platform.OS}-${Constants.sessionId ?? 'device'}`;
+  return resolveDeviceId();
 }
 
 function mapOrder(
@@ -108,6 +112,7 @@ export class SqliteOrderRepository implements IOrderRepository {
     private readonly payments: PaymentProvider,
     private readonly audit: IAuditService,
     private readonly sync?: ISyncRepository,
+    private readonly compliance?: SqliteComplianceRepository,
   ) {}
 
   async getById(orderId: string): Promise<Result<Order>> {
@@ -220,20 +225,65 @@ export class SqliteOrderRepository implements IOrderRepository {
 
         const receiptNumber = (last?.receipt_number ?? 0) + 1;
         const previousHash = last?.receipt_hash ?? null;
+        const devId = deviceId();
 
-        const payload = JSON.stringify({
-          receiptNumber,
-          totalCents: cart.totalCents,
-          userId: input.userId,
-          createdAt,
-          lines: cart.lines.map((l) => ({
-            productId: l.productId,
-            qty: l.quantity,
-            total: l.lineTotalCents,
-          })),
+        const linePreview = cart.lines.map((line) => {
+          const lineDiscountCents =
+            Math.round(line.unitPriceCents * line.quantity) - line.lineTotalCents;
+          const linePayable =
+            cart.subtotalCents === 0
+              ? 0
+              : Math.round((line.lineTotalCents / cart.subtotalCents) * cart.totalCents);
+          const lineVat = vatFromTtc(linePayable, line.vatRate);
+          return {
+            id: line.id,
+            orderId,
+            productId: line.productId,
+            productName: line.productName,
+            quantity: line.quantity,
+            unitPriceCents: line.unitPriceCents,
+            discountCents: lineDiscountCents,
+            vatRate: line.vatRate,
+            vatCents: lineVat,
+            lineTotalCents: line.lineTotalCents,
+          };
         });
 
-        const receiptHash = await chainHash(previousHash ?? 'GENESIS', payload);
+        let remainingPay = cart.totalCents;
+        const paymentPreview: OrderPayment[] = [];
+        for (const payment of input.payments) {
+          const applied = Math.min(remainingPay, payment.amountCents);
+          remainingPay -= applied;
+          paymentPreview.push({
+            id: Crypto.randomUUID(),
+            orderId,
+            method: payment.method,
+            amountCents: applied,
+            provider: this.payments.id,
+            providerReference: `${payment.method.toUpperCase()}-${receiptNumber}`,
+            status: 'captured',
+            createdAt,
+          });
+        }
+
+        const hashPayload = buildReceiptHashPayload({
+          receiptNumber,
+          previousHash,
+          employeeId: input.userId,
+          deviceId: devId,
+          appVersion: APP_CONFIG.version,
+          createdAt,
+          subtotalCents: cart.subtotalCents,
+          discountCents: cart.discountCents,
+          vatCents: cart.vatCents,
+          totalCents: cart.totalCents,
+          notes: input.notes?.trim() || null,
+          customerId: cart.customerId,
+          lines: linePreview,
+          payments: paymentPreview,
+        });
+
+        const receiptHash = await computeReceiptHash(previousHash, hashPayload);
 
         await txn.runAsync(
           `INSERT INTO orders (
@@ -253,38 +303,29 @@ export class SqliteOrderRepository implements IOrderRepository {
           previousHash,
           receiptHash,
           createdAt,
-          deviceId(),
+          devId,
           APP_CONFIG.version,
         );
 
-        for (const line of cart.lines) {
-          const lineDiscountCents =
-            Math.round(line.unitPriceCents * line.quantity) - line.lineTotalCents;
-          const linePayable =
-            cart.subtotalCents === 0
-              ? 0
-              : Math.round(
-                  (line.lineTotalCents / cart.subtotalCents) * cart.totalCents,
-                );
-          const lineVat = vatFromTtc(linePayable, line.vatRate);
-
+        for (const line of linePreview) {
           await txn.runAsync(
             `INSERT INTO order_lines (
               id, order_id, product_id, product_name, quantity,
               unit_price_cents, discount_cents, vat_rate, vat_cents, line_total_cents
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            Crypto.randomUUID(),
+            line.id,
             orderId,
             line.productId,
             line.productName,
             line.quantity,
             line.unitPriceCents,
-            lineDiscountCents,
+            line.discountCents,
             line.vatRate,
-            lineVat,
+            line.vatCents,
             line.lineTotalCents,
           );
 
+          if (!line.productId) continue;
           const product = await txn.getFirstAsync<{ stock_quantity: number }>(
             `SELECT stock_quantity FROM products WHERE id = ?`,
             line.productId,
@@ -311,21 +352,18 @@ export class SqliteOrderRepository implements IOrderRepository {
           }
         }
 
-        let remaining = cart.totalCents;
-        for (const payment of input.payments) {
-          const applied = Math.min(remaining, payment.amountCents);
-          remaining -= applied;
+        for (const payment of paymentPreview) {
           await txn.runAsync(
             `INSERT INTO payments (
               id, order_id, method, amount_cents, provider, provider_reference,
               status, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, 'captured', ?)`,
-            Crypto.randomUUID(),
+            payment.id,
             orderId,
             payment.method,
-            applied,
-            this.payments.id,
-            `${payment.method.toUpperCase()}-${receiptNumber}`,
+            payment.amountCents,
+            payment.provider,
+            payment.providerReference,
             createdAt,
           );
         }
@@ -344,27 +382,53 @@ export class SqliteOrderRepository implements IOrderRepository {
       await this.audit.log({
         userId: input.userId,
         action: 'sale',
-        entityType: 'order',
+        entityType: 'sale',
         entityId: orderId,
-        payload: {
+        newValue: {
           receiptNumber: order.value.receiptNumber,
           totalCents: order.value.totalCents,
           changeCents,
           methods: input.payments.map((p) => p.method),
+          receiptHash: order.value.receiptHash,
         },
       });
 
+      if (this.compliance) {
+        await this.compliance.saveSnapshot('sale', orderId, {
+          order: order.value,
+        }, input.userId);
+      }
+
       if (this.sync) {
+        const envelope = await buildSyncEnvelope(
+          {
+            orderId,
+            receiptNumber: order.value.receiptNumber,
+            userId: order.value.userId,
+            customerId: order.value.customerId,
+            status: order.value.status,
+            subtotalCents: order.value.subtotalCents,
+            discountCents: order.value.discountCents,
+            vatCents: order.value.vatCents,
+            totalCents: order.value.totalCents,
+            notes: order.value.notes,
+            previousHash: order.value.previousHash,
+            receiptHash: order.value.receiptHash,
+            deviceId: order.value.deviceId,
+            appVersion: order.value.appVersion,
+            createdAt: order.value.createdAt,
+            lines: order.value.lines,
+            payments: order.value.payments,
+          },
+          input.userId,
+          1,
+          { createdAt: order.value.createdAt, updatedAt: order.value.createdAt },
+        );
         await this.sync.enqueue({
           entityType: SyncEntityType.SALE,
           entityId: orderId,
           operation: SyncOperation.SALE_CREATE,
-          payload: {
-            orderId,
-            receiptNumber: order.value.receiptNumber,
-            totalCents: order.value.totalCents,
-            createdAt: order.value.createdAt,
-          },
+          payload: envelope as unknown as Record<string, unknown>,
         });
       }
 
@@ -422,14 +486,32 @@ export class SqliteOrderRepository implements IOrderRepository {
       await this.audit.log({
         userId,
         action: 'void',
-        entityType: 'order',
+        entityType: 'sale',
         entityId: orderId,
-        payload: {
-          receiptNumber: current.value.receiptNumber,
-          totalCents: current.value.totalCents,
-          reason,
-        },
+        oldValue: { status: 'completed', receiptNumber: current.value.receiptNumber },
+        newValue: { status: 'voided', reason },
       });
+
+      if (this.sync) {
+        const envelope = await buildSyncEnvelope(
+          {
+            orderId,
+            receiptNumber: current.value.receiptNumber,
+            reason,
+            voidedAt: now,
+            employeeId: userId,
+          },
+          userId,
+          1,
+          { createdAt: current.value.createdAt, updatedAt: now },
+        );
+        await this.sync.enqueue({
+          entityType: SyncEntityType.SALE,
+          entityId: orderId,
+          operation: SyncOperation.SALE_CANCEL,
+          payload: envelope as unknown as Record<string, unknown>,
+        });
+      }
 
       const updated = await this.getById(orderId);
       if (!updated.ok) return updated;

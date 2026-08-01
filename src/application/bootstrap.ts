@@ -13,6 +13,8 @@ import { ProductImportExportRepository } from '@/features/products/data/ProductI
 import { SqliteCategoryRepository } from '@/features/products/data/SqliteCategoryRepository';
 import { SqliteProductRepository } from '@/features/products/data/SqliteProductRepository';
 import { SqliteNoteRepository } from '@/features/notes/data/SqliteNoteRepository';
+import { ComplianceValidationService } from '@/features/compliance/services/ComplianceValidationService';
+import { SqliteComplianceRepository } from '@/features/compliance/data/SqliteComplianceRepository';
 import { SqlitePromotionRepository } from '@/features/promotions/data/SqlitePromotionRepository';
 import { ActivityRepositoryImpl } from '@/features/settings/data/ActivityRepositoryImpl';
 import { AdminSettingsRepositoryImpl } from '@/features/settings/data/AdminSettingsRepositoryImpl';
@@ -52,6 +54,8 @@ export async function bootstrap(): Promise<void> {
   const localAdminSettings = new LocalAdminSettingsDataSource(db);
   const localActivity = new LocalActivityDataSource(db);
   const syncQueue = new LocalSyncQueueDataSource(db);
+  const compliance = new SqliteComplianceRepository(db);
+  const complianceValidation = new ComplianceValidationService(db);
 
   const apiClient = new ApiClient(
     createApiClientConfig(() => localAdminSettings.getApiUrl(), secureStorage),
@@ -84,8 +88,8 @@ export async function bootstrap(): Promise<void> {
   const paymentProvider = new LocalPaymentProvider();
   const devices = new SqliteDeviceRepository(db);
   const notes = new SqliteNoteRepository(db);
-  const cashClosing = new SqliteCashClosingRepository(db);
-  const orders = new SqliteOrderRepository(db, carts, paymentProvider, audit, syncQueue);
+  const cashClosing = new SqliteCashClosingRepository(db, audit, syncQueue, compliance);
+  const orders = new SqliteOrderRepository(db, carts, paymentProvider, audit, syncQueue, compliance);
 
   container.registerInstance(TOKENS.Database, db);
   container.registerInstance(TOKENS.SecureStorage, secureStorage);
@@ -110,6 +114,8 @@ export async function bootstrap(): Promise<void> {
   container.registerInstance(TOKENS.RemoteSyncDataSource, remoteSync);
   container.registerInstance(TOKENS.ServerInfoRepository, serverInfo);
   container.registerInstance(TOKENS.NoteRepository, notes);
+  container.registerInstance(TOKENS.ComplianceRepository, compliance);
+  container.registerInstance(TOKENS.ComplianceValidationService, complianceValidation);
   container.registerInstance(TOKENS.DeviceRepository, devices);
 
   const settingsResult = await settings.getSettings();

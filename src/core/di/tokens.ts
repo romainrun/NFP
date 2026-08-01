@@ -26,6 +26,8 @@ export const TOKENS = {
   PaymentProvider: 'PaymentProvider',
   AuditService: 'AuditService',
   SecureStorage: 'SecureStorage',
+  ComplianceRepository: 'ComplianceRepository',
+  ComplianceValidationService: 'ComplianceValidationService',
   KeyValueStorage: 'KeyValueStorage',
 } as const;
 

@@ -1,14 +1,19 @@
 import * as Crypto from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { AppError } from '@/core/errors/AppError';
+import { buildSyncEnvelope } from '@/core/compliance/syncPayload';
 import { err, ok, type Result } from '@/core/types/Result';
 import { withWriteTransaction } from '@/database/transaction';
+import { SyncEntityType, SyncOperation } from '@/core/sync/SyncOperation';
 import type { ICashClosingRepository } from '@/features/checkout/data/CashClosingRepository';
 import type {
   CashClosingRecord,
   SaveCashClosingInput,
 } from '@/features/checkout/domain/cashClosing';
 import type { PaymentBreakdown } from '@/features/checkout/domain/salesHistory';
+import type { SqliteComplianceRepository } from '@/features/compliance/data/SqliteComplianceRepository';
+import type { ISyncRepository } from '@/features/sync/data/SyncRepository';
+import type { IAuditService } from '@/shared/services/audit/AuditService';
 
 type Row = {
   id: string;
@@ -52,7 +57,12 @@ function mapRow(row: Row): CashClosingRecord {
 }
 
 export class SqliteCashClosingRepository implements ICashClosingRepository {
-  constructor(private readonly db: SQLiteDatabase) {}
+  constructor(
+    private readonly db: SQLiteDatabase,
+    private readonly audit?: IAuditService,
+    private readonly sync?: ISyncRepository,
+    private readonly compliance?: SqliteComplianceRepository,
+  ) {}
 
   async save(input: SaveCashClosingInput): Promise<Result<CashClosingRecord>> {
     const id = Crypto.randomUUID();
@@ -85,7 +95,40 @@ export class SqliteCashClosingRepository implements ICashClosingRepository {
         id,
       );
       if (!row) return err(AppError.database('Clôture introuvable après enregistrement'));
-      return ok(mapRow(row));
+      const record = mapRow(row);
+
+      if (this.audit) {
+        await this.audit.log({
+          userId: input.userId,
+          action: 'cash_closing',
+          entityType: 'cash_closing',
+          entityId: id,
+          newValue: {
+            gapCents: record.gapCents,
+            totalCents: record.totalCents,
+            orderCount: record.orderCount,
+          },
+        });
+      }
+
+      if (this.compliance) {
+        await this.compliance.saveSnapshot('cash_closing', id, { record }, input.userId);
+      }
+
+      if (this.sync) {
+        const envelope = await buildSyncEnvelope(record, input.userId, 1, {
+          createdAt,
+          updatedAt: createdAt,
+        });
+        await this.sync.enqueue({
+          entityType: SyncEntityType.CASH_CLOSING,
+          entityId: id,
+          operation: SyncOperation.CASH_CLOSING_CREATE,
+          payload: envelope as unknown as Record<string, unknown>,
+        });
+      }
+
+      return ok(record);
     } catch (cause) {
       return err(AppError.database('Impossible d’enregistrer la clôture', cause));
     }

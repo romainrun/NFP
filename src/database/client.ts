@@ -5,6 +5,7 @@ import { migrateToV1 } from '@/database/migrations/001_initial';
 import { migrateToV2 } from '@/database/migrations/002_cash_closings';
 import { migrateToV3 } from '@/database/migrations/003_employee_notes';
 import { migrateToV4 } from '@/database/migrations/004_admin_fields';
+import { migrateToV5 } from '@/database/migrations/005_compliance';
 import { SCHEMA_VERSION } from '@/database/schema';
 import { seedDemoUsers } from '@/database/seed';
 import { withWriteTransaction } from '@/database/transaction';
@@ -40,6 +41,10 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
 
   if (current < 4) {
     await migrateToV4(db);
+  }
+
+  if (current < 5) {
+    await migrateToV5(db);
   }
 
   if (SCHEMA_VERSION < current) {

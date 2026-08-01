@@ -2,7 +2,7 @@
  * Initial SQLite schema for NFP.
  * Accounting tables are append-only by design (no DELETE policies in repositories).
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const INITIAL_SCHEMA_SQL = `
 PRAGMA foreign_keys = ON;
