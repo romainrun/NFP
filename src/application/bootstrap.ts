@@ -15,6 +15,7 @@ import { SqlitePromotionRepository } from '@/features/promotions/data/SqliteProm
 import { SqliteActivityHistoryRepository } from '@/features/settings/data/SqliteActivityHistoryRepository';
 import { SqliteAdminSettingsRepository } from '@/features/settings/data/SqliteAdminSettingsRepository';
 import { SqliteSettingsRepository } from '@/features/settings/data/SqliteSettingsRepository';
+import { RemoteServerInfoRepository } from '@/features/sync/data/RemoteServerInfoRepository';
 import { SqliteDeviceRepository } from '@/features/sync/data/SqliteDeviceRepository';
 import { SqliteSyncRepository } from '@/features/sync/data/SqliteSyncRepository';
 import { useSettingsStore } from '@/features/settings/presentation/store/settingsStore';
@@ -45,6 +46,7 @@ export async function bootstrap(): Promise<void> {
   const carts = new SqliteCartRepository(db, products);
   const paymentProvider = new LocalPaymentProvider();
   const sync = new SqliteSyncRepository(db);
+  const serverInfo = new RemoteServerInfoRepository(adminSettings, sync);
   const devices = new SqliteDeviceRepository(db);
   const notes = new SqliteNoteRepository(db);
   const cashClosing = new SqliteCashClosingRepository(db);
@@ -68,6 +70,7 @@ export async function bootstrap(): Promise<void> {
   container.registerInstance(TOKENS.OrderRepository, orders);
   container.registerInstance(TOKENS.CashClosingRepository, cashClosing);
   container.registerInstance(TOKENS.SyncRepository, sync);
+  container.registerInstance(TOKENS.ServerInfoRepository, serverInfo);
   container.registerInstance(TOKENS.NoteRepository, notes);
   container.registerInstance(TOKENS.DeviceRepository, devices);
 

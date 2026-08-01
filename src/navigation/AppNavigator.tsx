@@ -4,7 +4,7 @@ import { CheckoutScreen } from '@/features/checkout/presentation/screens/Checkou
 import { SaleCompleteScreen } from '@/features/checkout/presentation/screens/SaleCompleteScreen';
 import { ProductFormScreen } from '@/features/products/presentation/screens/ProductFormScreen';
 import { AdminActivityScreen } from '@/features/settings/presentation/screens/admin/AdminActivityScreen';
-import { AdminBackupsScreen } from '@/features/settings/presentation/screens/admin/AdminBackupsScreen';
+import { AdminServerBackupsScreen } from '@/features/settings/presentation/screens/admin/AdminServerBackupsScreen';
 import { AdminDeveloperScreen } from '@/features/settings/presentation/screens/admin/AdminDeveloperScreen';
 import { AdminDevicesScreen } from '@/features/settings/presentation/screens/admin/AdminDevicesScreen';
 import { AdminEmployeesScreen } from '@/features/settings/presentation/screens/admin/AdminEmployeesScreen';
@@ -50,7 +50,7 @@ export function AppNavigator() {
       <Stack.Screen name="AdminEmployees" component={AdminEmployeesScreen} />
       <Stack.Screen name="AdminDevices" component={AdminDevicesScreen} />
       <Stack.Screen name="AdminSync" component={AdminSyncScreen} />
-      <Stack.Screen name="AdminBackups" component={AdminBackupsScreen} />
+      <Stack.Screen name="AdminServerBackups" component={AdminServerBackupsScreen} />
       <Stack.Screen name="AdminImportExport" component={AdminImportExportScreen} />
       <Stack.Screen name="AdminActivity" component={AdminActivityScreen} />
       <Stack.Screen name="AdminDeveloper" component={AdminDeveloperScreen} />

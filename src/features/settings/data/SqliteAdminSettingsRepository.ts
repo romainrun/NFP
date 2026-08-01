@@ -6,7 +6,6 @@ import type { IAdminSettingsRepository } from '@/features/settings/data/AdminSet
 import {
   defaultAdminSettingsBundle,
   type AdminSettingsBundle,
-  type BackupSettings,
   type DeveloperSettings,
   type InventorySettings,
   type PaymentsSettings,
@@ -25,7 +24,6 @@ const KEYS = {
   receipt: 'admin.receipt',
   inventory: 'admin.inventory',
   sync: 'admin.sync_meta',
-  backup: 'admin.backup',
   developer: 'admin.developer',
 } as const;
 
@@ -63,7 +61,7 @@ export class SqliteAdminSettingsRepository implements IAdminSettingsRepository {
   async getBundle(): Promise<Result<AdminSettingsBundle>> {
     try {
       const rows = await this.db.getAllAsync<{ key: string; value: string }>(
-        `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?, ?, ?, ?)`,
         KEYS.storeExtended,
         KEYS.pos,
         KEYS.payments,
@@ -71,7 +69,6 @@ export class SqliteAdminSettingsRepository implements IAdminSettingsRepository {
         KEYS.receipt,
         KEYS.inventory,
         KEYS.sync,
-        KEYS.backup,
         KEYS.developer,
       );
       const map = new Map(rows.map((r) => [r.key, r.value]));
@@ -93,7 +90,6 @@ export class SqliteAdminSettingsRepository implements IAdminSettingsRepository {
         receipt: normalizeReceipt(receiptRaw),
         inventory: normalizeInventory(inventoryRaw),
         sync: parseJson(map.get(KEYS.sync), defaults.sync),
-        backup: parseJson(map.get(KEYS.backup), defaults.backup),
         developer: parseJson(map.get(KEYS.developer), defaults.developer),
       });
     } catch (cause) {
@@ -127,10 +123,6 @@ export class SqliteAdminSettingsRepository implements IAdminSettingsRepository {
 
   async setSyncMeta(value: SyncMetaSettings): Promise<Result<void>> {
     return this.upsert(KEYS.sync, value);
-  }
-
-  async setBackup(value: BackupSettings): Promise<Result<void>> {
-    return this.upsert(KEYS.backup, value);
   }
 
   async setDeveloper(value: DeveloperSettings): Promise<Result<void>> {

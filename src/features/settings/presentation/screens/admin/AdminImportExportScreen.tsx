@@ -54,7 +54,11 @@ export function AdminImportExportScreen() {
   });
 
   return (
-    <AdminScreenShell title="Import / Export" subtitle="Catalogue produits">
+    <AdminScreenShell title="Import catalogue" subtitle="Fichiers CSV produits">
+      <Text style={[typography.caption, { color: Colors.textSecondary, marginBottom: spacing.sm }]}>
+        Le serveur est la source de vérité. L’import/export CSV sert uniquement à préparer ou
+        modifier le catalogue produits — pas à sauvegarder ou restaurer la base de données.
+      </Text>
       <BrandCard style={{ gap: spacing.sm }}>
         <Text style={typography.h3}>Export produits (CSV)</Text>
         <Text style={[typography.caption, { color: Colors.textSecondary }]}>

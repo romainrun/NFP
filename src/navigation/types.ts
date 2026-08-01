@@ -37,7 +37,7 @@ export type AppStackParamList = {
   AdminEmployees: undefined;
   AdminDevices: undefined;
   AdminSync: undefined;
-  AdminBackups: undefined;
+  AdminServerBackups: undefined;
   AdminImportExport: undefined;
   AdminActivity: undefined;
   AdminDeveloper: undefined;

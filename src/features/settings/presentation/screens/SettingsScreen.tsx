@@ -27,7 +27,7 @@ type AdminRoute =
   | 'AdminEmployees'
   | 'AdminDevices'
   | 'AdminSync'
-  | 'AdminBackups'
+  | 'AdminServerBackups'
   | 'AdminImportExport'
   | 'AdminActivity'
   | 'AdminDeveloper';
@@ -48,8 +48,8 @@ const ADMIN_ITEMS: Array<{
   { key: 'inventory', title: 'Inventaire', description: 'Stock en caisse', icon: 'clipboard-list-outline', route: 'AdminInventory' },
   { key: 'promotions', title: 'Promotions', description: 'Remises sur produits', icon: 'tag-percent-outline', route: 'AdminPromotions' },
   { key: 'employees', title: 'Employés', description: 'Accès et statut', icon: 'account-group-outline', route: 'AdminEmployees' },
-  { key: 'import', title: 'Import / Export', description: 'Catalogue CSV', icon: 'swap-horizontal', route: 'AdminImportExport' },
-  { key: 'backups', title: 'Sauvegardes', description: 'Copie locale du magasin', icon: 'backup-restore', route: 'AdminBackups' },
+  { key: 'import', title: 'Import catalogue', description: 'CSV produits uniquement', icon: 'swap-horizontal', route: 'AdminImportExport' },
+  { key: 'server', title: 'Serveur & sauvegardes', description: 'État backend et sauvegardes', icon: 'server', route: 'AdminServerBackups' },
   { key: 'activity', title: 'Historique', description: 'Activité du magasin', icon: 'history', route: 'AdminActivity' },
   { key: 'devices', title: 'Appareils', description: 'Cet appareil', icon: 'cellphone-link', route: 'AdminDevices' },
   { key: 'sync', title: 'Synchronisation', description: 'État du backend', icon: 'cloud-sync-outline', route: 'AdminSync' },

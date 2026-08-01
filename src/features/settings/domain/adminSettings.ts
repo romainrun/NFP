@@ -77,11 +77,6 @@ export type SyncMetaSettings = {
   simulateOffline: boolean;
 };
 
-export type BackupSettings = {
-  lastBackupAt: string | null;
-  lastBackupPath: string | null;
-};
-
 export type DeveloperSettings = {
   enabled: boolean;
 };
@@ -94,7 +89,6 @@ export type AdminSettingsBundle = {
   receipt: ReceiptSettings;
   inventory: InventorySettings;
   sync: SyncMetaSettings;
-  backup: BackupSettings;
   developer: DeveloperSettings;
 };
 
@@ -198,13 +192,6 @@ export function defaultSyncMetaSettings(): SyncMetaSettings {
   };
 }
 
-export function defaultBackupSettings(): BackupSettings {
-  return {
-    lastBackupAt: null,
-    lastBackupPath: null,
-  };
-}
-
 export function defaultDeveloperSettings(): DeveloperSettings {
   return { enabled: false };
 }
@@ -218,7 +205,6 @@ export function defaultAdminSettingsBundle(): AdminSettingsBundle {
     receipt: defaultReceiptSettings(),
     inventory: defaultInventorySettings(),
     sync: defaultSyncMetaSettings(),
-    backup: defaultBackupSettings(),
     developer: defaultDeveloperSettings(),
   };
 }

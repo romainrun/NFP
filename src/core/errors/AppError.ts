@@ -42,4 +42,8 @@ export class AppError extends Error {
   static validation(message: string): AppError {
     return new AppError('VALIDATION', message);
   }
+
+  static network(message: string, cause?: unknown): AppError {
+    return new AppError('NETWORK', message, cause);
+  }
 }
