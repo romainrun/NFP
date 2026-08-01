@@ -21,6 +21,8 @@ Roadmap steps 1–8 only:
 
 Architecture decisions: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
+**Documentation complète app + spec serveur (ChatGPT / VPS OVH) :** [`docs/NFP_APP_AND_SERVER_SPEC.md`](docs/NFP_APP_AND_SERVER_SPEC.md)
+
 ## Expo Go compatibility
 
 This project targets **Expo SDK 54** so it runs in the store Expo Go app (same as the other VPS Metro projects).
