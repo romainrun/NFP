@@ -4,6 +4,10 @@ import { err, ok, type Result } from '@/core/types/Result';
 import { withWriteTransaction } from '@/database/transaction';
 import type { SyncedAdminSection } from '@/features/settings/data/AdminSettingsRepository';
 import {
+  DEFAULT_SYNC_VERSIONS,
+  type SyncVersions,
+} from '@/core/sync/SyncVersions';
+import {
   defaultAdminSettingsBundle,
   type AdminSettingsBundle,
   type DeveloperSettings,
@@ -25,6 +29,7 @@ const KEYS = {
   inventory: 'admin.inventory',
   sync: 'admin.sync_meta',
   developer: 'admin.developer',
+  versions: 'sync.versions',
 } as const;
 
 const SECTION_KEY: Record<SyncedAdminSection, string> = {
@@ -65,10 +70,10 @@ function normalizeReceipt(raw: ReceiptSettings & Record<string, unknown>): Recei
 }
 
 /**
- * Offline cache for administration settings.
- * The backend is authoritative — this layer never owns business configuration.
+ * SQLite cache for administration settings and sync versions.
+ * Not authoritative — backend owns configuration.
  */
-export class SqliteAdminSettingsCacheRepository {
+export class LocalAdminSettingsDataSource {
   constructor(private readonly db: SQLiteDatabase) {}
 
   async getBundle(): Promise<Result<AdminSettingsBundle>> {
@@ -106,8 +111,25 @@ export class SqliteAdminSettingsCacheRepository {
         developer: parseJson(map.get(KEYS.developer), defaults.developer),
       });
     } catch (cause) {
-      return err(AppError.database('Impossible de charger le cache des paramètres admin', cause));
+      return err(AppError.database('Impossible de charger le cache des paramètres', cause));
     }
+  }
+
+  async getSyncVersions(): Promise<Result<SyncVersions>> {
+    try {
+      const row = await this.db.getFirstAsync<{ value: string }>(
+        `SELECT value FROM settings WHERE key = ?`,
+        KEYS.versions,
+      );
+      if (!row?.value) return ok({ ...DEFAULT_SYNC_VERSIONS });
+      return ok({ ...DEFAULT_SYNC_VERSIONS, ...JSON.parse(row.value) });
+    } catch (cause) {
+      return err(AppError.database('Impossible de lire les versions sync', cause));
+    }
+  }
+
+  async setSyncVersions(versions: SyncVersions): Promise<Result<void>> {
+    return this.upsert(KEYS.versions, versions);
   }
 
   async replaceSyncedSections(
@@ -129,7 +151,7 @@ export class SqliteAdminSettingsCacheRepository {
       });
       return ok(undefined);
     } catch (cause) {
-      return err(AppError.database('Impossible de mettre à jour le cache des paramètres', cause));
+      return err(AppError.database('Impossible de mettre à jour le cache', cause));
     }
   }
 
@@ -163,6 +185,19 @@ export class SqliteAdminSettingsCacheRepository {
 
   async setDeveloper(value: DeveloperSettings): Promise<Result<void>> {
     return this.upsert(KEYS.developer, value);
+  }
+
+  async getApiUrl(): Promise<string> {
+    const bundle = await this.getBundle();
+    if (bundle.ok && bundle.value.sync.apiUrl) {
+      return bundle.value.sync.apiUrl;
+    }
+    return defaultAdminSettingsBundle().sync.apiUrl;
+  }
+
+  async isSimulateOffline(): Promise<boolean> {
+    const bundle = await this.getBundle();
+    return bundle.ok ? bundle.value.sync.simulateOffline : false;
   }
 
   private async upsert(key: string, value: unknown): Promise<Result<void>> {

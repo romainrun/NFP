@@ -1,99 +1,141 @@
-# NFP — Architecture Decisions
+# NFP — Architecture (definitive mobile foundation)
 
-## Source of truth
+Single-store professional POS. **Not SaaS.** Backend is always the single source of truth.
 
-The **backend server** is the single source of truth for:
+## Principles
 
-- Business data (orders, catalog, employees when synced)
-- Administration settings
-- Audit / activity history
-- Backups and retention
+| Backend | Mobile app |
+|---------|------------|
+| Source of truth | Client UI |
+| Business rules | Offline cache |
+| Admin settings | Sync queue |
+| Audit history | Temporary local events |
+| Backups | Local validation |
 
-The **mobile application** is a client with offline capabilities:
+SQLite stores **cached business data**, **pending operations**, and **temporary offline information** — never authoritative configuration or audit trails.
 
-- UI and local validation
-- Offline cache (SQLite)
-- Synchronization queue
-- Temporary offline changes until the server acknowledges them
+## Repository pattern
 
-SQLite is **never** authoritative storage for business configuration or audit trails.
-
-## Layering
+Each domain uses a **Repository orchestrator** with **Local** and **Remote** data sources:
 
 ```
-UI (screens/components)
-  → Application services / Zustand / React Query
-    → Repository interfaces (ports)
-      → Cached facades (server-first, cache fallback)
-        → Remote API adapters + SQLite cache adapters
-          → Backend API / SQLite cache tables
+Repository (orchestrator)
+    ├── LocalDataSource   → SQLite cache / sync queue
+    └── RemoteDataSource  → Backend API via shared ApiClient
 ```
 
-Rules:
+The UI resolves repository interfaces via DI. It never knows whether data came from SQLite or the network.
 
-- Screens never import HTTP clients directly.
-- Features own domain types, screens, and hooks.
-- `core/http/ApiClient` is the shared HTTP adapter.
-- `core/di` registers adapters at bootstrap.
+### Implemented orchestrators
 
-## Repository responsibilities
+| Repository | Local | Remote |
+|------------|-------|--------|
+| `AdminSettingsRepositoryImpl` | `LocalAdminSettingsDataSource` | `RemoteAdminSettingsDataSource` + `RemoteSyncDataSource` |
+| `ActivityRepositoryImpl` | `LocalActivityDataSource` | `RemoteActivityDataSource` |
+| `ServerRepositoryImpl` | settings cache (pending count) | `RemoteServerDataSource` |
+| `LocalSyncQueueDataSource` | `sync_queue` table | pushed via `RemoteSyncDataSource` |
 
-| Repository | Role |
-|---|---|
-| `CachedAdminSettingsRepository` | Server-owned admin settings; SQLite cache + sync queue |
-| `SqliteAdminSettingsCacheRepository` | Offline cache only |
-| `CachedActivityHistoryRepository` | Server audit trail + temporary local events |
-| `SqliteActivityCacheRepository` | Local audit cache / server snapshot |
-| `RemoteActivityHistoryRepository` | Fetch audit from backend |
-| `SyncApiRepository` | `POST /sync/push`, `GET /sync/pull` |
-| `ISyncRepository` | Local outbound sync queue |
-| `RemoteServerInfoRepository` | Backend status + backup request |
-| `ProductImportExportRepository` | Catalogue CSV only (not backups) |
+Product, order, cart, and employee SQLite repositories remain local-first until backend endpoints are wired; they enqueue standardized sync operations.
 
-## Administration settings flow
+## ApiClient
 
-1. **Startup** — load cached settings immediately; `refreshOnStartup()` pulls from backend when online.
-2. **Edit** — write to local cache, enqueue `admin_settings` sync event, push when network available.
-3. **Offline** — use cache; queue modifications; auto-sync when connectivity returns.
-4. **Conflict** — server wins on pull (settings replaced from `/sync/pull`).
+Single shared HTTP client (`src/core/http/ApiClient.ts`):
 
-Client-only keys (not pushed): `sync` metadata, `developer` flags.
+- Bearer authentication
+- Token refresh hook (prepared)
+- Retry policy + timeout
+- Request/response logging (dev)
+- Error mapping to `AppError`
+
+All `RemoteDataSource` classes use this client.
+
+## Generic offline sync queue
+
+One table: `sync_queue`
+
+| Field | Role |
+|-------|------|
+| `entityType` | Domain (`sale`, `product`, `settings`, …) |
+| `entityId` | Entity identifier |
+| `operation` | Standardized op (see below) |
+| `payload_json` | Operation payload |
+| `status` | `pending` / `synced` / `failed` |
+| `attempts` | Retry count |
+
+### Standard operations (`SyncOperation`)
+
+`SALE_CREATE`, `SALE_CANCEL`, `PRODUCT_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_DELETE`, `INVENTORY_UPDATE`, `EMPLOYEE_UPDATE`, `SETTINGS_UPDATE`, `PAYMENT_CREATE`, `PROMOTION_UPDATE`
+
+New entities enqueue with these operations — **no new sync infrastructure**.
+
+## SyncCoordinator
+
+Central worker (`syncCoordinator.ts`). Screens never duplicate sync logic.
+
+1. Health check
+2. **Push** — `POST /sync/push` with pending queue items
+3. **Pull** — `POST /sync/pull` with version map (incremental)
+4. Refresh settings + activity caches
+5. Update sync metadata + device registry
+6. Automatic retry on connectivity restore
+
+## Version-based synchronization
+
+Local versions (`sync.versions` in settings cache):
+
+- `settingsVersion`, `productsVersion`, `inventoryVersion`, `employeesVersion`, `promotionsVersion`, `activityVersion`
+
+Pull request sends all versions; backend returns **only changed data**. Avoids full catalogue download every sync.
+
+## Cache strategy
+
+**Startup**
+
+1. Load SQLite cache → show UI immediately
+2. If online → pull + push via SyncCoordinator
+3. Replace local cache (server wins)
+4. UI refreshes via React Query
+
+**Offline**
+
+- Use cache
+- Queue changes
+- Auto-sync when connectivity returns
+
+## Conflict strategy
+
+`ConflictResolver` — default **server wins**. Custom strategies can be registered per entity type.
 
 ## Activity history
 
-- **Online** — authoritative list from server (`/audit/logs` or pull payload); local pending events shown as `source: local`.
-- **Offline** — temporary local audit events only.
-- **After sync** — server snapshot replaces cached server history.
+- Backend owns audit trail
+- Offline: temporary local events (`source: local`)
+- After sync: server snapshot replaces authoritative history
+- Never permanent client-only audit database
 
-## Synchronization
+## Server & backups
 
-`syncCoordinator.runSyncNow()`:
+Read-only server info + `POST /backup` for administrators. No local backup/restore.
 
-1. Health check
-2. Push pending queue via `SyncApiRepository`
-3. Pull settings + refresh admin cache
-4. Refresh activity from server
-5. Update sync metadata
+## Import / export
 
-No per-screen sync duplication — screens call `runSyncNow()` or rely on startup/background retry.
+Catalogue CSV only (`ProductImportExportRepository`). Not a backup system.
 
-## CSV import / export
+## Backend endpoints (ready to connect)
 
-Catalogue CSV only. Not a backup system. No SQLite/JSON dumps, sales DB, or full app export.
+| Endpoint | Use |
+|----------|-----|
+| `GET /health` | Connectivity |
+| `POST /sync/push` | Outbound queue |
+| `POST /sync/pull` | Version-based incremental pull |
+| `GET /audit/logs` | Activity history |
+| `POST /backup` | Server backup request |
+| `GET /products`, `POST /sales`, … | Future entity sync |
 
-## SQLite usage
+## Dependency injection
 
-- Offline cache for settings, catalog, orders, cart
-- Sync queue (`sync_queue`)
-- Temporary local audit until server acknowledges
-- Immutable local orders for offline POS
-
-## Security
-
-- Session token in Secure Store (JWT-ready)
-- `ApiClient` attaches Bearer token when present
-- Admin backup request gated on `settings.manage`
+`bootstrap.ts` registers orchestrators and data sources. Tokens in `core/di/tokens.ts`.
 
 ## Testing
 
-Repository interfaces enable unit tests without SQLite or HTTP. Jest + Testing Library configured.
+Repository interfaces enable unit tests without SQLite or HTTP.

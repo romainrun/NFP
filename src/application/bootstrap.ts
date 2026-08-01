@@ -1,7 +1,7 @@
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import { openDatabase } from '@/database/client';
-import { ApiClient } from '@/core/http/ApiClient';
+import { ApiClient, createApiClientConfig } from '@/core/http/ApiClient';
 import { SqliteAuthRepository } from '@/features/authentication/data/SqliteAuthRepository';
 import { SqliteUserRepository } from '@/features/authentication/data/SqliteUserRepository';
 import { SqliteCartRepository } from '@/features/cart/data/SqliteCartRepository';
@@ -14,28 +14,29 @@ import { SqliteCategoryRepository } from '@/features/products/data/SqliteCategor
 import { SqliteProductRepository } from '@/features/products/data/SqliteProductRepository';
 import { SqliteNoteRepository } from '@/features/notes/data/SqliteNoteRepository';
 import { SqlitePromotionRepository } from '@/features/promotions/data/SqlitePromotionRepository';
-import { CachedActivityHistoryRepository } from '@/features/settings/data/CachedActivityHistoryRepository';
-import {
-  CachedAdminSettingsRepository,
-  createApiClientConfig,
-} from '@/features/settings/data/CachedAdminSettingsRepository';
-import { RemoteActivityHistoryRepository } from '@/features/settings/data/RemoteActivityHistoryRepository';
-import { SqliteActivityCacheRepository } from '@/features/settings/data/SqliteActivityCacheRepository';
-import { SqliteAdminSettingsCacheRepository } from '@/features/settings/data/SqliteAdminSettingsCacheRepository';
+import { ActivityRepositoryImpl } from '@/features/settings/data/ActivityRepositoryImpl';
+import { AdminSettingsRepositoryImpl } from '@/features/settings/data/AdminSettingsRepositoryImpl';
+import { LocalActivityDataSource } from '@/features/settings/data/local/LocalActivityDataSource';
+import { LocalAdminSettingsDataSource } from '@/features/settings/data/local/LocalAdminSettingsDataSource';
+import { RemoteActivityDataSource } from '@/features/settings/data/remote/RemoteActivityDataSource';
 import { SqliteSettingsRepository } from '@/features/settings/data/SqliteSettingsRepository';
-import { RemoteServerInfoRepository } from '@/features/sync/data/RemoteServerInfoRepository';
-import { SyncApiRepository } from '@/features/sync/data/SyncApiRepository';
-import { SqliteDeviceRepository } from '@/features/sync/data/SqliteDeviceRepository';
-import { SqliteSyncRepository } from '@/features/sync/data/SqliteSyncRepository';
+import { LocalSyncQueueDataSource } from '@/features/sync/data/local/LocalSyncQueueDataSource';
+import {
+  RemoteAdminSettingsDataSource,
+  RemoteServerDataSource,
+  RemoteSyncDataSource,
+} from '@/features/sync/data/remote/RemoteSyncDataSource';
+import { ServerRepositoryImpl } from '@/features/sync/data/ServerRepositoryImpl';
 import { refreshOnStartup } from '@/features/sync/services/syncCoordinator';
+import { SqliteDeviceRepository } from '@/features/sync/data/SqliteDeviceRepository';
 import { useSettingsStore } from '@/features/settings/presentation/store/settingsStore';
 import { SqliteAuditService } from '@/shared/services/audit/AuditService';
 import { ExpoSecureStorage } from '@/shared/services/storage/SecureStorage';
 import { MemoryKeyValueStorage } from '@/shared/services/storage/KeyValueStorage';
 
 /**
- * Application composition root.
- * Backend is the source of truth; SQLite repositories are offline caches and sync queues.
+ * Composition root.
+ * Repository orchestrators + Local/Remote data sources. Backend is source of truth.
  */
 export async function bootstrap(): Promise<void> {
   container.clear();
@@ -47,25 +48,32 @@ export async function bootstrap(): Promise<void> {
   const users = new SqliteUserRepository(db);
   const auth = new SqliteAuthRepository(db, users, secureStorage, audit);
   const settings = new SqliteSettingsRepository(db);
-  const adminSettingsCache = new SqliteAdminSettingsCacheRepository(db);
-  const activityCache = new SqliteActivityCacheRepository(db);
-  const sync = new SqliteSyncRepository(db);
 
-  const apiClient = new ApiClient(createApiClientConfig(adminSettingsCache, secureStorage));
-  const syncApi = new SyncApiRepository(apiClient);
-  const remoteActivity = new RemoteActivityHistoryRepository(apiClient);
+  const localAdminSettings = new LocalAdminSettingsDataSource(db);
+  const localActivity = new LocalActivityDataSource(db);
+  const syncQueue = new LocalSyncQueueDataSource(db);
 
-  const adminSettings = new CachedAdminSettingsRepository(
-    adminSettingsCache,
-    sync,
-    syncApi,
+  const apiClient = new ApiClient(
+    createApiClientConfig(() => localAdminSettings.getApiUrl(), secureStorage),
   );
-  const activityHistory = new CachedActivityHistoryRepository(
-    activityCache,
+  const remoteSync = new RemoteSyncDataSource(apiClient);
+  const remoteAdminSettings = new RemoteAdminSettingsDataSource();
+  const remoteActivity = new RemoteActivityDataSource(apiClient);
+  const remoteServer = new RemoteServerDataSource(apiClient);
+
+  const adminSettings = new AdminSettingsRepositoryImpl(
+    localAdminSettings,
+    remoteAdminSettings,
+    remoteSync,
+    syncQueue,
+  );
+  const activityHistory = new ActivityRepositoryImpl(
+    localActivity,
     remoteActivity,
-    adminSettingsCache,
-    syncApi,
+    localAdminSettings,
+    remoteSync,
   );
+  const serverInfo = new ServerRepositoryImpl(localAdminSettings, remoteServer, syncQueue);
 
   const dashboard = new SqliteDashboardRepository(db);
   const categories = new SqliteCategoryRepository(db);
@@ -74,11 +82,10 @@ export async function bootstrap(): Promise<void> {
   const importExport = new ProductImportExportRepository(products);
   const carts = new SqliteCartRepository(db, products);
   const paymentProvider = new LocalPaymentProvider();
-  const serverInfo = new RemoteServerInfoRepository(adminSettingsCache, sync);
   const devices = new SqliteDeviceRepository(db);
   const notes = new SqliteNoteRepository(db);
   const cashClosing = new SqliteCashClosingRepository(db);
-  const orders = new SqliteOrderRepository(db, carts, paymentProvider, audit, sync);
+  const orders = new SqliteOrderRepository(db, carts, paymentProvider, audit, syncQueue);
 
   container.registerInstance(TOKENS.Database, db);
   container.registerInstance(TOKENS.SecureStorage, secureStorage);
@@ -89,6 +96,7 @@ export async function bootstrap(): Promise<void> {
   container.registerInstance(TOKENS.SettingsRepository, settings);
   container.registerInstance(TOKENS.AdminSettingsRepository, adminSettings);
   container.registerInstance(TOKENS.ActivityHistoryRepository, activityHistory);
+  container.registerInstance(TOKENS.LocalAdminSettingsDataSource, localAdminSettings);
   container.registerInstance(TOKENS.DashboardRepository, dashboard);
   container.registerInstance(TOKENS.CategoryRepository, categories);
   container.registerInstance(TOKENS.ProductRepository, products);
@@ -98,8 +106,8 @@ export async function bootstrap(): Promise<void> {
   container.registerInstance(TOKENS.PaymentProvider, paymentProvider);
   container.registerInstance(TOKENS.OrderRepository, orders);
   container.registerInstance(TOKENS.CashClosingRepository, cashClosing);
-  container.registerInstance(TOKENS.SyncRepository, sync);
-  container.registerInstance(TOKENS.SyncApiRepository, syncApi);
+  container.registerInstance(TOKENS.SyncRepository, syncQueue);
+  container.registerInstance(TOKENS.RemoteSyncDataSource, remoteSync);
   container.registerInstance(TOKENS.ServerInfoRepository, serverInfo);
   container.registerInstance(TOKENS.NoteRepository, notes);
   container.registerInstance(TOKENS.DeviceRepository, devices);

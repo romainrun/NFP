@@ -1,10 +1,12 @@
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
+import { mergeSyncVersions } from '@/core/sync/SyncVersions';
 import type { IActivityHistoryRepository } from '@/features/settings/data/ActivityHistoryRepository';
 import type { IAdminSettingsRepository } from '@/features/settings/data/AdminSettingsRepository';
+import type { LocalAdminSettingsDataSource } from '@/features/settings/data/local/LocalAdminSettingsDataSource';
 import type { IDeviceRepository } from '@/features/sync/data/DeviceRepository';
-import type { ISyncApiRepository } from '@/features/sync/data/SyncApiRepository';
-import type { ISyncRepository } from '@/features/sync/data/SyncRepository';
+import type { LocalSyncQueueDataSource } from '@/features/sync/data/local/LocalSyncQueueDataSource';
+import type { RemoteSyncDataSource } from '@/features/sync/data/remote/RemoteSyncDataSource';
 import type { SyncMetaSettings } from '@/features/settings/domain/adminSettings';
 import { defaultSyncMetaSettings } from '@/features/settings/domain/adminSettings';
 import type { IAuditService } from '@/shared/services/audit/AuditService';
@@ -20,14 +22,16 @@ export type SyncRunResult = {
 };
 
 /**
- * Central synchronization worker. Push pending changes, pull server state (settings win).
+ * Central synchronization worker — push queue, version-based pull, refresh caches.
+ * No screen should duplicate this logic.
  */
 export async function runSyncNow(): Promise<SyncRunResult> {
   const adminRepo = container.resolve<IAdminSettingsRepository>(TOKENS.AdminSettingsRepository);
-  const syncRepo = container.resolve<ISyncRepository>(TOKENS.SyncRepository);
-  const syncApi = container.resolve<ISyncApiRepository>(TOKENS.SyncApiRepository);
+  const syncQueue = container.resolve<LocalSyncQueueDataSource>(TOKENS.SyncRepository);
+  const syncRemote = container.resolve<RemoteSyncDataSource>(TOKENS.RemoteSyncDataSource);
   const deviceRepo = container.resolve<IDeviceRepository>(TOKENS.DeviceRepository);
   const activityRepo = container.resolve<IActivityHistoryRepository>(TOKENS.ActivityHistoryRepository);
+  const settingsLocal = container.resolve<LocalAdminSettingsDataSource>(TOKENS.LocalAdminSettingsDataSource);
 
   const bundle = await adminRepo.getBundle();
   const syncMeta = bundle.ok ? bundle.value.sync : defaultSyncMetaSettings();
@@ -39,7 +43,7 @@ export async function runSyncNow(): Promise<SyncRunResult> {
 
   if (!simulateOffline) {
     const start = Date.now();
-    const health = await syncApi.health();
+    const health = await syncRemote.health();
     latencyMs = Date.now() - start;
     backendAvailable = health.ok && health.value.ok;
     if (health.ok && health.value.version) {
@@ -58,7 +62,7 @@ export async function runSyncNow(): Promise<SyncRunResult> {
   let failedCount = 0;
 
   if (backendAvailable) {
-    const pending = await syncRepo.listPending(100);
+    const pending = await syncQueue.listPending(100);
     if (pending.ok && pending.value.length > 0) {
       const events = pending.value.map((item) => ({
         localId: item.id,
@@ -69,17 +73,17 @@ export async function runSyncNow(): Promise<SyncRunResult> {
         createdAt: item.createdAt,
       }));
 
-      const push = await syncApi.push(events);
+      const push = await syncRemote.push(events);
       if (push.ok) {
         for (const result of push.value.results) {
           const item = pending.value.find((e) => e.id === result.localId);
           if (!item) continue;
           if (result.status === 'accepted' || result.status === 'duplicate') {
-            const marked = await syncRepo.markSynced(item.id);
+            const marked = await syncQueue.markSynced(item.id);
             if (marked.ok) syncedCount += 1;
             else failedCount += 1;
           } else {
-            await syncRepo.markFailed(item.id, result.message ?? 'Rejeté par le serveur');
+            await syncQueue.markFailed(item.id, result.message ?? 'Rejeté par le serveur');
             failedCount += 1;
           }
         }
@@ -88,16 +92,33 @@ export async function runSyncNow(): Promise<SyncRunResult> {
       }
     }
 
+    const versions = await settingsLocal.getSyncVersions();
+    if (versions.ok) {
+      const pull = await syncRemote.pull(versions.value);
+      if (pull.ok) {
+        const body = pull.value;
+        const nextVersions = mergeSyncVersions(versions.value, {
+          settingsVersion: body.settingsVersion,
+          productsVersion: body.productsVersion,
+          inventoryVersion: body.inventoryVersion,
+          employeesVersion: body.employeesVersion,
+          promotionsVersion: body.promotionsVersion,
+          activityVersion: body.activityVersion,
+        });
+        await settingsLocal.setSyncVersions(nextVersions);
+      }
+    }
+
     await adminRepo.refreshFromServer();
     await activityRepo.refreshFromServer();
   } else {
-    const pending = await syncRepo.listPending(100);
+    const pending = await syncQueue.listPending(100);
     if (pending.ok && pending.value.length > 0) {
       failedCount = pending.value.length;
     }
   }
 
-  const failedPending = await syncRepo.countFailed();
+  const failedPending = await syncQueue.countFailed();
   const now = new Date().toISOString();
   const refreshed = await adminRepo.getBundle();
   const currentMeta = refreshed.ok ? refreshed.value.sync : syncMeta;
@@ -107,9 +128,7 @@ export async function runSyncNow(): Promise<SyncRunResult> {
     backendVersion,
     backendAvailable,
     lastSuccessfulSyncAt:
-      backendAvailable && (syncedCount > 0 || currentMeta.lastSuccessfulSyncAt)
-        ? now
-        : currentMeta.lastSuccessfulSyncAt,
+      backendAvailable ? now : currentMeta.lastSuccessfulSyncAt,
     newCatalogAvailable: false,
     newDataAvailable: false,
   };
@@ -162,11 +181,11 @@ export async function runSyncNow(): Promise<SyncRunResult> {
 }
 
 export async function retryFailedSync(): Promise<SyncRunResult> {
-  const syncRepo = container.resolve<ISyncRepository>(TOKENS.SyncRepository);
-  const failed = await syncRepo.listFailed(100);
+  const syncQueue = container.resolve<LocalSyncQueueDataSource>(TOKENS.SyncRepository);
+  const failed = await syncQueue.listFailed(100);
   if (failed.ok) {
     for (const item of failed.value) {
-      await syncRepo.requeue(item.id);
+      await syncQueue.requeue(item.id);
     }
   }
   return runSyncNow();
@@ -192,19 +211,16 @@ export async function probeBackend(apiUrl: string): Promise<{
   }
 }
 
-/** Load cached settings then refresh from backend when network is available. */
+/** Startup: cache already loaded — refresh from backend when online. */
 export async function refreshOnStartup(): Promise<void> {
+  const syncRemote = container.resolve<RemoteSyncDataSource>(TOKENS.RemoteSyncDataSource);
   const adminRepo = container.resolve<IAdminSettingsRepository>(TOKENS.AdminSettingsRepository);
-  const activityRepo = container.resolve<IActivityHistoryRepository>(TOKENS.ActivityHistoryRepository);
-  const syncApi = container.resolve<ISyncApiRepository>(TOKENS.SyncApiRepository);
 
   const bundle = await adminRepo.getBundle();
   if (!bundle.ok || bundle.value.sync.simulateOffline) return;
 
-  const health = await syncApi.health();
+  const health = await syncRemote.health();
   if (!health.ok || !health.value.ok) return;
 
-  await adminRepo.refreshFromServer();
-  await activityRepo.refreshFromServer();
   await runSyncNow();
 }

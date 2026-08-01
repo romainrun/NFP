@@ -12,19 +12,15 @@ type AuditLogsResponse = {
 /**
  * Fetches authoritative audit history from the backend.
  */
-export class RemoteActivityHistoryRepository {
+export class RemoteActivityDataSource {
   constructor(private readonly client: ApiClient) {}
 
   async fetchPage(limit: number, offset: number): Promise<Result<ActivityHistoryItem[]>> {
-    const endpoints = [
-      `/audit/logs?limit=${limit}&offset=${offset}`,
-      `/activity?limit=${limit}&offset=${offset}`,
-    ];
+    const paths = [`/audit/logs?limit=${limit}&offset=${offset}`, `/activity?limit=${limit}&offset=${offset}`];
 
-    for (const path of endpoints) {
+    for (const path of paths) {
       const result = await this.client.get<AuditLogsResponse>(path);
       if (!result.ok) continue;
-
       const raw = result.value?.items ?? result.value?.logs ?? [];
       return ok(raw.map((row) => this.mapDto(row)));
     }
@@ -33,13 +29,15 @@ export class RemoteActivityHistoryRepository {
   }
 
   async fetchAll(limit = 100): Promise<Result<ActivityHistoryItem[]>> {
-    const page = await this.fetchPage(limit, 0);
-    return page;
+    return this.fetchPage(limit, 0);
+  }
+
+  mapAuditLogs(logs: SyncAuditLogDto[]): ActivityHistoryItem[] {
+    return logs.map((row) => this.mapDto(row));
   }
 
   private mapDto(row: SyncAuditLogDto): ActivityHistoryItem {
-    const payloadJson =
-      row.payload != null ? JSON.stringify(row.payload) : null;
+    const payloadJson = row.payload != null ? JSON.stringify(row.payload) : null;
     const mapped = mapAuditToActivity(
       row.action,
       payloadJson,

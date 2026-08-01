@@ -24,6 +24,7 @@ import type {
   OrderPayment,
 } from '@/features/checkout/domain/types';
 import type { PaymentProvider } from '@/features/payments/domain/PaymentProvider';
+import { SyncEntityType, SyncOperation } from '@/core/sync/SyncOperation';
 import type { ISyncRepository } from '@/features/sync/data/SyncRepository';
 import type { IAuditService } from '@/shared/services/audit/AuditService';
 import { vatFromTtc } from '@/shared/utils/pricing';
@@ -355,9 +356,9 @@ export class SqliteOrderRepository implements IOrderRepository {
 
       if (this.sync) {
         await this.sync.enqueue({
-          entityType: 'order',
+          entityType: SyncEntityType.SALE,
           entityId: orderId,
-          operation: 'create',
+          operation: SyncOperation.SALE_CREATE,
           payload: {
             orderId,
             receiptNumber: order.value.receiptNumber,

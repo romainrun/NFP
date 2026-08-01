@@ -1,24 +1,57 @@
+import { APP_CONFIG } from '@/core/config/appConfig';
 import { AppError } from '@/core/errors/AppError';
 import { err, ok, type Result } from '@/core/types/Result';
 
 export type ApiClientConfig = {
   getBaseUrl: () => Promise<string>;
   getAccessToken?: () => Promise<string | null>;
+  /** Prepare for automatic token refresh — called when 401 is received. */
+  refreshAccessToken?: () => Promise<string | null>;
+  timeoutMs?: number;
+  maxRetries?: number;
+  onRequest?: (url: string, method: string) => void;
+  onResponse?: (url: string, status: number) => void;
+  onError?: (url: string, error: unknown) => void;
 };
 
+const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_MAX_RETRIES = 2;
+
 /**
- * Thin HTTP client for backend API calls.
- * Base URL and auth token are resolved per request so offline cache can update apiUrl.
+ * Shared HTTP client for all RemoteDataSources.
+ * Bearer auth, retry, timeout, logging, error mapping, token refresh hook.
  */
 export class ApiClient {
   constructor(private readonly config: ApiClientConfig) {}
 
   async get<T>(path: string, query?: Record<string, string>): Promise<Result<T>> {
-    return this.request<T>('GET', path, undefined, query);
+    return this.requestWithRetry<T>('GET', path, undefined, query);
   }
 
   async post<T>(path: string, body?: unknown): Promise<Result<T>> {
-    return this.request<T>('POST', path, body);
+    return this.requestWithRetry<T>('POST', path, body);
+  }
+
+  private async requestWithRetry<T>(
+    method: 'GET' | 'POST',
+    path: string,
+    body?: unknown,
+    query?: Record<string, string>,
+    attempt = 0,
+  ): Promise<Result<T>> {
+    const result = await this.request<T>(method, path, body, query);
+    if (result.ok) return result;
+
+    const maxRetries = this.config.maxRetries ?? DEFAULT_MAX_RETRIES;
+    const isRetryable =
+      result.error.code === 'NETWORK' && attempt < maxRetries;
+
+    if (isRetryable) {
+      await sleep(500 * (attempt + 1));
+      return this.requestWithRetry(method, path, body, query, attempt + 1);
+    }
+
+    return result;
   }
 
   private async request<T>(
@@ -26,6 +59,7 @@ export class ApiClient {
     path: string,
     body?: unknown,
     query?: Record<string, string>,
+    isRetryAfterRefresh = false,
   ): Promise<Result<T>> {
     const baseUrl = (await this.config.getBaseUrl()).replace(/\/$/, '');
     const url = new URL(`${baseUrl}${path.startsWith('/') ? path : `/${path}`}`);
@@ -44,20 +78,34 @@ export class ApiClient {
       headers.Authorization = `Bearer ${token}`;
     }
 
+    this.config.onRequest?.(url.toString(), method);
+
+    const timeoutMs = this.config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
     try {
-      const response = await fetch(url.toString(), {
+      const response = await fetchWithTimeout(url.toString(), {
         method,
         headers,
         body: body !== undefined ? JSON.stringify(body) : undefined,
+        timeoutMs,
       });
+
+      this.config.onResponse?.(url.toString(), response.status);
+
+      if (response.status === 401 && this.config.refreshAccessToken && !isRetryAfterRefresh) {
+        const newToken = await this.config.refreshAccessToken();
+        if (newToken) {
+          return this.request<T>(method, path, body, query, true);
+        }
+      }
 
       if (!response.ok) {
         const text = await response.text().catch(() => '');
-        return err(
-          AppError.network(
-            text ? `HTTP ${response.status}: ${text.slice(0, 200)}` : `HTTP ${response.status}`,
-          ),
+        const error = AppError.network(
+          text ? `HTTP ${response.status}: ${text.slice(0, 200)}` : `HTTP ${response.status}`,
         );
+        this.config.onError?.(url.toString(), error);
+        return err(error);
       }
 
       const contentType = response.headers.get('content-type') ?? '';
@@ -68,7 +116,49 @@ export class ApiClient {
       const data = (await response.json()) as T;
       return ok(data);
     } catch (cause) {
+      this.config.onError?.(url.toString(), cause);
       return err(AppError.network('Impossible de joindre le serveur', cause));
     }
   }
+}
+
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit & { timeoutMs: number },
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Build ApiClient config from local settings cache and secure storage. */
+export function createApiClientConfig(
+  getBaseUrl: () => Promise<string>,
+  secureStorage?: { getItem(key: string): Promise<string | null> },
+): ApiClientConfig {
+  return {
+    getBaseUrl,
+    getAccessToken: secureStorage
+      ? () => secureStorage.getItem(APP_CONFIG.secureStorageKeys.sessionToken)
+      : undefined,
+    refreshAccessToken: secureStorage
+      ? async () => {
+          const token = await secureStorage.getItem(APP_CONFIG.secureStorageKeys.sessionToken);
+          return token;
+        }
+      : undefined,
+    onRequest: (url, method) => {
+      if (__DEV__) {
+        console.debug(`[ApiClient] ${method} ${url}`);
+      }
+    },
+  };
 }

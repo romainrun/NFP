@@ -1,10 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { AppError } from '@/core/errors/AppError';
 import { err, ok, type Result } from '@/core/types/Result';
-import type {
-  IActivityHistoryRepository,
-  ListActivityInput,
-} from '@/features/settings/data/ActivityHistoryRepository';
+import type { ListActivityInput } from '@/features/settings/data/ActivityHistoryRepository';
 import type { ActivityHistoryItem } from '@/features/settings/domain/activityHistory';
 import {
   mapAuditToActivity,
@@ -29,10 +26,9 @@ type ActivityCachePayload = {
 };
 
 /**
- * Reads temporary local audit events and optional server snapshot cache.
- * Local audit rows are not authoritative — the server owns the audit trail.
+ * Local cache for activity: temporary audit rows + server snapshot.
  */
-export class SqliteActivityCacheRepository {
+export class LocalActivityDataSource {
   constructor(private readonly db: SQLiteDatabase) {}
 
   async listLocal(input: ListActivityInput): Promise<Result<ActivityHistoryItem[]>> {
@@ -117,24 +113,5 @@ export class SqliteActivityCacheRepository {
     } catch (cause) {
       return err(AppError.database('Impossible de mettre à jour le cache d’activité', cause));
     }
-  }
-}
-
-/** @deprecated Use SqliteActivityCacheRepository — kept for migration reference. */
-export class SqliteActivityHistoryRepository implements IActivityHistoryRepository {
-  constructor(private readonly db: SQLiteDatabase) {}
-
-  async list(input: ListActivityInput): Promise<Result<ActivityHistoryItem[]>> {
-    const cache = new SqliteActivityCacheRepository(this.db);
-    return cache.listLocal(input);
-  }
-
-  async count(): Promise<Result<number>> {
-    const cache = new SqliteActivityCacheRepository(this.db);
-    return cache.countLocal();
-  }
-
-  async refreshFromServer(): Promise<Result<void>> {
-    return ok(undefined);
   }
 }
