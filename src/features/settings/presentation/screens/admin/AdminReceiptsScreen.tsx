@@ -9,7 +9,7 @@ import { AdminScreenShell } from '@/features/settings/presentation/components/Ad
 import { LogoImageField } from '@/features/settings/presentation/components/LogoImageField';
 import type { ReceiptSettings } from '@/features/settings/domain/adminSettings';
 import { useAdminBundle } from '@/features/settings/presentation/hooks/useAdminBundle';
-import { trackActivity } from '@/shared/services/activity/activityTracker';
+import { logSettingsChange } from '@/shared/services/activity/activityTracker';
 import { typography } from '@/shared/theme/typography';
 
 export function AdminReceiptsScreen() {
@@ -31,7 +31,7 @@ export function AdminReceiptsScreen() {
     },
     onSuccess: async () => {
       setError(null);
-      await trackActivity();
+      await logSettingsChange('Tickets');
       await queryClient.invalidateQueries({ queryKey: ['admin'] });
     },
     onError: (err: Error) => setError(err.message),
@@ -51,7 +51,7 @@ export function AdminReceiptsScreen() {
   return (
     <AdminScreenShell
       title="Tickets"
-      subtitle="Mise en page des tickets"
+      subtitle="Affichage sur le ticket de caisse"
       onSave={() => saveMutation.mutate()}
       saving={saveMutation.isPending}
     >
@@ -75,7 +75,11 @@ export function AdminReceiptsScreen() {
         multiline
       />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={typography.body}>QR code sur le ticket</Text>
+        <Text style={typography.body}>Afficher le logo sur le ticket</Text>
+        <Switch value={receipt.showLogoOnReceipt} onValueChange={(v) => patch({ showLogoOnReceipt: v })} />
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={typography.body}>Afficher le QR code sur le ticket</Text>
         <Switch value={receipt.qrCodeEnabled} onValueChange={(v) => patch({ qrCodeEnabled: v })} />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

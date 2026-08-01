@@ -55,15 +55,15 @@ export type ReceiptSettings = {
   logoUri: string | null;
   headerText: string;
   footerText: string;
+  showLogoOnReceipt: boolean;
   qrCodeEnabled: boolean;
   numberingEnabled: boolean;
 };
 
+/** Small-store inventory options — thresholds kept as internal defaults only. */
 export type InventorySettings = {
-  lowStockThreshold: number;
-  criticalStockThreshold: number;
-  enableLowStockAlerts: boolean;
   allowNegativeStock: boolean;
+  warnBeforeOutOfStock: boolean;
 };
 
 export type SyncMetaSettings = {
@@ -75,6 +75,11 @@ export type SyncMetaSettings = {
   newCatalogAvailable: boolean;
   newDataAvailable: boolean;
   simulateOffline: boolean;
+};
+
+export type BackupSettings = {
+  lastBackupAt: string | null;
+  lastBackupPath: string | null;
 };
 
 export type DeveloperSettings = {
@@ -89,8 +94,13 @@ export type AdminSettingsBundle = {
   receipt: ReceiptSettings;
   inventory: InventorySettings;
   sync: SyncMetaSettings;
+  backup: BackupSettings;
   developer: DeveloperSettings;
 };
+
+/** Internal defaults for dashboard stock alerts (not exposed in admin UI). */
+export const INTERNAL_LOW_STOCK_THRESHOLD = 5;
+export const INTERNAL_CRITICAL_STOCK_THRESHOLD = 2;
 
 const PAYMENT_METHOD_ORDER: PaymentMethod[] = [
   'cash',
@@ -145,7 +155,7 @@ export function defaultPaymentsSettings(): PaymentsSettings {
 }
 
 export function defaultTaxSettings(): TaxSettings {
-  const rates: VatRateConfig[] = VAT_RATES.map((rate, index) => ({
+  const rates: VatRateConfig[] = VAT_RATES.map((rate) => ({
     id: `vat-${rate}`,
     label: `${rate} %`,
     rate,
@@ -162,6 +172,7 @@ export function defaultReceiptSettings(): ReceiptSettings {
     logoUri: null,
     headerText: 'Naturally Forme',
     footerText: 'Merci pour votre visite',
+    showLogoOnReceipt: true,
     qrCodeEnabled: false,
     numberingEnabled: true,
   };
@@ -169,10 +180,8 @@ export function defaultReceiptSettings(): ReceiptSettings {
 
 export function defaultInventorySettings(): InventorySettings {
   return {
-    lowStockThreshold: 5,
-    criticalStockThreshold: 2,
-    enableLowStockAlerts: true,
     allowNegativeStock: false,
+    warnBeforeOutOfStock: true,
   };
 }
 
@@ -189,6 +198,13 @@ export function defaultSyncMetaSettings(): SyncMetaSettings {
   };
 }
 
+export function defaultBackupSettings(): BackupSettings {
+  return {
+    lastBackupAt: null,
+    lastBackupPath: null,
+  };
+}
+
 export function defaultDeveloperSettings(): DeveloperSettings {
   return { enabled: false };
 }
@@ -202,6 +218,7 @@ export function defaultAdminSettingsBundle(): AdminSettingsBundle {
     receipt: defaultReceiptSettings(),
     inventory: defaultInventorySettings(),
     sync: defaultSyncMetaSettings(),
+    backup: defaultBackupSettings(),
     developer: defaultDeveloperSettings(),
   };
 }

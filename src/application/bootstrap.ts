@@ -12,6 +12,7 @@ import { SqliteCategoryRepository } from '@/features/products/data/SqliteCategor
 import { SqliteProductRepository } from '@/features/products/data/SqliteProductRepository';
 import { SqliteNoteRepository } from '@/features/notes/data/SqliteNoteRepository';
 import { SqlitePromotionRepository } from '@/features/promotions/data/SqlitePromotionRepository';
+import { SqliteActivityHistoryRepository } from '@/features/settings/data/SqliteActivityHistoryRepository';
 import { SqliteAdminSettingsRepository } from '@/features/settings/data/SqliteAdminSettingsRepository';
 import { SqliteSettingsRepository } from '@/features/settings/data/SqliteSettingsRepository';
 import { SqliteDeviceRepository } from '@/features/sync/data/SqliteDeviceRepository';
@@ -36,6 +37,7 @@ export async function bootstrap(): Promise<void> {
   const auth = new SqliteAuthRepository(db, users, secureStorage, audit);
   const settings = new SqliteSettingsRepository(db);
   const adminSettings = new SqliteAdminSettingsRepository(db);
+  const activityHistory = new SqliteActivityHistoryRepository(db);
   const dashboard = new SqliteDashboardRepository(db);
   const categories = new SqliteCategoryRepository(db);
   const products = new SqliteProductRepository(db, audit);
@@ -56,6 +58,7 @@ export async function bootstrap(): Promise<void> {
   container.registerInstance(TOKENS.AuthRepository, auth);
   container.registerInstance(TOKENS.SettingsRepository, settings);
   container.registerInstance(TOKENS.AdminSettingsRepository, adminSettings);
+  container.registerInstance(TOKENS.ActivityHistoryRepository, activityHistory);
   container.registerInstance(TOKENS.DashboardRepository, dashboard);
   container.registerInstance(TOKENS.CategoryRepository, categories);
   container.registerInstance(TOKENS.ProductRepository, products);

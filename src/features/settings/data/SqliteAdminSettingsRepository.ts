@@ -6,6 +6,7 @@ import type { IAdminSettingsRepository } from '@/features/settings/data/AdminSet
 import {
   defaultAdminSettingsBundle,
   type AdminSettingsBundle,
+  type BackupSettings,
   type DeveloperSettings,
   type InventorySettings,
   type PaymentsSettings,
@@ -24,6 +25,7 @@ const KEYS = {
   receipt: 'admin.receipt',
   inventory: 'admin.inventory',
   sync: 'admin.sync_meta',
+  backup: 'admin.backup',
   developer: 'admin.developer',
 } as const;
 
@@ -36,13 +38,32 @@ function parseJson<T>(raw: string | undefined, fallback: T): T {
   }
 }
 
+function normalizeInventory(raw: InventorySettings & Record<string, unknown>): InventorySettings {
+  return {
+    allowNegativeStock: Boolean(raw.allowNegativeStock),
+    warnBeforeOutOfStock: raw.warnBeforeOutOfStock !== false,
+  };
+}
+
+function normalizeReceipt(raw: ReceiptSettings & Record<string, unknown>): ReceiptSettings {
+  const defaults = defaultAdminSettingsBundle().receipt;
+  return {
+    logoUri: (raw.logoUri as string | null | undefined) ?? defaults.logoUri,
+    headerText: String(raw.headerText ?? defaults.headerText),
+    footerText: String(raw.footerText ?? defaults.footerText),
+    showLogoOnReceipt: raw.showLogoOnReceipt !== false,
+    qrCodeEnabled: Boolean(raw.qrCodeEnabled),
+    numberingEnabled: raw.numberingEnabled !== false,
+  };
+}
+
 export class SqliteAdminSettingsRepository implements IAdminSettingsRepository {
   constructor(private readonly db: SQLiteDatabase) {}
 
   async getBundle(): Promise<Result<AdminSettingsBundle>> {
     try {
       const rows = await this.db.getAllAsync<{ key: string; value: string }>(
-        `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         KEYS.storeExtended,
         KEYS.pos,
         KEYS.payments,
@@ -50,18 +71,29 @@ export class SqliteAdminSettingsRepository implements IAdminSettingsRepository {
         KEYS.receipt,
         KEYS.inventory,
         KEYS.sync,
+        KEYS.backup,
         KEYS.developer,
       );
       const map = new Map(rows.map((r) => [r.key, r.value]));
       const defaults = defaultAdminSettingsBundle();
+      const inventoryRaw = parseJson(
+        map.get(KEYS.inventory),
+        defaults.inventory,
+      ) as InventorySettings & Record<string, unknown>;
+      const receiptRaw = parseJson(
+        map.get(KEYS.receipt),
+        defaults.receipt,
+      ) as ReceiptSettings & Record<string, unknown>;
+
       return ok({
         storeExtended: parseJson(map.get(KEYS.storeExtended), defaults.storeExtended),
         pos: parseJson(map.get(KEYS.pos), defaults.pos),
         payments: parseJson(map.get(KEYS.payments), defaults.payments),
         taxes: parseJson(map.get(KEYS.taxes), defaults.taxes),
-        receipt: parseJson(map.get(KEYS.receipt), defaults.receipt),
-        inventory: parseJson(map.get(KEYS.inventory), defaults.inventory),
+        receipt: normalizeReceipt(receiptRaw),
+        inventory: normalizeInventory(inventoryRaw),
         sync: parseJson(map.get(KEYS.sync), defaults.sync),
+        backup: parseJson(map.get(KEYS.backup), defaults.backup),
         developer: parseJson(map.get(KEYS.developer), defaults.developer),
       });
     } catch (cause) {
@@ -95,6 +127,10 @@ export class SqliteAdminSettingsRepository implements IAdminSettingsRepository {
 
   async setSyncMeta(value: SyncMetaSettings): Promise<Result<void>> {
     return this.upsert(KEYS.sync, value);
+  }
+
+  async setBackup(value: BackupSettings): Promise<Result<void>> {
+    return this.upsert(KEYS.backup, value);
   }
 
   async setDeveloper(value: DeveloperSettings): Promise<Result<void>> {

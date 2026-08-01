@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { AppError } from '@/core/errors/AppError';
 import { err, ok, type Result } from '@/core/types/Result';
 import type { IDashboardRepository } from '@/features/dashboard/data/DashboardRepository';
+import { INTERNAL_LOW_STOCK_THRESHOLD } from '@/features/settings/domain/adminSettings';
 import type { DashboardSnapshot } from '@/features/dashboard/domain/types';
 import { formatMoney } from '@/shared/utils/money';
 import {
@@ -195,9 +196,10 @@ export class SqliteDashboardRepository implements IDashboardRepository {
       stock_quantity: number;
     }>(
       `SELECT name, stock_quantity FROM products
-       WHERE is_active = 1 AND stock_quantity <= 5
+       WHERE is_active = 1 AND stock_quantity <= ?
        ORDER BY stock_quantity ASC, name ASC
        LIMIT 8`,
+      INTERNAL_LOW_STOCK_THRESHOLD,
     );
 
     return rows.map((row) =>

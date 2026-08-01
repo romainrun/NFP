@@ -18,6 +18,7 @@ export const TOKENS = {
   NoteRepository: 'NoteRepository',
   AdminSettingsRepository: 'AdminSettingsRepository',
   DeviceRepository: 'DeviceRepository',
+  ActivityHistoryRepository: 'ActivityHistoryRepository',
   PaymentProvider: 'PaymentProvider',
   AuditService: 'AuditService',
   SecureStorage: 'SecureStorage',

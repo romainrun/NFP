@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { HelperText, Switch, Text, TextInput } from 'react-native-paper';
+import { HelperText, Switch, Text } from 'react-native-paper';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
@@ -8,7 +8,7 @@ import type { IAdminSettingsRepository } from '@/features/settings/data/AdminSet
 import { AdminScreenShell } from '@/features/settings/presentation/components/AdminScreenShell';
 import type { InventorySettings } from '@/features/settings/domain/adminSettings';
 import { useAdminBundle } from '@/features/settings/presentation/hooks/useAdminBundle';
-import { trackActivity } from '@/shared/services/activity/activityTracker';
+import { logSettingsChange } from '@/shared/services/activity/activityTracker';
 import { typography } from '@/shared/theme/typography';
 
 export function AdminInventoryScreen() {
@@ -30,7 +30,7 @@ export function AdminInventoryScreen() {
     },
     onSuccess: async () => {
       setError(null);
-      await trackActivity();
+      await logSettingsChange('Inventaire');
       await queryClient.invalidateQueries({ queryKey: ['admin'] });
     },
     onError: (err: Error) => setError(err.message),
@@ -50,40 +50,23 @@ export function AdminInventoryScreen() {
   return (
     <AdminScreenShell
       title="Inventaire"
-      subtitle="Seuils et alertes stock"
+      subtitle="Options de stock en caisse"
       onSave={() => saveMutation.mutate()}
       saving={saveMutation.isPending}
     >
-      <TextInput
-        mode="outlined"
-        label="Seuil stock bas"
-        value={String(inventory.lowStockThreshold)}
-        onChangeText={(v) => {
-          const n = Number(v);
-          if (Number.isFinite(n) && n >= 0) patch({ lowStockThreshold: Math.round(n) });
-        }}
-        keyboardType="number-pad"
-      />
-      <TextInput
-        mode="outlined"
-        label="Seuil stock critique"
-        value={String(inventory.criticalStockThreshold)}
-        onChangeText={(v) => {
-          const n = Number(v);
-          if (Number.isFinite(n) && n >= 0) patch({ criticalStockThreshold: Math.round(n) });
-        }}
-        keyboardType="number-pad"
-      />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={typography.body}>Alertes stock bas</Text>
+        <Text style={typography.body}>Autoriser le stock négatif</Text>
         <Switch
-          value={inventory.enableLowStockAlerts}
-          onValueChange={(v) => patch({ enableLowStockAlerts: v })}
+          value={inventory.allowNegativeStock}
+          onValueChange={(v) => patch({ allowNegativeStock: v })}
         />
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={typography.body}>Stock négatif autorisé</Text>
-        <Switch value={inventory.allowNegativeStock} onValueChange={(v) => patch({ allowNegativeStock: v })} />
+        <Text style={typography.body}>Alerter avant vente sans stock</Text>
+        <Switch
+          value={inventory.warnBeforeOutOfStock}
+          onValueChange={(v) => patch({ warnBeforeOutOfStock: v })}
+        />
       </View>
       {error ? (
         <HelperText type="error" visible>{error}</HelperText>

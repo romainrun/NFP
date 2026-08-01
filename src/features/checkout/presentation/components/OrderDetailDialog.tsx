@@ -10,7 +10,9 @@ import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
+import { useAdminBundle } from '@/features/settings/presentation/hooks/useAdminBundle';
 import { ReceiptSkeleton } from '@/shared/components/skeletons';
+import { buildReceiptText } from '@/shared/services/receipt/buildReceiptText';
 import { Colors } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -52,6 +54,8 @@ export function OrderDetailDialog({ orderId, visible, onDismiss }: Props) {
     },
   });
 
+  const adminBundle = useAdminBundle();
+
   const voidMutation = useMutation({
     mutationFn: async () => {
       if (!orderId || !session) throw new Error('Session invalide');
@@ -74,24 +78,14 @@ export function OrderDetailDialog({ orderId, visible, onDismiss }: Props) {
     if (!orderQuery.data) return;
     const order = orderQuery.data;
     const settings = settingsQuery.data;
-    const lines = [
-      settings?.storeName ?? 'NFP',
-      settings?.shopInfo.address ?? '',
-      settings?.shopInfo.phone ? `Tél. ${settings.shopInfo.phone}` : '',
-      settings?.shopInfo.siret ? `SIRET ${settings.shopInfo.siret}` : '',
-      '',
-      `Duplicata ticket #${order.receiptNumber}`,
-      new Date(order.createdAt).toLocaleString('fr-FR'),
-      ...order.lines.map(
-        (line) => `${line.quantity} x ${line.productName} — ${formatMoney(line.lineTotalCents)}`,
-      ),
-      '',
-      `Total TTC: ${formatMoney(order.totalCents)}`,
-      `TVA: ${formatMoney(order.vatCents)}`,
-      ...order.payments.map(
-        (payment) => `${paymentMethodLabel(payment.method)}: ${formatMoney(payment.amountCents)}`,
-      ),
-    ].filter(Boolean);
+    const receiptSettings = adminBundle.data?.receipt;
+    if (!settings || !receiptSettings) return;
+    const lines = buildReceiptText({
+      order,
+      storeName: settings.storeName,
+      shopInfo: settings.shopInfo,
+      receipt: receiptSettings,
+    });
     await Share.share({ title: `Ticket #${order.receiptNumber}`, message: lines.join('\n') });
   };
 

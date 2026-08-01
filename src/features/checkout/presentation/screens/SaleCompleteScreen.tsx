@@ -8,9 +8,11 @@ import { TOKENS } from '@/core/di/tokens';
 import type { IOrderRepository } from '@/features/checkout/data/OrderRepository';
 import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
+import { useAdminBundle } from '@/features/settings/presentation/hooks/useAdminBundle';
 import type { AppStackParamList } from '@/navigation/types';
 import { Screen } from '@/shared/components/Screen';
 import { ReceiptSkeleton } from '@/shared/components/skeletons';
+import { buildReceiptText } from '@/shared/services/receipt/buildReceiptText';
 import { formatMoney } from '@/shared/utils/money';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -41,6 +43,8 @@ export function SaleCompleteScreen({ navigation, route }: Props) {
     },
   });
 
+  const adminBundle = useAdminBundle();
+
   if (orderQuery.isLoading || !orderQuery.data) {
     return (
       <Screen padded={false}>
@@ -51,25 +55,16 @@ export function SaleCompleteScreen({ navigation, route }: Props) {
 
   const order = orderQuery.data;
   const settings = settingsQuery.data;
+  const receiptSettings = adminBundle.data?.receipt;
+
   const shareReceipt = async () => {
-    const lines = [
-      settings?.storeName ?? 'NFP',
-      settings?.shopInfo.address ?? '',
-      settings?.shopInfo.phone ? `Tél. ${settings.shopInfo.phone}` : '',
-      settings?.shopInfo.siret ? `SIRET ${settings.shopInfo.siret}` : '',
-      '',
-      `Duplicata ticket #${order.receiptNumber}`,
-      new Date(order.createdAt).toLocaleString('fr-FR'),
-      ...order.lines.map(
-        (line) => `${line.quantity} x ${line.productName} — ${formatMoney(line.lineTotalCents)}`,
-      ),
-      '',
-      `Total TTC: ${formatMoney(order.totalCents)}`,
-      `TVA: ${formatMoney(order.vatCents)}`,
-      ...order.payments.map(
-        (payment) => `${paymentMethodLabel(payment.method)}: ${formatMoney(payment.amountCents)}`,
-      ),
-    ].filter(Boolean);
+    if (!receiptSettings || !settings) return;
+    const lines = buildReceiptText({
+      order,
+      storeName: settings.storeName,
+      shopInfo: settings.shopInfo,
+      receipt: receiptSettings,
+    });
     await Share.share({ title: `Ticket #${order.receiptNumber}`, message: lines.join('\n') });
   };
 

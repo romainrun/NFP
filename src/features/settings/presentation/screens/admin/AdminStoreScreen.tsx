@@ -9,7 +9,7 @@ import type { ISettingsRepository } from '@/features/settings/data/SettingsRepos
 import { AdminScreenShell } from '@/features/settings/presentation/components/AdminScreenShell';
 import { LogoImageField } from '@/features/settings/presentation/components/LogoImageField';
 import type { StoreExtendedSettings } from '@/features/settings/domain/adminSettings';
-import { trackActivity } from '@/shared/services/activity/activityTracker';
+import { logSettingsChange } from '@/shared/services/activity/activityTracker';
 import { spacing } from '@/shared/theme/spacing';
 
 export function AdminStoreScreen() {
@@ -57,7 +57,7 @@ export function AdminStoreScreen() {
     },
     onSuccess: async () => {
       setError(null);
-      await trackActivity();
+      await logSettingsChange('Magasin');
       await queryClient.invalidateQueries({ queryKey: ['settings'] });
       await queryClient.invalidateQueries({ queryKey: ['admin'] });
     },

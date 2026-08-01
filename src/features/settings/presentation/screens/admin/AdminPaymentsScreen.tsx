@@ -9,7 +9,7 @@ import { paymentMethodLabel } from '@/features/payments/domain/paymentMethods';
 import { AdminScreenShell } from '@/features/settings/presentation/components/AdminScreenShell';
 import type { PaymentsSettings } from '@/features/settings/domain/adminSettings';
 import { useAdminBundle } from '@/features/settings/presentation/hooks/useAdminBundle';
-import { trackActivity } from '@/shared/services/activity/activityTracker';
+import { logSettingsChange } from '@/shared/services/activity/activityTracker';
 import { Colors } from '@/shared/theme/colors';
 import { spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -38,7 +38,7 @@ export function AdminPaymentsScreen() {
     },
     onSuccess: async () => {
       setError(null);
-      await trackActivity();
+      await logSettingsChange('Paiements');
       await queryClient.invalidateQueries({ queryKey: ['admin'] });
     },
     onError: (err: Error) => setError(err.message),

@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
 import { format } from 'date-fns';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { container } from '@/core/di/container';
@@ -23,8 +22,6 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function AdminDevicesScreen() {
   const queryClient = useQueryClient();
-  const [deviceName, setDeviceName] = useState('');
-  const [error, setError] = useState<string | null>(null);
 
   const deviceQuery = useQuery({
     queryKey: ['device', 'local'],
@@ -36,23 +33,6 @@ export function AdminDevicesScreen() {
     },
   });
 
-  const device = deviceQuery.data;
-
-  const renameMutation = useMutation({
-    mutationFn: async () => {
-      const repo = container.resolve<IDeviceRepository>(TOKENS.DeviceRepository);
-      const result = await repo.updateDeviceName(deviceName);
-      if (!result.ok) throw result.error;
-      return result.value;
-    },
-    onSuccess: async () => {
-      setError(null);
-      await trackActivity();
-      await queryClient.invalidateQueries({ queryKey: ['device'] });
-    },
-    onError: (err: Error) => setError(err.message),
-  });
-
   const syncMutation = useMutation({
     mutationFn: () => runSyncNow(),
     onSuccess: async () => {
@@ -62,9 +42,7 @@ export function AdminDevicesScreen() {
     },
   });
 
-  useEffect(() => {
-    if (device?.deviceName) setDeviceName(device.deviceName);
-  }, [device?.deviceName]);
+  const device = deviceQuery.data;
 
   if (!device) {
     return (
@@ -78,6 +56,9 @@ export function AdminDevicesScreen() {
     <AdminScreenShell title="Appareils" subtitle="Cet appareil">
       <View style={{ gap: spacing.sm }}>
         <Text style={typography.body}>
+          Nom : <Text style={typography.bodyStrong}>{device.deviceName}</Text>
+        </Text>
+        <Text style={typography.body}>
           Plateforme : <Text style={typography.bodyStrong}>{device.platform}</Text>
         </Text>
         <Text style={typography.body}>
@@ -90,8 +71,10 @@ export function AdminDevicesScreen() {
           </Text>
         </Text>
         <Text style={typography.body}>
-          Statut sync :{' '}
-          <Text style={typography.bodyStrong}>{STATUS_LABELS[device.syncStatus] ?? device.syncStatus}</Text>
+          Statut :{' '}
+          <Text style={typography.bodyStrong}>
+            {STATUS_LABELS[device.syncStatus] ?? device.syncStatus}
+          </Text>
         </Text>
         <Text style={typography.body}>
           Connexion :{' '}
@@ -106,22 +89,8 @@ export function AdminDevicesScreen() {
         </Text>
       </View>
 
-      <TextInput
-        mode="outlined"
-        label="Nom de l’appareil"
-        value={deviceName}
-        onChangeText={setDeviceName}
-      />
       <Button
         mode="contained"
-        onPress={() => renameMutation.mutate()}
-        loading={renameMutation.isPending}
-      >
-        Renommer
-      </Button>
-
-      <Button
-        mode="outlined"
         onPress={() => syncMutation.mutate()}
         loading={syncMutation.isPending}
       >
@@ -132,10 +101,6 @@ export function AdminDevicesScreen() {
         <Text style={[typography.caption, { color: Colors.textSecondary }]}>
           {syncMutation.data.message}
         </Text>
-      ) : null}
-
-      {error ? (
-        <HelperText type="error" visible>{error}</HelperText>
       ) : null}
     </AdminScreenShell>
   );

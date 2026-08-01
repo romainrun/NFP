@@ -27,6 +27,9 @@ type AdminRoute =
   | 'AdminEmployees'
   | 'AdminDevices'
   | 'AdminSync'
+  | 'AdminBackups'
+  | 'AdminImportExport'
+  | 'AdminActivity'
   | 'AdminDeveloper';
 
 const ADMIN_ITEMS: Array<{
@@ -37,17 +40,20 @@ const ADMIN_ITEMS: Array<{
   route: AdminRoute;
   developerOnly?: boolean;
 }> = [
-  { key: 'store', title: 'Magasin', description: 'Identité, coordonnées, horaires', icon: 'store', route: 'AdminStore' },
-  { key: 'pos', title: 'Caisse', description: 'Nom caisse, tickets, confirmations', icon: 'cash-register', route: 'AdminPos' },
-  { key: 'payments', title: 'Paiements', description: 'Modes acceptés et limites', icon: 'credit-card-outline', route: 'AdminPayments' },
+  { key: 'store', title: 'Magasin', description: 'Nom, adresse, logo', icon: 'store', route: 'AdminStore' },
+  { key: 'pos', title: 'Caisse', description: 'Tickets et confirmations', icon: 'cash-register', route: 'AdminPos' },
+  { key: 'payments', title: 'Paiements', description: 'Modes acceptés', icon: 'credit-card-outline', route: 'AdminPayments' },
   { key: 'taxes', title: 'Taxes', description: 'Taux de TVA', icon: 'percent', route: 'AdminTaxes' },
-  { key: 'receipts', title: 'Tickets', description: 'En-tête, pied, QR code', icon: 'receipt', route: 'AdminReceipts' },
-  { key: 'inventory', title: 'Inventaire', description: 'Seuils stock et alertes', icon: 'clipboard-list-outline', route: 'AdminInventory' },
-  { key: 'promotions', title: 'Promotions', description: 'Remises produits et catégories', icon: 'tag-percent-outline', route: 'AdminPromotions' },
-  { key: 'employees', title: 'Employés', description: 'Collaborateurs et accès', icon: 'account-group-outline', route: 'AdminEmployees' },
-  { key: 'devices', title: 'Appareils', description: 'Cet appareil et synchronisation', icon: 'cellphone-link', route: 'AdminDevices' },
-  { key: 'sync', title: 'Synchronisation', description: 'État du backend et file d’attente', icon: 'cloud-sync-outline', route: 'AdminSync' },
-  { key: 'developer', title: 'Mode développeur', description: 'Diagnostics API et sync', icon: 'code-tags', route: 'AdminDeveloper', developerOnly: true },
+  { key: 'receipts', title: 'Tickets', description: 'Logo, QR code, textes', icon: 'receipt', route: 'AdminReceipts' },
+  { key: 'inventory', title: 'Inventaire', description: 'Stock en caisse', icon: 'clipboard-list-outline', route: 'AdminInventory' },
+  { key: 'promotions', title: 'Promotions', description: 'Remises sur produits', icon: 'tag-percent-outline', route: 'AdminPromotions' },
+  { key: 'employees', title: 'Employés', description: 'Accès et statut', icon: 'account-group-outline', route: 'AdminEmployees' },
+  { key: 'import', title: 'Import / Export', description: 'Catalogue CSV', icon: 'swap-horizontal', route: 'AdminImportExport' },
+  { key: 'backups', title: 'Sauvegardes', description: 'Copie locale du magasin', icon: 'backup-restore', route: 'AdminBackups' },
+  { key: 'activity', title: 'Historique', description: 'Activité du magasin', icon: 'history', route: 'AdminActivity' },
+  { key: 'devices', title: 'Appareils', description: 'Cet appareil', icon: 'cellphone-link', route: 'AdminDevices' },
+  { key: 'sync', title: 'Synchronisation', description: 'État du backend', icon: 'cloud-sync-outline', route: 'AdminSync' },
+  { key: 'developer', title: 'Mode développeur', description: 'Diagnostics', icon: 'code-tags', route: 'AdminDeveloper', developerOnly: true },
 ];
 
 export function SettingsScreen() {

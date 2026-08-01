@@ -170,7 +170,7 @@ export function AdminEmployeesScreen() {
               </Text>
               <Text style={[typography.caption, { color: Colors.textSecondary }]}>
                 {item.employeeCode} · {ROLE_LABELS[item.role]}
-                {!item.isActive ? ' · Inactif' : ''}
+                {!item.isActive ? ' · Désactivé' : ' · Actif'}
               </Text>
               <Text style={[typography.caption, { color: Colors.textSecondary }]}>
                 Connexion : {formatTs(item.lastLoginAt)} · Activité : {formatTs(item.lastActivityAt)}
@@ -235,7 +235,9 @@ export function AdminEmployeesScreen() {
             {editing ? (
               <>
                 <View style={styles.switchRow}>
-                  <Text style={typography.body}>Actif</Text>
+                  <Text style={typography.body}>
+                    Statut : {isActive ? 'Actif' : 'Désactivé'}
+                  </Text>
                   <Switch value={isActive} onValueChange={setIsActive} />
                 </View>
                 <View style={styles.switchRow}>

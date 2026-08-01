@@ -81,6 +81,7 @@ export function PosScreen() {
   const canOversell = Boolean(session && hasPermission(session.employee.role, 'sales.oversell'));
   const adminBundle = useAdminBundle();
   const allowNegativeStock = adminBundle.data?.inventory.allowNegativeStock ?? false;
+  const warnBeforeOutOfStock = adminBundle.data?.inventory.warnBeforeOutOfStock ?? true;
   const confirmBeforeClearCart = adminBundle.data?.pos.confirmBeforeClearCart ?? true;
   const canBypassStock = canOversell || allowNegativeStock;
   const { canManage: canManageCatalog, userId: catalogUserId } = useCatalogAccess();
@@ -199,7 +200,7 @@ export function PosScreen() {
     },
     onError: (error: Error, { productId }) => {
       if (canBypassStock && isStockErrorMessage(error.message)) {
-        if (allowNegativeStock) {
+        if (allowNegativeStock && !warnBeforeOutOfStock) {
           addMutation.mutate({ productId, bypass: true });
           return;
         }
@@ -279,7 +280,7 @@ export function PosScreen() {
         return;
       }
       if (canBypassStock && isStockErrorMessage(error.message)) {
-        if (allowNegativeStock) {
+        if (allowNegativeStock && !warnBeforeOutOfStock) {
           barcodeMutation.mutate({ code, bypass: true });
           return;
         }
@@ -537,6 +538,20 @@ export function PosScreen() {
   const handleProductPress = (product: Product) => {
     if (product.stockQuantity <= 0 && !canBypassStock) {
       setSnack(`« ${product.name} » — stock épuisé`);
+      return;
+    }
+    if (product.stockQuantity <= 0 && allowNegativeStock && warnBeforeOutOfStock) {
+      Alert.alert(
+        'Stock épuisé',
+        `« ${product.name} » n’est plus en stock. Continuer la vente ?`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Continuer',
+            onPress: () => addMutation.mutate({ productId: product.id, bypass: true }),
+          },
+        ],
+      );
       return;
     }
     addMutation.mutate({

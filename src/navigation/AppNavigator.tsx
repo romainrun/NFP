@@ -3,9 +3,12 @@ import { useTheme } from 'react-native-paper';
 import { CheckoutScreen } from '@/features/checkout/presentation/screens/CheckoutScreen';
 import { SaleCompleteScreen } from '@/features/checkout/presentation/screens/SaleCompleteScreen';
 import { ProductFormScreen } from '@/features/products/presentation/screens/ProductFormScreen';
+import { AdminActivityScreen } from '@/features/settings/presentation/screens/admin/AdminActivityScreen';
+import { AdminBackupsScreen } from '@/features/settings/presentation/screens/admin/AdminBackupsScreen';
 import { AdminDeveloperScreen } from '@/features/settings/presentation/screens/admin/AdminDeveloperScreen';
 import { AdminDevicesScreen } from '@/features/settings/presentation/screens/admin/AdminDevicesScreen';
 import { AdminEmployeesScreen } from '@/features/settings/presentation/screens/admin/AdminEmployeesScreen';
+import { AdminImportExportScreen } from '@/features/settings/presentation/screens/admin/AdminImportExportScreen';
 import { AdminInventoryScreen } from '@/features/settings/presentation/screens/admin/AdminInventoryScreen';
 import { AdminPaymentsScreen } from '@/features/settings/presentation/screens/admin/AdminPaymentsScreen';
 import { AdminPosScreen } from '@/features/settings/presentation/screens/admin/AdminPosScreen';
@@ -47,6 +50,9 @@ export function AppNavigator() {
       <Stack.Screen name="AdminEmployees" component={AdminEmployeesScreen} />
       <Stack.Screen name="AdminDevices" component={AdminDevicesScreen} />
       <Stack.Screen name="AdminSync" component={AdminSyncScreen} />
+      <Stack.Screen name="AdminBackups" component={AdminBackupsScreen} />
+      <Stack.Screen name="AdminImportExport" component={AdminImportExportScreen} />
+      <Stack.Screen name="AdminActivity" component={AdminActivityScreen} />
       <Stack.Screen name="AdminDeveloper" component={AdminDeveloperScreen} />
     </Stack.Navigator>
   );

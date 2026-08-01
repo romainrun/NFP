@@ -8,6 +8,7 @@ import {
   Dialog,
   HelperText,
   Portal,
+  Searchbar,
   SegmentedButtons,
   Switch,
   Text,
@@ -16,14 +17,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
-import type { ICategoryRepository } from '@/features/products/data/CategoryRepository';
 import type { IProductRepository } from '@/features/products/data/ProductRepository';
 import type { IPromotionRepository } from '@/features/promotions/data/PromotionRepository';
 import type { PromotionRule } from '@/features/promotions/domain/types';
 import { normalizeDiscountBps } from '@/features/promotions/domain/types';
 import { AdminScreenShell } from '@/features/settings/presentation/components/AdminScreenShell';
 import { DatePickerField } from '@/shared/components/DatePickerField';
-import { trackActivity } from '@/shared/services/activity/activityTracker';
+import { logSettingsChange } from '@/shared/services/activity/activityTracker';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
@@ -31,12 +31,11 @@ import { eurosToCents, parseEurosInput } from '@/shared/utils/money';
 
 export function AdminPromotionsScreen() {
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PromotionRule | null>(null);
   const [kind, setKind] = useState<'percent' | 'fixed_amount'>('percent');
-  const [targetType, setTargetType] = useState<'product' | 'category'>('product');
-  const [productId, setProductId] = useState('');
-  const [categoryId, setCategoryId] = useState('');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [discountValue, setDiscountValue] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [startsAt, setStartsAt] = useState<string | null>(null);
@@ -49,7 +48,7 @@ export function AdminPromotionsScreen() {
       const repo = container.resolve<IPromotionRepository>(TOKENS.PromotionRepository);
       const result = await repo.listPromotionRules();
       if (!result.ok) throw result.error;
-      return result.value;
+      return result.value.filter((r) => r.targetType === 'product' && r.productId);
     },
   });
 
@@ -63,34 +62,23 @@ export function AdminPromotionsScreen() {
     },
   });
 
-  const categoriesQuery = useQuery({
-    queryKey: ['categories', 'admin-promotions'],
-    queryFn: async () => {
-      const repo = container.resolve<ICategoryRepository>(TOKENS.CategoryRepository);
-      const result = await repo.list(false);
-      if (!result.ok) throw result.error;
-      return result.value;
-    },
-  });
-
   const productMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const p of productsQuery.data ?? []) map.set(p.id, p.name);
     return map;
   }, [productsQuery.data]);
 
-  const categoryMap = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of categoriesQuery.data ?? []) map.set(c.id, c.name);
-    return map;
-  }, [categoriesQuery.data]);
+  const filteredProducts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = productsQuery.data ?? [];
+    if (!q) return list.slice(0, 20);
+    return list.filter((p) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)).slice(0, 20);
+  }, [productsQuery.data, search]);
 
   const openCreate = () => {
     setEditing(null);
     setKind('percent');
-    setTargetType('product');
-    setProductId('');
-    setCategoryId('');
+    setSelectedProductIds([]);
     setDiscountValue('');
     setIsActive(true);
     setStartsAt(null);
@@ -102,9 +90,7 @@ export function AdminPromotionsScreen() {
   const openEdit = (rule: PromotionRule) => {
     setEditing(rule);
     setKind(rule.kind);
-    setTargetType(rule.targetType);
-    setProductId(rule.productId ?? '');
-    setCategoryId(rule.categoryId ?? '');
+    setSelectedProductIds(rule.productId ? [rule.productId] : []);
     setDiscountValue(
       rule.kind === 'percent'
         ? String(rule.discountBps / 100)
@@ -131,28 +117,31 @@ export function AdminPromotionsScreen() {
         if (discountCents <= 0) throw new Error('Montant invalide');
       }
 
-      const rule: PromotionRule = {
-        id: editing?.id ?? Crypto.randomUUID(),
-        kind,
-        targetType,
-        productId: targetType === 'product' ? productId : null,
-        categoryId: targetType === 'category' ? categoryId : null,
-        discountBps,
-        discountCents,
-        isActive,
-        startsAt,
-        endsAt,
-      };
+      const productIds = editing?.productId
+        ? [editing.productId]
+        : selectedProductIds;
+      if (productIds.length === 0) throw new Error('Sélectionnez au moins un produit');
 
-      if (targetType === 'product' && !rule.productId) throw new Error('Sélectionnez un produit');
-      if (targetType === 'category' && !rule.categoryId) throw new Error('Sélectionnez une catégorie');
-
-      const result = await repo.setPromotionRule(rule);
-      if (!result.ok) throw result.error;
+      for (const productId of productIds) {
+        const rule: PromotionRule = {
+          id: editing?.productId === productId ? editing.id : Crypto.randomUUID(),
+          kind,
+          targetType: 'product',
+          productId,
+          categoryId: null,
+          discountBps,
+          discountCents,
+          isActive,
+          startsAt,
+          endsAt,
+        };
+        const result = await repo.setPromotionRule(rule);
+        if (!result.ok) throw result.error;
+      }
     },
     onSuccess: async () => {
       setDialogOpen(false);
-      await trackActivity();
+      await logSettingsChange('Promotions');
       await queryClient.invalidateQueries({ queryKey: ['promotions'] });
     },
     onError: (err: Error) => setError(err.message),
@@ -165,25 +154,31 @@ export function AdminPromotionsScreen() {
       if (!result.ok) throw result.error;
     },
     onSuccess: async () => {
-      await trackActivity();
       await queryClient.invalidateQueries({ queryKey: ['promotions'] });
     },
   });
 
   const labelForRule = (rule: PromotionRule) => {
-    const target =
-      rule.targetType === 'product'
-        ? productMap.get(rule.productId ?? '') ?? 'Produit'
-        : categoryMap.get(rule.categoryId ?? '') ?? 'Catégorie';
+    const name = productMap.get(rule.productId ?? '') ?? 'Produit';
     const value =
       rule.kind === 'percent'
         ? `${rule.discountBps / 100} %`
         : `${(rule.discountCents / 100).toFixed(2)} €`;
-    return `${target} · ${value}`;
+    return `${name} · ${value}`;
+  };
+
+  const toggleProduct = (id: string) => {
+    if (editing) {
+      setSelectedProductIds([id]);
+      return;
+    }
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   };
 
   return (
-    <AdminScreenShell title="Promotions" subtitle="Remises simples Naturally Forme">
+    <AdminScreenShell title="Promotions" subtitle="Remises sur produits">
       <Button mode="contained" onPress={openCreate} style={{ marginBottom: spacing.sm }}>
         Nouvelle promotion
       </Button>
@@ -201,8 +196,8 @@ export function AdminPromotionsScreen() {
               </Text>
               <Text style={[typography.caption, { color: Colors.textSecondary }]}>
                 {item.isActive ? 'Active' : 'Inactive'}
-                {item.startsAt ? ` · début ${format(new Date(item.startsAt), 'dd/MM/yy')}` : ''}
-                {item.endsAt ? ` · fin ${format(new Date(item.endsAt), 'dd/MM/yy')}` : ''}
+                {item.startsAt ? ` · ${format(new Date(item.startsAt), 'dd/MM/yy')}` : ''}
+                {item.endsAt ? ` → ${format(new Date(item.endsAt), 'dd/MM/yy')}` : ''}
               </Text>
             </View>
             <Button compact onPress={() => openEdit(item)}>Modifier</Button>
@@ -213,60 +208,23 @@ export function AdminPromotionsScreen() {
         )}
         ListEmptyComponent={
           <Text style={[typography.caption, { color: Colors.textSecondary }]}>
-            Aucune promotion configurée
+            Aucune promotion — ajoutez une remise % ou € sur des produits.
           </Text>
         }
       />
 
       <Portal>
         <Dialog visible={dialogOpen} onDismiss={() => setDialogOpen(false)}>
-          <Dialog.Title>{editing ? 'Modifier' : 'Nouvelle promotion'}</Dialog.Title>
+          <Dialog.Title>{editing ? 'Modifier la promotion' : 'Nouvelle promotion'}</Dialog.Title>
           <Dialog.Content style={{ gap: spacing.sm }}>
             <SegmentedButtons
               value={kind}
               onValueChange={(v) => setKind(v as 'percent' | 'fixed_amount')}
               buttons={[
-                { value: 'percent', label: '%' },
-                { value: 'fixed_amount', label: '€' },
+                { value: 'percent', label: 'Remise %' },
+                { value: 'fixed_amount', label: 'Remise €' },
               ]}
             />
-            <SegmentedButtons
-              value={targetType}
-              onValueChange={(v) => setTargetType(v as 'product' | 'category')}
-              buttons={[
-                { value: 'product', label: 'Produit' },
-                { value: 'category', label: 'Catégorie' },
-              ]}
-            />
-            {targetType === 'product' ? (
-              <View style={{ gap: spacing.xs }}>
-                <Text style={typography.caption}>Produit</Text>
-                {(productsQuery.data ?? []).slice(0, 12).map((p) => (
-                  <Chip
-                    key={p.id}
-                    selected={productId === p.id}
-                    onPress={() => setProductId(p.id)}
-                    style={{ marginBottom: spacing.xxs }}
-                  >
-                    {p.name}
-                  </Chip>
-                ))}
-              </View>
-            ) : (
-              <View style={{ gap: spacing.xs }}>
-                <Text style={typography.caption}>Catégorie</Text>
-                {(categoriesQuery.data ?? []).map((c) => (
-                  <Chip
-                    key={c.id}
-                    selected={categoryId === c.id}
-                    onPress={() => setCategoryId(c.id)}
-                    style={{ marginBottom: spacing.xxs }}
-                  >
-                    {c.name}
-                  </Chip>
-                ))}
-              </View>
-            )}
             <TextInput
               mode="outlined"
               label={kind === 'percent' ? 'Remise %' : 'Remise €'}
@@ -274,6 +232,22 @@ export function AdminPromotionsScreen() {
               onChangeText={setDiscountValue}
               keyboardType="decimal-pad"
             />
+            {!editing ? (
+              <>
+                <Searchbar placeholder="Rechercher un produit" value={search} onChangeText={setSearch} />
+                <View style={{ gap: spacing.xxs }}>
+                  {filteredProducts.map((p) => (
+                    <Chip
+                      key={p.id}
+                      selected={selectedProductIds.includes(p.id)}
+                      onPress={() => toggleProduct(p.id)}
+                    >
+                      {p.name}
+                    </Chip>
+                  ))}
+                </View>
+              </>
+            ) : null}
             <DatePickerField
               label="Début"
               value={startsAt ? new Date(`${startsAt}T00:00:00`) : new Date()}
@@ -309,9 +283,7 @@ export function AdminPromotionsScreen() {
 }
 
 const styles = StyleSheet.create({
-  list: {
-    gap: spacing.xs,
-  },
+  list: { gap: spacing.xs },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -326,5 +298,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.sm,
   },
 });

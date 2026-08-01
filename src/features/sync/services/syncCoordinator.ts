@@ -4,6 +4,7 @@ import type { IAdminSettingsRepository } from '@/features/settings/data/AdminSet
 import type { IDeviceRepository } from '@/features/sync/data/DeviceRepository';
 import type { ISyncRepository } from '@/features/sync/data/SyncRepository';
 import type { SyncMetaSettings } from '@/features/settings/domain/adminSettings';
+import type { IAuditService } from '@/shared/services/audit/AuditService';
 import { trackActivity } from '@/shared/services/activity/activityTracker';
 
 export type SyncRunResult = {
@@ -99,6 +100,21 @@ export async function runSyncNow(): Promise<SyncRunResult> {
     backendAvailable && !simulateOffline,
     backendAvailable ? now : null,
   );
+
+  const audit = container.resolve<IAuditService>(TOKENS.AuditService);
+  await audit.log({
+    action: 'sync',
+    payload: {
+      message:
+        backendAvailable && syncedCount > 0
+          ? `${syncedCount} opération(s)`
+          : simulateOffline
+            ? 'Mode hors-ligne simulé'
+            : backendAvailable
+              ? 'Aucune opération en attente'
+              : 'Backend indisponible',
+    },
+  });
 
   await trackActivity();
 
