@@ -7,6 +7,8 @@ export type ActivityHistoryItem = {
   subtitle: string;
   createdAt: string;
   employeeName: string | null;
+  /** Server-owned events vs temporary local-only entries (offline). */
+  source: 'server' | 'local';
 };
 
 type ActionMeta = {

@@ -1,13 +1,11 @@
 import { useState } from 'react';
-import { Alert, Share, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { Button, HelperText, Text } from 'react-native-paper';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { container } from '@/core/di/container';
 import { TOKENS } from '@/core/di/tokens';
 import { useAuth } from '@/features/authentication/presentation/hooks/useAuth';
-import type { IProductRepository } from '@/features/products/data/ProductRepository';
-import { productsToCsv } from '@/features/products/domain/productCsv';
-import { importProductsFromCsv } from '@/features/products/services/productImportService';
+import type { IImportExportRepository } from '@/features/products/data/ImportExportRepository';
 import { AdminScreenShell } from '@/features/settings/presentation/components/AdminScreenShell';
 import { BrandCard } from '@/shared/components/BrandCard';
 import { Colors } from '@/shared/theme/colors';
@@ -20,21 +18,11 @@ export function AdminImportExportScreen() {
   const userId = session?.employee.id;
   const [error, setError] = useState<string | null>(null);
 
-  const productsQuery = useQuery({
-    queryKey: ['products', 'import-export'],
-    queryFn: async () => {
-      const repo = container.resolve<IProductRepository>(TOKENS.ProductRepository);
-      const result = await repo.list({ includeInactive: true });
-      if (!result.ok) throw result.error;
-      return result.value;
-    },
-  });
-
   const exportMutation = useMutation({
     mutationFn: async () => {
-      const products = productsQuery.data ?? [];
-      const csv = productsToCsv(products);
-      await Share.share({ title: 'Export produits NFP', message: csv });
+      const repo = container.resolve<IImportExportRepository>(TOKENS.ImportExportRepository);
+      const result = await repo.exportProductCatalogueCsv();
+      if (!result.ok) throw result.error;
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -42,10 +30,13 @@ export function AdminImportExportScreen() {
   const importMutation = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error('Session invalide');
-      return importProductsFromCsv(userId);
+      const repo = container.resolve<IImportExportRepository>(TOKENS.ImportExportRepository);
+      const result = await repo.importProductCatalogueCsv(userId);
+      if (!result.ok) throw result.error;
+      return result.value;
     },
     onSuccess: (result) => {
-      if (result.skipped) return;
+      if (result?.skipped) return;
       setError(null);
       Alert.alert('Import terminé', `${result.created} créé(s), ${result.updated} mis à jour.`);
       void queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -55,29 +46,31 @@ export function AdminImportExportScreen() {
 
   return (
     <AdminScreenShell title="Import catalogue" subtitle="Fichiers CSV produits">
+      <Text style={[typography.bodyStrong, { marginBottom: spacing.xs }]}>
+        Outil de gestion du catalogue uniquement
+      </Text>
       <Text style={[typography.caption, { color: Colors.textSecondary, marginBottom: spacing.sm }]}>
-        Le serveur est la source de vérité. L’import/export CSV sert uniquement à préparer ou
-        modifier le catalogue produits — pas à sauvegarder ou restaurer la base de données.
+        Cette fonctionnalité est destinée à la gestion du catalogue produits. Ce n’est pas un
+        système de sauvegarde. Elle ne permet pas d’exporter ou d’importer la base SQLite, les
+        ventes, les clients, le stock global ni une archive de sauvegarde.
       </Text>
       <BrandCard style={{ gap: spacing.sm }}>
-        <Text style={typography.h3}>Export produits (CSV)</Text>
+        <Text style={typography.h3}>Export catalogue (CSV)</Text>
         <Text style={[typography.caption, { color: Colors.textSecondary }]}>
-          Génère un fichier CSV avec SKU, nom, code-barres, prix, TVA et stock. Idéal pour modifier
-          le catalogue dans Excel puis réimporter.
+          SKU, nom, code-barres, prix, TVA et stock — pour édition dans Excel puis réimport.
         </Text>
         <Button
           mode="contained"
           icon="download"
           onPress={() => exportMutation.mutate()}
           loading={exportMutation.isPending}
-          disabled={!productsQuery.data?.length}
         >
-          Exporter les produits
+          Exporter le catalogue produits
         </Button>
       </BrandCard>
 
       <BrandCard style={{ gap: spacing.sm }}>
-        <Text style={typography.h3}>Import produits (CSV)</Text>
+        <Text style={typography.h3}>Import catalogue (CSV)</Text>
         <Text style={[typography.caption, { color: Colors.textSecondary }]}>
           Met à jour les produits existants (par SKU) ou crée les nouveaux. Colonnes : sku, nom,
           code_barres, prix_ttc, tva, stock.

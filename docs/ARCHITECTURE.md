@@ -1,125 +1,99 @@
-# NFP — Architecture Decisions (Phase 1)
+# NFP — Architecture Decisions
 
-## Scope of this phase
+## Source of truth
 
-Roadmap steps 1–8 only:
+The **backend server** is the single source of truth for:
 
-1. Initialize React Native (Expo + TypeScript)
-2. Feature-first clean architecture
-3. Navigation
-4. Theme (light/dark, tablet-first)
-5. SQLite schema + transactional writes
-6. Repository pattern with mock data
-7. PIN authentication flow
-8. Dashboard shell
+- Business data (orders, catalog, employees when synced)
+- Administration settings
+- Audit / activity history
+- Backups and retention
 
-Cart / POS / checkout / local payments are implemented. Remaining roadmap: customers, sales history UI, reports, sync, real TPE adapters.
+The **mobile application** is a client with offline capabilities:
 
-## Why Expo
+- UI and local validation
+- Offline cache (SQLite)
+- Synchronization queue
+- Temporary offline changes until the server acknowledges them
 
-- Faster delivery for a greenfield POS while remaining cross-platform (Android tablets + iPhone).
-- Access to Secure Store, SQLite, Notifications, Print, Sharing without forking native projects yet.
-- Eject / continuous native modules only when a payment terminal or USB printer requires it.
+SQLite is **never** authoritative storage for business configuration or audit trails.
 
 ## Layering
 
 ```
 UI (screens/components)
-  → Application services / Zustand stores / React Query
+  → Application services / Zustand / React Query
     → Repository interfaces (ports)
-      → Mock / SQLite / future REST adapters (adapters)
-        → SQLite (source of truth offline)
+      → Cached facades (server-first, cache fallback)
+        → Remote API adapters + SQLite cache adapters
+          → Backend API / SQLite cache tables
 ```
 
 Rules:
 
-- Screens never import Axios or know about HTTP.
-- Features own their domain types, screens, and hooks.
-- `core/` holds DI, config, errors, security primitives.
-- `shared/` holds cross-feature UI and utilities only.
+- Screens never import HTTP clients directly.
+- Features own domain types, screens, and hooks.
+- `core/http/ApiClient` is the shared HTTP adapter.
+- `core/di` registers adapters at bootstrap.
 
-## Dependency Injection
+## Repository responsibilities
 
-Lightweight custom container (`core/di`) instead of decorator-heavy frameworks:
-
-- No `emitDecoratorMetadata` / reflect-metadata tax.
-- Explicit registration at bootstrap (`app/bootstrap.ts`).
-- Easy swap: `UserRepository` mock → SQLite → REST without touching UI.
-
-## State management
-
-| Concern | Tool |
+| Repository | Role |
 |---|---|
-| Session / PIN lock / UI prefs | Zustand |
-| Async reads (products, dashboard stats) | TanStack Query |
-| Durable business data | SQLite via repositories |
-| Secrets (PIN hash, tokens) | Expo Secure Store + Keychain abstraction |
-| Hot ephemeral flags | MMKV (when native module available) / Secure Store fallback |
+| `CachedAdminSettingsRepository` | Server-owned admin settings; SQLite cache + sync queue |
+| `SqliteAdminSettingsCacheRepository` | Offline cache only |
+| `CachedActivityHistoryRepository` | Server audit trail + temporary local events |
+| `SqliteActivityCacheRepository` | Local audit cache / server snapshot |
+| `RemoteActivityHistoryRepository` | Fetch audit from backend |
+| `SyncApiRepository` | `POST /sync/push`, `GET /sync/pull` |
+| `ISyncRepository` | Local outbound sync queue |
+| `RemoteServerInfoRepository` | Backend status + backup request |
+| `ProductImportExportRepository` | Catalogue CSV only (not backups) |
 
-## Navigation
+## Administration settings flow
 
-React Navigation (native stack + drawer for tablet shell):
+1. **Startup** — load cached settings immediately; `refreshOnStartup()` pulls from backend when online.
+2. **Edit** — write to local cache, enqueue `admin_settings` sync event, push when network available.
+3. **Offline** — use cache; queue modifications; auto-sync when connectivity returns.
+4. **Conflict** — server wins on pull (settings replaced from `/sync/pull`).
 
-- Auth stack: PIN unlock
-- App shell: tablet-optimized drawer / rail + stack
-- Deep feature stacks added later without rewriting the root
+Client-only keys (not pushed): `sync` metadata, `developer` flags.
 
-## Theme
+## Activity history
 
-React Native Paper + custom design tokens:
+- **Online** — authoritative list from server (`/audit/logs` or pull payload); local pending events shown as `source: local`.
+- **Offline** — temporary local audit events only.
+- **After sync** — server snapshot replaces cached server history.
 
-- Premium, minimal palette (slate + teal accent — not purple defaults)
-- Large touch targets (≥ 48dp, POS targets often 56–64)
-- Light / dark via Paper theme + system preference override in settings store
-- Responsive breakpoints for phone vs tablet
+## Synchronization
 
-## SQLite
+`syncCoordinator.runSyncNow()`:
 
-`expo-sqlite` with:
+1. Health check
+2. Push pending queue via `SyncApiRepository`
+3. Pull settings + refresh admin cache
+4. Refresh activity from server
+5. Update sync metadata
 
-- Schema versioning / migrations
-- All writes inside transactions
-- Tables prepared now for French fiscal compliance (orders immutable, audit logs, sync queue, hash chain columns) even if unused until later features
+No per-screen sync duplication — screens call `runSyncNow()` or rely on startup/background retry.
 
-## Repositories
+## CSV import / export
 
-Phase 1 repositories return mock data behind interfaces:
+Catalogue CSV only. Not a backup system. No SQLite/JSON dumps, sales DB, or full app export.
 
-- `IAuthRepository`
-- `IUserRepository`
-- `IDashboardRepository`
-- `ISettingsRepository`
-- `IProductRepository` / `ICategoryRepository` (SQLite catalog CRUD + stock adjustments)
-- `ICartRepository` / `IOrderRepository` / `PaymentProvider` (POS cart → immutable sale)
+## SQLite usage
 
-Local SQLite repositories are wired for users/settings/audit/catalog/cart/orders. Dashboard metrics stay mocked until replaced by order aggregates.
+- Offline cache for settings, catalog, orders, cart
+- Sync queue (`sync_queue`)
+- Temporary local audit until server acknowledges
+- Immutable local orders for offline POS
 
-## Authentication (Phase 1)
+## Security
 
-- Employee PIN login (4–6 digits)
-- Roles + permissions model in domain (Cashier, Manager, Admin)
-- Session in Zustand; PIN verification via repository
-- Auto-logout timer (configurable, default 15 min idle)
-- Secure storage for session token placeholder (JWT-ready)
+- Session token in Secure Store (JWT-ready)
+- `ApiClient` attaches Bearer token when present
+- Admin backup request gated on `settings.manage`
 
-## Security foundations (scaffolded)
+## Testing
 
-- Audit log writer interface
-- Receipt hash-chain applied on each completed sale (`previous_hash` → `receipt_hash`)
-- No hard deletes of accounting entities in schema (`deleted_at` forbidden on orders; soft flags only where legally allowed)
-
-## Tablet / phone
-
-- Primary layout: two-pane capable shell on `width >= 768`
-- Phone: single column with bottom-friendly navigation later
-- All Phase 1 screens usable on both
-
-## Testing readiness
-
-- `__tests__` colocated under features
-- Jest + Testing Library configured
-- Repository interfaces enable unit tests without SQLite/UI
-
-## What comes next
-
-Customers → Sales history UI → live dashboard metrics → Reports → Sync engine → real payment terminal adapters.
+Repository interfaces enable unit tests without SQLite or HTTP. Jest + Testing Library configured.

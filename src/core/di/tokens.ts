@@ -20,6 +20,8 @@ export const TOKENS = {
   ActivityHistoryRepository: 'ActivityHistoryRepository',
   DeviceRepository: 'DeviceRepository',
   ServerInfoRepository: 'ServerInfoRepository',
+  SyncApiRepository: 'SyncApiRepository',
+  ImportExportRepository: 'ImportExportRepository',
   PaymentProvider: 'PaymentProvider',
   AuditService: 'AuditService',
   SecureStorage: 'SecureStorage',

@@ -50,7 +50,7 @@ export function AdminActivityScreen() {
   const hasMore = (page + 1) * PAGE_SIZE < total;
 
   return (
-    <AdminScreenShell title="Historique" subtitle="Activité du magasin">
+    <AdminScreenShell title="Historique" subtitle="Activité du magasin — serveur source de vérité">
       {activityQuery.isLoading && !activityQuery.data ? (
         <ActivityIndicator />
       ) : (
@@ -73,6 +73,7 @@ export function AdminActivityScreen() {
                 <Text style={[typography.caption, { color: Colors.textSecondary }]}>
                   {formatWhen(item.createdAt)}
                   {item.employeeName ? ` · ${item.employeeName}` : ''}
+                  {item.source === 'local' ? ' · local (en attente)' : ''}
                 </Text>
               </View>
             </View>

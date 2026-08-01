@@ -1,7 +1,7 @@
 import { APP_CONFIG } from '@/core/config/appConfig';
 import { AppError } from '@/core/errors/AppError';
 import { err, ok, type Result } from '@/core/types/Result';
-import type { IAdminSettingsRepository } from '@/features/settings/data/AdminSettingsRepository';
+import type { SqliteAdminSettingsCacheRepository } from '@/features/settings/data/SqliteAdminSettingsCacheRepository';
 import type { IServerInfoRepository } from '@/features/sync/data/ServerInfoRepository';
 import type { ISyncRepository } from '@/features/sync/data/SyncRepository';
 import type {
@@ -53,12 +53,12 @@ async function fetchServerStatus(apiUrl: string): Promise<{
  */
 export class RemoteServerInfoRepository implements IServerInfoRepository {
   constructor(
-    private readonly adminSettings: IAdminSettingsRepository,
+    private readonly adminCache: SqliteAdminSettingsCacheRepository,
     private readonly syncRepository: ISyncRepository,
   ) {}
 
   async getSnapshot(): Promise<Result<ServerInfoSnapshot>> {
-    const bundle = await this.adminSettings.getBundle();
+    const bundle = await this.adminCache.getBundle();
     if (!bundle.ok) return bundle;
 
     const syncMeta = bundle.value.sync;
@@ -118,7 +118,7 @@ export class RemoteServerInfoRepository implements IServerInfoRepository {
   }
 
   async requestServerBackup(): Promise<Result<ServerBackupRequestResult>> {
-    const bundle = await this.adminSettings.getBundle();
+    const bundle = await this.adminCache.getBundle();
     if (!bundle.ok) return bundle;
 
     const apiUrl = bundle.value.sync.apiUrl;

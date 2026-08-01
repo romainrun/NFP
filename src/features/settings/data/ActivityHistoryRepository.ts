@@ -9,4 +9,6 @@ export type ListActivityInput = {
 export interface IActivityHistoryRepository {
   list(input: ListActivityInput): Promise<Result<ActivityHistoryItem[]>>;
   count(): Promise<Result<number>>;
+  /** Fetch authoritative audit trail from the backend and replace local cache. */
+  refreshFromServer(): Promise<Result<void>>;
 }

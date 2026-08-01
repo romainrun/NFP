@@ -2,7 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { AppError } from '@/core/errors/AppError';
 import { err, ok, type Result } from '@/core/types/Result';
 import { withWriteTransaction } from '@/database/transaction';
-import type { IAdminSettingsRepository } from '@/features/settings/data/AdminSettingsRepository';
+import type { SyncedAdminSection } from '@/features/settings/data/AdminSettingsRepository';
 import {
   defaultAdminSettingsBundle,
   type AdminSettingsBundle,
@@ -26,6 +26,15 @@ const KEYS = {
   sync: 'admin.sync_meta',
   developer: 'admin.developer',
 } as const;
+
+const SECTION_KEY: Record<SyncedAdminSection, string> = {
+  storeExtended: KEYS.storeExtended,
+  pos: KEYS.pos,
+  payments: KEYS.payments,
+  taxes: KEYS.taxes,
+  receipt: KEYS.receipt,
+  inventory: KEYS.inventory,
+};
 
 function parseJson<T>(raw: string | undefined, fallback: T): T {
   if (!raw) return fallback;
@@ -55,7 +64,11 @@ function normalizeReceipt(raw: ReceiptSettings & Record<string, unknown>): Recei
   };
 }
 
-export class SqliteAdminSettingsRepository implements IAdminSettingsRepository {
+/**
+ * Offline cache for administration settings.
+ * The backend is authoritative — this layer never owns business configuration.
+ */
+export class SqliteAdminSettingsCacheRepository {
   constructor(private readonly db: SQLiteDatabase) {}
 
   async getBundle(): Promise<Result<AdminSettingsBundle>> {
@@ -93,7 +106,30 @@ export class SqliteAdminSettingsRepository implements IAdminSettingsRepository {
         developer: parseJson(map.get(KEYS.developer), defaults.developer),
       });
     } catch (cause) {
-      return err(AppError.database('Impossible de charger les paramètres admin', cause));
+      return err(AppError.database('Impossible de charger le cache des paramètres admin', cause));
+    }
+  }
+
+  async replaceSyncedSections(
+    sections: Partial<Pick<AdminSettingsBundle, SyncedAdminSection>>,
+  ): Promise<Result<void>> {
+    try {
+      await withWriteTransaction(this.db, async (txn) => {
+        const now = new Date().toISOString();
+        for (const section of Object.keys(sections) as SyncedAdminSection[]) {
+          const value = sections[section];
+          if (value === undefined) continue;
+          await txn.runAsync(
+            `INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)`,
+            SECTION_KEY[section],
+            JSON.stringify(value),
+            now,
+          );
+        }
+      });
+      return ok(undefined);
+    } catch (cause) {
+      return err(AppError.database('Impossible de mettre à jour le cache des paramètres', cause));
     }
   }
 
@@ -141,7 +177,7 @@ export class SqliteAdminSettingsRepository implements IAdminSettingsRepository {
       });
       return ok(undefined);
     } catch (cause) {
-      return err(AppError.database('Impossible d’enregistrer les paramètres', cause));
+      return err(AppError.database('Impossible d’enregistrer dans le cache local', cause));
     }
   }
 }
