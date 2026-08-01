@@ -18,6 +18,10 @@ export type Employee = {
   displayName: string;
   role: UserRole;
   isActive: boolean;
+  userColor: string | null;
+  lastLoginAt: string | null;
+  lastActivityAt: string | null;
+  forcePinChange: boolean;
 };
 
 export type AuthSession = {

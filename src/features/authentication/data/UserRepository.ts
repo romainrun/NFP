@@ -13,6 +13,8 @@ export type UpdateEmployeeInput = {
   displayName: string;
   role: UserRole;
   isActive: boolean;
+  userColor?: string | null;
+  forcePinChange?: boolean;
 };
 
 export interface IUserRepository {
@@ -23,4 +25,6 @@ export interface IUserRepository {
   create(input: CreateEmployeeInput): Promise<Result<Employee>>;
   update(input: UpdateEmployeeInput): Promise<Result<Employee>>;
   setPin(id: string, pin: string): Promise<Result<void>>;
+  touchActivity(userId: string): Promise<Result<void>>;
+  recordLogin(userId: string): Promise<Result<void>>;
 }

@@ -40,7 +40,8 @@ import type { IProductRepository } from '@/features/products/data/ProductReposit
 import type { Product } from '@/features/products/domain/types';
 import { useCatalogAccess } from '@/features/products/presentation/hooks/useCatalogAccess';
 import type { IPromotionRepository } from '@/features/promotions/data/PromotionRepository';
-import { isPromotionRuleActive } from '@/features/promotions/domain/types';
+import { isProductPromotionRuleActive } from '@/features/promotions/domain/types';
+import { useAdminBundle } from '@/features/settings/presentation/hooks/useAdminBundle';
 import type { AppStackParamList, MainParamList } from '@/navigation/types';
 import { AnimatedPressable } from '@/shared/components/AnimatedPressable';
 import { AppHeader } from '@/shared/components/AppHeader';
@@ -78,6 +79,10 @@ export function PosScreen() {
   const { session } = useAuth();
   const { canSell, userId } = useSalesAccess();
   const canOversell = Boolean(session && hasPermission(session.employee.role, 'sales.oversell'));
+  const adminBundle = useAdminBundle();
+  const allowNegativeStock = adminBundle.data?.inventory.allowNegativeStock ?? false;
+  const confirmBeforeClearCart = adminBundle.data?.pos.confirmBeforeClearCart ?? true;
+  const canBypassStock = canOversell || allowNegativeStock;
   const { canManage: canManageCatalog, userId: catalogUserId } = useCatalogAccess();
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -162,7 +167,7 @@ export function PosScreen() {
   const activePromotions = useMemo(() => {
     const map = new Map<string, number>();
     for (const rule of promotionsQuery.data ?? []) {
-      if (isPromotionRuleActive(rule)) map.set(rule.productId, rule.discountBps);
+      if (isProductPromotionRuleActive(rule)) map.set(rule.productId, rule.discountBps);
     }
     return map;
   }, [promotionsQuery.data]);
@@ -193,7 +198,11 @@ export function PosScreen() {
       setSnack('Article ajouté');
     },
     onError: (error: Error, { productId }) => {
-      if (canOversell && isStockErrorMessage(error.message)) {
+      if (canBypassStock && isStockErrorMessage(error.message)) {
+        if (allowNegativeStock) {
+          addMutation.mutate({ productId, bypass: true });
+          return;
+        }
         Alert.alert(
           'Stock insuffisant',
           `${error.message}\n\nForcer l’ajout au panier ?`,
@@ -269,7 +278,11 @@ export function PosScreen() {
         setUnknownBarcode(code);
         return;
       }
-      if (canOversell && isStockErrorMessage(error.message)) {
+      if (canBypassStock && isStockErrorMessage(error.message)) {
+        if (allowNegativeStock) {
+          barcodeMutation.mutate({ code, bypass: true });
+          return;
+        }
         Alert.alert(
           'Stock insuffisant',
           `${error.message}\n\nForcer l’ajout au panier ?`,
@@ -522,11 +535,14 @@ export function PosScreen() {
   const cart = cartQuery.data;
 
   const handleProductPress = (product: Product) => {
-    if (product.stockQuantity <= 0 && !canOversell) {
+    if (product.stockQuantity <= 0 && !canBypassStock) {
       setSnack(`« ${product.name} » — stock épuisé`);
       return;
     }
-    addMutation.mutate({ productId: product.id });
+    addMutation.mutate({
+      productId: product.id,
+      bypass: allowNegativeStock && product.stockQuantity <= 0,
+    });
   };
 
   const catalog = (
@@ -681,12 +697,16 @@ export function PosScreen() {
         {cart.lines.length ? (
           <Button
             compact
-            onPress={() =>
+            onPress={() => {
+              if (!confirmBeforeClearCart) {
+                clearMutation.mutate();
+                return;
+              }
               Alert.alert('Vider le panier', 'Supprimer toutes les lignes ?', [
                 { text: 'Annuler', style: 'cancel' },
                 { text: 'Vider', style: 'destructive', onPress: () => clearMutation.mutate() },
-              ])
-            }
+              ]);
+            }}
           >
             Vider
           </Button>

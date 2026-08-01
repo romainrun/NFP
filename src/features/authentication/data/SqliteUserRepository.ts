@@ -18,9 +18,18 @@ type UserRow = {
   display_name: string;
   role: UserRole;
   is_active: number;
+  user_color: string | null;
+  last_login_at: string | null;
+  last_activity_at: string | null;
+  force_pin_change: number;
 };
 
 const ROLES: UserRole[] = ['admin', 'manager', 'cashier'];
+
+const USER_SELECT = `
+  id, employee_code, display_name, role, is_active,
+  user_color, last_login_at, last_activity_at, force_pin_change
+`;
 
 function mapEmployee(row: UserRow): Employee {
   return {
@@ -29,6 +38,10 @@ function mapEmployee(row: UserRow): Employee {
     displayName: row.display_name,
     role: row.role,
     isActive: row.is_active === 1,
+    userColor: row.user_color,
+    lastLoginAt: row.last_login_at,
+    lastActivityAt: row.last_activity_at,
+    forcePinChange: row.force_pin_change === 1,
   };
 }
 
@@ -41,49 +54,33 @@ export class SqliteUserRepository implements IUserRepository {
 
   async getById(id: string): Promise<Result<Employee>> {
     const row = await this.db.getFirstAsync<UserRow>(
-      `SELECT id, employee_code, display_name, role, is_active
-       FROM users WHERE id = ?`,
+      `SELECT ${USER_SELECT} FROM users WHERE id = ?`,
       id,
     );
-
-    if (!row) {
-      return err(AppError.notFound('Employee not found'));
-    }
-
+    if (!row) return err(AppError.notFound('Employee not found'));
     return ok(mapEmployee(row));
   }
 
   async getByEmployeeCode(code: string): Promise<Result<Employee>> {
     const row = await this.db.getFirstAsync<UserRow>(
-      `SELECT id, employee_code, display_name, role, is_active
-       FROM users WHERE employee_code = ?`,
+      `SELECT ${USER_SELECT} FROM users WHERE employee_code = ?`,
       normalizeCode(code),
     );
-
-    if (!row) {
-      return err(AppError.notFound('Employee not found'));
-    }
-
+    if (!row) return err(AppError.notFound('Employee not found'));
     return ok(mapEmployee(row));
   }
 
   async listActive(): Promise<Result<Employee[]>> {
     const rows = await this.db.getAllAsync<UserRow>(
-      `SELECT id, employee_code, display_name, role, is_active
-       FROM users WHERE is_active = 1
-       ORDER BY display_name ASC`,
+      `SELECT ${USER_SELECT} FROM users WHERE is_active = 1 ORDER BY display_name ASC`,
     );
-
     return ok(rows.map(mapEmployee));
   }
 
   async listAll(): Promise<Result<Employee[]>> {
     const rows = await this.db.getAllAsync<UserRow>(
-      `SELECT id, employee_code, display_name, role, is_active
-       FROM users
-       ORDER BY is_active DESC, display_name ASC`,
+      `SELECT ${USER_SELECT} FROM users ORDER BY is_active DESC, display_name ASC`,
     );
-
     return ok(rows.map(mapEmployee));
   }
 
@@ -95,12 +92,8 @@ export class SqliteUserRepository implements IUserRepository {
     if (!employeeCode || employeeCode.length < 2) {
       return err(AppError.validation('Code collaborateur invalide'));
     }
-    if (!displayName) {
-      return err(AppError.validation('Le nom est requis'));
-    }
-    if (!ROLES.includes(input.role)) {
-      return err(AppError.validation('Rôle invalide'));
-    }
+    if (!displayName) return err(AppError.validation('Le nom est requis'));
+    if (!ROLES.includes(input.role)) return err(AppError.validation('Rôle invalide'));
     if (!isValidPinFormat(pin)) {
       return err(AppError.validation('Le code PIN doit contenir 4 chiffres'));
     }
@@ -109,9 +102,7 @@ export class SqliteUserRepository implements IUserRepository {
       `SELECT id FROM users WHERE employee_code = ?`,
       employeeCode,
     );
-    if (existing) {
-      return err(AppError.validation('Ce code collaborateur existe déjà'));
-    }
+    if (existing) return err(AppError.validation('Ce code collaborateur existe déjà'));
 
     const id = Crypto.randomUUID();
     const now = new Date().toISOString();
@@ -143,12 +134,8 @@ export class SqliteUserRepository implements IUserRepository {
 
   async update(input: UpdateEmployeeInput): Promise<Result<Employee>> {
     const displayName = input.displayName.trim();
-    if (!displayName) {
-      return err(AppError.validation('Le nom est requis'));
-    }
-    if (!ROLES.includes(input.role)) {
-      return err(AppError.validation('Rôle invalide'));
-    }
+    if (!displayName) return err(AppError.validation('Le nom est requis'));
+    if (!ROLES.includes(input.role)) return err(AppError.validation('Rôle invalide'));
 
     const current = await this.getById(input.id);
     if (!current.ok) return current;
@@ -170,12 +157,15 @@ export class SqliteUserRepository implements IUserRepository {
     try {
       await withWriteTransaction(this.db, async (txn) => {
         await txn.runAsync(
-          `UPDATE users
-           SET display_name = ?, role = ?, is_active = ?, updated_at = ?
+          `UPDATE users SET
+            display_name = ?, role = ?, is_active = ?,
+            user_color = ?, force_pin_change = ?, updated_at = ?
            WHERE id = ?`,
           displayName,
           input.role,
           input.isActive ? 1 : 0,
+          input.userColor ?? current.value.userColor,
+          (input.forcePinChange ?? current.value.forcePinChange) ? 1 : 0,
           new Date().toISOString(),
           input.id,
         );
@@ -200,7 +190,7 @@ export class SqliteUserRepository implements IUserRepository {
     try {
       await withWriteTransaction(this.db, async (txn) => {
         await txn.runAsync(
-          `UPDATE users SET pin_salt = ?, pin_hash = ?, updated_at = ? WHERE id = ?`,
+          `UPDATE users SET pin_salt = ?, pin_hash = ?, force_pin_change = 0, updated_at = ? WHERE id = ?`,
           salt,
           pinHash,
           new Date().toISOString(),
@@ -210,6 +200,36 @@ export class SqliteUserRepository implements IUserRepository {
       return ok(undefined);
     } catch (cause) {
       return err(AppError.database('Impossible de mettre à jour le PIN', cause));
+    }
+  }
+
+  async touchActivity(userId: string): Promise<Result<void>> {
+    try {
+      await this.db.runAsync(
+        `UPDATE users SET last_activity_at = ?, updated_at = ? WHERE id = ?`,
+        new Date().toISOString(),
+        new Date().toISOString(),
+        userId,
+      );
+      return ok(undefined);
+    } catch (cause) {
+      return err(AppError.database('Impossible de mettre à jour l’activité', cause));
+    }
+  }
+
+  async recordLogin(userId: string): Promise<Result<void>> {
+    const now = new Date().toISOString();
+    try {
+      await this.db.runAsync(
+        `UPDATE users SET last_login_at = ?, last_activity_at = ?, updated_at = ? WHERE id = ?`,
+        now,
+        now,
+        now,
+        userId,
+      );
+      return ok(undefined);
+    } catch (cause) {
+      return err(AppError.database('Impossible d’enregistrer la connexion', cause));
     }
   }
 

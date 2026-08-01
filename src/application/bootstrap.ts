@@ -12,7 +12,9 @@ import { SqliteCategoryRepository } from '@/features/products/data/SqliteCategor
 import { SqliteProductRepository } from '@/features/products/data/SqliteProductRepository';
 import { SqliteNoteRepository } from '@/features/notes/data/SqliteNoteRepository';
 import { SqlitePromotionRepository } from '@/features/promotions/data/SqlitePromotionRepository';
+import { SqliteAdminSettingsRepository } from '@/features/settings/data/SqliteAdminSettingsRepository';
 import { SqliteSettingsRepository } from '@/features/settings/data/SqliteSettingsRepository';
+import { SqliteDeviceRepository } from '@/features/sync/data/SqliteDeviceRepository';
 import { SqliteSyncRepository } from '@/features/sync/data/SqliteSyncRepository';
 import { useSettingsStore } from '@/features/settings/presentation/store/settingsStore';
 import { SqliteAuditService } from '@/shared/services/audit/AuditService';
@@ -33,6 +35,7 @@ export async function bootstrap(): Promise<void> {
   const users = new SqliteUserRepository(db);
   const auth = new SqliteAuthRepository(db, users, secureStorage, audit);
   const settings = new SqliteSettingsRepository(db);
+  const adminSettings = new SqliteAdminSettingsRepository(db);
   const dashboard = new SqliteDashboardRepository(db);
   const categories = new SqliteCategoryRepository(db);
   const products = new SqliteProductRepository(db, audit);
@@ -40,6 +43,7 @@ export async function bootstrap(): Promise<void> {
   const carts = new SqliteCartRepository(db, products);
   const paymentProvider = new LocalPaymentProvider();
   const sync = new SqliteSyncRepository(db);
+  const devices = new SqliteDeviceRepository(db);
   const notes = new SqliteNoteRepository(db);
   const cashClosing = new SqliteCashClosingRepository(db);
   const orders = new SqliteOrderRepository(db, carts, paymentProvider, audit, sync);
@@ -51,6 +55,7 @@ export async function bootstrap(): Promise<void> {
   container.registerInstance(TOKENS.UserRepository, users);
   container.registerInstance(TOKENS.AuthRepository, auth);
   container.registerInstance(TOKENS.SettingsRepository, settings);
+  container.registerInstance(TOKENS.AdminSettingsRepository, adminSettings);
   container.registerInstance(TOKENS.DashboardRepository, dashboard);
   container.registerInstance(TOKENS.CategoryRepository, categories);
   container.registerInstance(TOKENS.ProductRepository, products);
@@ -61,6 +66,7 @@ export async function bootstrap(): Promise<void> {
   container.registerInstance(TOKENS.CashClosingRepository, cashClosing);
   container.registerInstance(TOKENS.SyncRepository, sync);
   container.registerInstance(TOKENS.NoteRepository, notes);
+  container.registerInstance(TOKENS.DeviceRepository, devices);
 
   const settingsResult = await settings.getSettings();
   if (settingsResult.ok) {

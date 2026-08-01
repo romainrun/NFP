@@ -13,6 +13,7 @@ import { ProductListSkeleton } from '@/shared/components/skeletons';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
+import { trackActivity } from '@/shared/services/activity/activityTracker';
 
 export function InventoryScreen() {
   const theme = useTheme();
@@ -56,6 +57,7 @@ export function InventoryScreen() {
       setEditing(null);
       setQuantity('');
       setReason('');
+      await trackActivity(userId);
       await queryClient.invalidateQueries({ queryKey: ['products'] });
     },
     onError: (err: Error) => setError(err.message),

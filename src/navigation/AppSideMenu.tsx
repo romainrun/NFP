@@ -30,8 +30,6 @@ const ITEMS: Item[] = [
   { key: 'products', label: 'Articles', icon: 'barcode', route: 'ProductList', section: 'Catalogue' },
   { key: 'categories', label: 'Catégories', icon: 'shape-outline', route: 'CategoryList', section: 'Catalogue' },
   { key: 'inventory', label: 'Inventaire', icon: 'clipboard-list-outline', route: 'Inventory', section: 'Catalogue' },
-  { key: 'promos', label: 'Promotions', icon: 'tag-percent-outline', route: 'Promotions', section: 'Catalogue' },
-  { key: 'members', label: 'Membres', icon: 'account-group-outline', route: 'Members', section: 'Administration' },
   { key: 'settings', label: 'Paramètres', icon: 'cog-outline', route: 'Settings', section: 'Administration' },
 ];
 
@@ -53,9 +51,6 @@ export function AppSideMenu() {
   const canManageCatalog = Boolean(
     session && hasPermission(session.employee.role, 'inventory.manage'),
   );
-  const canManageUsers = Boolean(
-    session && hasPermission(session.employee.role, 'users.manage'),
-  );
   const canManageSettings = Boolean(
     session && hasPermission(session.employee.role, 'settings.manage'),
   );
@@ -68,8 +63,6 @@ export function AppSideMenu() {
     if (item.route === 'Exports') return canViewReports;
     if (item.route === 'CategoryList') return canManageCatalog;
     if (item.route === 'Inventory') return canManageCatalog;
-    if (item.route === 'Promotions') return canManageCatalog;
-    if (item.route === 'Members') return canManageUsers;
     if (item.route === 'Settings') return canManageSettings;
     return true;
   });

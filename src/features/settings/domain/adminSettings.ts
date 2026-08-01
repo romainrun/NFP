@@ -1,0 +1,207 @@
+import { APP_CONFIG } from '@/core/config/appConfig';
+import type { PaymentMethod } from '@/features/payments/domain/PaymentProvider';
+import { VAT_RATES } from '@/features/products/domain/types';
+
+export type StoreExtendedSettings = {
+  logoUri: string | null;
+  email: string;
+  website: string;
+  vatNumber: string;
+  currency: string;
+  timezone: string;
+  language: string;
+  latitude: string;
+  longitude: string;
+  receiptFooterText: string;
+  returnPolicy: string;
+};
+
+export type PosSettings = {
+  posName: string;
+  deviceName: string;
+  startingReceiptNumber: number;
+  autoPrintReceipt: boolean;
+  confirmBeforeClearCart: boolean;
+  confirmBeforeVoidSale: boolean;
+  autoLockMinutes: number;
+};
+
+export type PaymentMethodConfig = {
+  method: PaymentMethod;
+  enabled: boolean;
+  sortOrder: number;
+};
+
+export type PaymentsSettings = {
+  methods: PaymentMethodConfig[];
+  defaultMethod: PaymentMethod;
+  maxCashCents: number;
+  enableSplitPayment: boolean;
+};
+
+export type VatRateConfig = {
+  id: string;
+  label: string;
+  rate: number;
+  isActive: boolean;
+};
+
+export type TaxSettings = {
+  rates: VatRateConfig[];
+  defaultRateId: string;
+};
+
+export type ReceiptSettings = {
+  logoUri: string | null;
+  headerText: string;
+  footerText: string;
+  qrCodeEnabled: boolean;
+  numberingEnabled: boolean;
+};
+
+export type InventorySettings = {
+  lowStockThreshold: number;
+  criticalStockThreshold: number;
+  enableLowStockAlerts: boolean;
+  allowNegativeStock: boolean;
+};
+
+export type SyncMetaSettings = {
+  apiUrl: string;
+  backendVersion: string | null;
+  catalogVersion: number;
+  lastSuccessfulSyncAt: string | null;
+  backendAvailable: boolean;
+  newCatalogAvailable: boolean;
+  newDataAvailable: boolean;
+  simulateOffline: boolean;
+};
+
+export type DeveloperSettings = {
+  enabled: boolean;
+};
+
+export type AdminSettingsBundle = {
+  storeExtended: StoreExtendedSettings;
+  pos: PosSettings;
+  payments: PaymentsSettings;
+  taxes: TaxSettings;
+  receipt: ReceiptSettings;
+  inventory: InventorySettings;
+  sync: SyncMetaSettings;
+  developer: DeveloperSettings;
+};
+
+const PAYMENT_METHOD_ORDER: PaymentMethod[] = [
+  'cash',
+  'card',
+  'online',
+  'remote',
+  'transfer',
+  'amex',
+  'gift_card',
+  'store_credit',
+];
+
+export function defaultStoreExtended(): StoreExtendedSettings {
+  return {
+    logoUri: null,
+    email: '',
+    website: 'https://nf.tikilote.re/',
+    vatNumber: '',
+    currency: 'EUR',
+    timezone: 'Indian/Reunion',
+    language: 'fr',
+    latitude: '',
+    longitude: '',
+    receiptFooterText: 'Merci pour votre confiance — Naturally Forme',
+    returnPolicy: '',
+  };
+}
+
+export function defaultPosSettings(): PosSettings {
+  return {
+    posName: 'Caisse Naturally Forme',
+    deviceName: 'Caisse principale',
+    startingReceiptNumber: 1,
+    autoPrintReceipt: false,
+    confirmBeforeClearCart: true,
+    confirmBeforeVoidSale: true,
+    autoLockMinutes: APP_CONFIG.idleLogoutMs / 60_000,
+  };
+}
+
+export function defaultPaymentsSettings(): PaymentsSettings {
+  return {
+    methods: PAYMENT_METHOD_ORDER.map((method, index) => ({
+      method,
+      enabled: method !== 'amex',
+      sortOrder: index,
+    })),
+    defaultMethod: 'cash',
+    maxCashCents: 500_000,
+    enableSplitPayment: true,
+  };
+}
+
+export function defaultTaxSettings(): TaxSettings {
+  const rates: VatRateConfig[] = VAT_RATES.map((rate, index) => ({
+    id: `vat-${rate}`,
+    label: `${rate} %`,
+    rate,
+    isActive: true,
+  }));
+  return {
+    rates,
+    defaultRateId: rates.find((r) => r.rate === 5.5)?.id ?? rates[0]?.id ?? 'vat-5.5',
+  };
+}
+
+export function defaultReceiptSettings(): ReceiptSettings {
+  return {
+    logoUri: null,
+    headerText: 'Naturally Forme',
+    footerText: 'Merci pour votre visite',
+    qrCodeEnabled: false,
+    numberingEnabled: true,
+  };
+}
+
+export function defaultInventorySettings(): InventorySettings {
+  return {
+    lowStockThreshold: 5,
+    criticalStockThreshold: 2,
+    enableLowStockAlerts: true,
+    allowNegativeStock: false,
+  };
+}
+
+export function defaultSyncMetaSettings(): SyncMetaSettings {
+  return {
+    apiUrl: 'https://api.nf.tikilote.re/v1',
+    backendVersion: null,
+    catalogVersion: 1,
+    lastSuccessfulSyncAt: null,
+    backendAvailable: false,
+    newCatalogAvailable: false,
+    newDataAvailable: false,
+    simulateOffline: false,
+  };
+}
+
+export function defaultDeveloperSettings(): DeveloperSettings {
+  return { enabled: false };
+}
+
+export function defaultAdminSettingsBundle(): AdminSettingsBundle {
+  return {
+    storeExtended: defaultStoreExtended(),
+    pos: defaultPosSettings(),
+    payments: defaultPaymentsSettings(),
+    taxes: defaultTaxSettings(),
+    receipt: defaultReceiptSettings(),
+    inventory: defaultInventorySettings(),
+    sync: defaultSyncMetaSettings(),
+    developer: defaultDeveloperSettings(),
+  };
+}

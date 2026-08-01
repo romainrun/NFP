@@ -27,6 +27,17 @@ export type AppStackParamList = {
   Checkout: undefined;
   SaleComplete: { orderId: string; changeCents?: number };
   ProductForm: { productId?: string; initialBarcode?: string };
+  AdminStore: undefined;
+  AdminPos: undefined;
+  AdminPayments: undefined;
+  AdminTaxes: undefined;
+  AdminReceipts: undefined;
+  AdminInventory: undefined;
+  AdminPromotions: undefined;
+  AdminEmployees: undefined;
+  AdminDevices: undefined;
+  AdminSync: undefined;
+  AdminDeveloper: undefined;
 };
 
 export type RootStackParamList = {

@@ -31,6 +31,7 @@ import { ProductFormSkeleton } from '@/shared/components/skeletons';
 import { centsToEuros, eurosToCents, formatMoney, parseEurosInput } from '@/shared/utils/money';
 import { spacing } from '@/shared/theme/spacing';
 import { typography } from '@/shared/theme/typography';
+import { trackActivity } from '@/shared/services/activity/activityTracker';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ProductForm'>;
 
@@ -226,6 +227,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
       return result.value;
     },
     onSuccess: async () => {
+      await trackActivity(userId);
       await invalidateCatalog();
       navigation.goBack();
     },
@@ -240,6 +242,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
       if (!result.ok) throw result.error;
     },
     onSuccess: async () => {
+      await trackActivity(userId);
       await invalidateCatalog();
       navigation.goBack();
     },
@@ -266,6 +269,7 @@ export function ProductFormScreen({ navigation, route }: Props) {
       setStockDialogOpen(false);
       setStockDelta('');
       setStockReason('');
+      await trackActivity(userId);
       await invalidateCatalog();
       await productQuery.refetch();
     },

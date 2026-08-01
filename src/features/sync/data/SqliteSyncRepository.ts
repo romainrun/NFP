@@ -84,16 +84,78 @@ export class SqliteSyncRepository implements ISyncRepository {
     }
   }
 
+  async countFailed(): Promise<Result<number>> {
+    try {
+      const row = await this.db.getFirstAsync<{ count: number }>(
+        `SELECT COUNT(*) as count FROM sync_queue WHERE status = 'failed'`,
+      );
+      return ok(row?.count ?? 0);
+    } catch (cause) {
+      return err(AppError.database('Impossible de compter les échecs sync', cause));
+    }
+  }
+
+  async listFailed(limit = 50): Promise<Result<SyncQueueItem[]>> {
+    try {
+      const rows = await this.db.getAllAsync<Row>(
+        `SELECT * FROM sync_queue WHERE status = 'failed' ORDER BY created_at ASC LIMIT ?`,
+        limit,
+      );
+      return ok(rows.map(mapRow));
+    } catch (cause) {
+      return err(AppError.database('Impossible de lire les échecs sync', cause));
+    }
+  }
+
+  async listAll(limit = 100): Promise<Result<SyncQueueItem[]>> {
+    try {
+      const rows = await this.db.getAllAsync<Row>(
+        `SELECT * FROM sync_queue ORDER BY created_at DESC LIMIT ?`,
+        limit,
+      );
+      return ok(rows.map(mapRow));
+    } catch (cause) {
+      return err(AppError.database('Impossible de lire la file sync', cause));
+    }
+  }
+
   async markSynced(id: string): Promise<Result<void>> {
     try {
       await this.db.runAsync(
-        `UPDATE sync_queue SET status = 'synced', updated_at = ? WHERE id = ?`,
+        `UPDATE sync_queue SET status = 'synced', updated_at = ?, last_error = NULL WHERE id = ?`,
         new Date().toISOString(),
         id,
       );
       return ok(undefined);
     } catch (cause) {
       return err(AppError.database('Impossible de marquer sync', cause));
+    }
+  }
+
+  async markFailed(id: string, error: string): Promise<Result<void>> {
+    try {
+      await this.db.runAsync(
+        `UPDATE sync_queue SET status = 'failed', last_error = ?, attempts = attempts + 1, updated_at = ? WHERE id = ?`,
+        error.slice(0, 500),
+        new Date().toISOString(),
+        id,
+      );
+      return ok(undefined);
+    } catch (cause) {
+      return err(AppError.database('Impossible de marquer l’échec sync', cause));
+    }
+  }
+
+  async requeue(id: string): Promise<Result<void>> {
+    try {
+      await this.db.runAsync(
+        `UPDATE sync_queue SET status = 'pending', updated_at = ? WHERE id = ?`,
+        new Date().toISOString(),
+        id,
+      );
+      return ok(undefined);
+    } catch (cause) {
+      return err(AppError.database('Impossible de réintégrer la file sync', cause));
     }
   }
 }

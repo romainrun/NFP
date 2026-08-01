@@ -72,15 +72,21 @@ export class SqliteAuthRepository implements IAuthRepository {
     const expiresAt = new Date(authenticatedAt.getTime() + APP_CONFIG.idleLogoutMs);
     const token = Crypto.randomUUID();
 
+    await this.audit.log({
+      userId: row.id,
+      action: 'login',
+      entityType: 'user',
+      entityId: row.id,
+    });
+
+    await this.users.recordLogin(row.id);
+
+    const employee = await this.users.getById(row.id);
+    if (!employee.ok) return err(employee.error);
+
     const session: AuthSession = {
       token,
-      employee: {
-        id: row.id,
-        employeeCode: row.employee_code,
-        displayName: row.display_name,
-        role: row.role,
-        isActive: true,
-      },
+      employee: employee.value,
       authenticatedAt: authenticatedAt.toISOString(),
       expiresAt: expiresAt.toISOString(),
     };
@@ -89,13 +95,6 @@ export class SqliteAuthRepository implements IAuthRepository {
       APP_CONFIG.secureStorageKeys.sessionToken,
       JSON.stringify(session),
     );
-
-    await this.audit.log({
-      userId: row.id,
-      action: 'login',
-      entityType: 'user',
-      entityId: row.id,
-    });
 
     return ok(session);
   }

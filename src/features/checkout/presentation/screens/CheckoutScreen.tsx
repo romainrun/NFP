@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import {
   Button,
@@ -24,6 +24,7 @@ import {
   isCashMethod,
   type TenderMethod,
 } from '@/features/payments/domain/paymentMethods';
+import { useAdminBundle } from '@/features/settings/presentation/hooks/useAdminBundle';
 import type { AppStackParamList } from '@/navigation/types';
 import { AnimatedPressable } from '@/shared/components/AnimatedPressable';
 import { QueryErrorPanel } from '@/shared/components/QueryErrorPanel';
@@ -31,6 +32,7 @@ import { Screen } from '@/shared/components/Screen';
 import { CheckoutSkeleton } from '@/shared/components/skeletons';
 import { useResponsiveLayout } from '@/shared/hooks/useResponsiveLayout';
 import { vibrateSuccess, vibrateTap } from '@/shared/utils/haptics';
+import { trackActivity } from '@/shared/services/activity/activityTracker';
 import { eurosToCents, formatMoney, parseEurosInput } from '@/shared/utils/money';
 import { Colors, shadows } from '@/shared/theme/colors';
 import { radii, spacing } from '@/shared/theme/spacing';
@@ -61,6 +63,30 @@ export function CheckoutScreen({ navigation }: Props) {
   const [paymentReference, setPaymentReference] = useState('');
   const [splitLines, setSplitLines] = useState<SplitLine[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const adminBundle = useAdminBundle();
+
+  const enabledMethods = useMemo((): TenderMethod[] => {
+    const payments = adminBundle.data?.payments;
+    if (!payments) return [...TENDER_METHODS];
+    return payments.methods
+      .filter((m) => m.enabled)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((m) => m.method as TenderMethod);
+  }, [adminBundle.data?.payments]);
+
+  const enableSplitPayment = adminBundle.data?.payments.enableSplitPayment ?? true;
+  const maxCashCents = adminBundle.data?.payments.maxCashCents ?? 500_000;
+  const defaultMethod = (adminBundle.data?.payments.defaultMethod as TenderMethod) ?? 'cash';
+
+  useEffect(() => {
+    if (!enabledMethods.length) return;
+    if (!enabledMethods.includes(method)) {
+      const next: TenderMethod = enabledMethods.includes(defaultMethod)
+        ? defaultMethod
+        : (enabledMethods[0] ?? 'cash');
+      setMethod(next);
+    }
+  }, [enabledMethods, defaultMethod, method]);
 
   const cartQuery = useQuery({
     queryKey: ['cart', userId],
@@ -102,6 +128,9 @@ export function CheckoutScreen({ navigation }: Props) {
       if (tenderedCents == null) throw new Error('Montant remis invalide');
       if (isCashMethod(method) && tenderedCents < totalCents) {
         throw new Error('Montant insuffisant');
+      }
+      if (isCashMethod(method) && tenderedCents > maxCashCents) {
+        throw new Error(`Espèces max : ${formatMoney(maxCashCents)}`);
       }
       if (needsReference(method) && !paymentReference.trim()) {
         throw new Error('Référence requise pour ce moyen de paiement');
@@ -156,6 +185,7 @@ export function CheckoutScreen({ navigation }: Props) {
     },
     onSuccess: async (sale) => {
       vibrateSuccess();
+      await trackActivity(userId);
       await queryClient.invalidateQueries({ queryKey: ['cart', userId] });
       await queryClient.invalidateQueries({ queryKey: ['products'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -243,12 +273,13 @@ export function CheckoutScreen({ navigation }: Props) {
         <SegmentedButtons
           value={mode}
           onValueChange={(value) => {
+            if (value === 'split' && !enableSplitPayment) return;
             setMode(value as CheckoutMode);
             setError(null);
           }}
           buttons={[
             { value: 'single', label: 'Simple' },
-            { value: 'split', label: 'Mixte' },
+            { value: 'split', label: 'Mixte', disabled: !enableSplitPayment },
           ]}
         />
 
@@ -256,7 +287,7 @@ export function CheckoutScreen({ navigation }: Props) {
           <>
             <Text style={[typography.h3, { color: Colors.text }]}>Moyen de paiement</Text>
             <View style={styles.methodGrid}>
-              {TENDER_METHODS.map((value) => {
+              {enabledMethods.map((value) => {
                 const selected = method === value;
                 return (
                   <AnimatedPressable
@@ -352,25 +383,7 @@ export function CheckoutScreen({ navigation }: Props) {
             {splitLines.map((line) => (
               <View key={line.id} style={styles.splitRow}>
                 <View style={styles.splitMethodRow}>
-                  {TENDER_METHODS.slice(0, 4).map((m) => (
-                    <Button
-                      key={m}
-                      compact
-                      mode={line.method === m ? 'contained' : 'outlined'}
-                      onPress={() =>
-                        setSplitLines((prev) =>
-                          prev.map((item) =>
-                            item.id === line.id ? { ...item, method: m } : item,
-                          ),
-                        )
-                      }
-                    >
-                      {PAYMENT_METHOD_LABELS[m]}
-                    </Button>
-                  ))}
-                </View>
-                <View style={styles.splitMethodRow}>
-                  {TENDER_METHODS.slice(4).map((m) => (
+                  {enabledMethods.map((m) => (
                     <Button
                       key={m}
                       compact

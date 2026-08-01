@@ -1,6 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Text, useTheme } from 'react-native-paper';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -12,6 +12,9 @@ import { EmployeeNotesPanel } from '@/features/dashboard/presentation/components
 import { MetricCard } from '@/features/dashboard/presentation/components/MetricCard';
 import { SalesSparkBars } from '@/features/dashboard/presentation/components/SalesSparkBars';
 import type { ISettingsRepository } from '@/features/settings/data/SettingsRepository';
+import { SyncStatusCard } from '@/features/settings/presentation/components/SyncStatusCard';
+import { useSyncSummary } from '@/features/settings/presentation/hooks/useSyncSummary';
+import { runSyncNow } from '@/features/sync/services/syncCoordinator';
 import {
   defaultDashboardWidgets,
   type DashboardWidgetId,
@@ -54,6 +57,14 @@ export function DashboardScreen() {
       const result = await repo.getSettings();
       if (!result.ok) throw result.error;
       return result.value.dashboardWidgets;
+    },
+  });
+
+  const syncSummaryQuery = useSyncSummary();
+  const syncMutation = useMutation({
+    mutationFn: () => runSyncNow(),
+    onSuccess: () => {
+      void syncSummaryQuery.refetch();
     },
   });
 
@@ -104,6 +115,14 @@ export function DashboardScreen() {
           subtitle={`Bonjour, ${session?.employee.displayName ?? ''}`}
           showBrandMark
         />
+
+        {syncSummaryQuery.data ? (
+          <SyncStatusCard
+            summary={syncSummaryQuery.data}
+            onSync={() => syncMutation.mutate()}
+            syncing={syncMutation.isPending}
+          />
+        ) : null}
 
         {revenueToday ? (
           <Animated.View entering={FadeInDown.duration(420)}>
