@@ -4,6 +4,7 @@ Index de la documentation du projet **Naturally Forme Paiement** (application ca
 
 | Document | Contenu |
 |----------|---------|
+| [NFP_MOBILE_ARCHITECTURE.md](NFP_MOBILE_ARCHITECTURE.md) | **Architecture complète mobile** — écrans, modèles, API, design system, flux |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture mobile définitive : Local/Remote, sync, cache, DI |
 | [COMPLIANCE.md](COMPLIANCE.md) | Préparation conformité POS française (inaltérabilité, hash, audit, snapshots) |
 | [CHANGELOG_RECENT.md](CHANGELOG_RECENT.md) | Synthèse des refactors récents (admin, serveur, architecture, compliance) |
