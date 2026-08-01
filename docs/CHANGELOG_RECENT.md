@@ -1,28 +1,29 @@
-# Changelog — récents refactors NFP mobile
+# Changelog — refactors NFP mobile (août 2026)
 
-Document de synthèse des changements majeurs sur l’application NFP (Naturally Forme Paiement) avant développement backend.
+Synthèse des changements majeurs avant développement du backend.
+
+**Branche active :** `cursor/backend-source-of-truth-991e` · **PR :** [#39](https://github.com/romainrun/NFP/pull/39)
 
 ---
 
-## 1. Administration mobile complète
+## 1. Administration mobile
 
-- Hub **Paramètres** avec écrans admin : magasin, POS, paiements, taxes, tickets, stock, promotions, employés, appareils, sync, mode développeur.
-- Adaptation **petit magasin** : stock simplifié, promos produit, sync sans file manuelle.
-- **Historique d’activité**, **import/export CSV catalogue**, carte sync dashboard.
+- Hub **Paramètres** : magasin, POS, paiements, taxes, tickets, stock, promotions, employés, appareils, sync, développeur
+- Adaptation **petit magasin** (stock simplifié, promos produit)
+- **Historique d’activité**, **import/export CSV catalogue**, carte sync dashboard
+- Déployé sur `main` (PR #38)
 
 ---
 
 ## 2. Backend = source de vérité
 
-- Suppression des **sauvegardes locales** (restore, dump JSON, SQLite).
-- Écran **Serveur & sauvegardes** : lecture seule + `POST /backup` (admin).
-- Import/export limité au **catalogue CSV** (pas une sauvegarde).
+- Suppression sauvegardes locales (restore, dump JSON, SQLite)
+- Écran **Serveur & sauvegardes** : lecture seule + `POST /backup`
+- Import/export = **catalogue CSV** uniquement
 
 ---
 
-## 3. Architecture Local / Remote (finale)
-
-Remplacement des `Cached*Repository` par :
+## 3. Architecture Local / Remote
 
 ```
 Repository orchestrateur
@@ -32,47 +33,34 @@ Repository orchestrateur
 
 - `AdminSettingsRepositoryImpl`, `ActivityRepositoryImpl`, `ServerRepositoryImpl`
 - `RemoteSyncDataSource` : push/pull versionné
-- `SyncCoordinator` central (aucune sync dans les écrans)
-- `ApiClient` partagé : Bearer, retry, timeout, refresh token (préparé)
+- `SyncCoordinator` central
+- `ApiClient` : Bearer, retry, timeout, refresh token (préparé)
+- Suppression des `Cached*Repository`
 
-### File sync générique
+### File sync
 
-Opérations standard : `SALE_CREATE`, `SALE_CANCEL`, `SETTINGS_UPDATE`, `CASH_CLOSING_CREATE`, etc.
+Opérations : `SALE_CREATE`, `SALE_CANCEL`, `SETTINGS_UPDATE`, `CASH_CLOSING_CREATE`, …
 
-### Sync versionné
+### Versions sync
 
-`settingsVersion`, `productsVersion`, `inventoryVersion`, `employeesVersion`, `promotionsVersion`, `activityVersion` — pull incrémental.
+`settingsVersion`, `productsVersion`, `inventoryVersion`, `employeesVersion`, `promotionsVersion`, `activityVersion`
 
 ---
 
-## 4. Préparation conformité POS française (compliance-ready)
+## 4. Compliance-ready (POS français)
 
-Sans backend ni fausse logique serveur :
+Sans backend ni logique serveur simulée.
 
-### Inaltérabilité
-- Triggers SQLite : pas de DELETE sur orders/lines/payments ; pas de modification des montants ; clôtures immuables ; audit append-only.
-- Void = changement de statut uniquement + `SALE_CANCEL` en queue.
+| Domaine | Implémentation |
+|---------|----------------|
+| Inaltérabilité | Triggers SQLite v5 |
+| Hash chain | `receiptHash.ts` — payload déterministe + validation |
+| Audit | `ComplianceAuditPayload` append-only |
+| Snapshots | `compliance_snapshots`, `daily_snapshots` |
+| Sync | Enveloppes `deviceId`, `payloadHash`, `localVersion` |
+| Dev tools | Section Conformité (lecture seule) |
 
-### Chaîne de hash (Article 286)
-- Payload déterministe complet (lignes, paiements, deviceId, employeeId, appVersion…).
-- Utilitaires `verifyReceiptHash`, `verifyHashChain`.
-
-### Audit étendu
-- Structure `ComplianceAuditPayload` : eventId, oldValue/newValue, metadata, deviceId, appVersion.
-- Actions : sync_started/finished/failed, cash_closing, etc.
-
-### Snapshots locaux (pré-archivage)
-- Table `compliance_snapshots` : ventes, clôtures, ajustements stock, résumé journalier.
-- Table `daily_snapshots` : OPEN / CLOSED / SYNCED.
-
-### Sync payloads enrichis
-- Enveloppe : deviceId, employeeId, localVersion, payloadHash, timestamps.
-
-### Outils développeur
-- Section **Conformité** en mode développeur : hash chain, audit, snapshots, schéma DB (lecture seule).
-
-### Migration v5
-- `005_compliance.ts` : tables + triggers d’immutabilité.
+Doc détaillée : [COMPLIANCE.md](COMPLIANCE.md)
 
 ---
 
@@ -81,25 +69,19 @@ Sans backend ni fausse logique serveur :
 | Domaine | Chemins |
 |---------|---------|
 | Architecture | `docs/ARCHITECTURE.md` |
-| Compliance | `src/core/compliance/`, `src/features/compliance/` |
+| Conformité | `docs/COMPLIANCE.md` |
+| Compliance code | `src/core/compliance/`, `src/features/compliance/` |
 | Sync | `src/features/sync/services/syncCoordinator.ts` |
 | Settings | `src/features/settings/data/AdminSettingsRepositoryImpl.ts` |
-| Orders | `src/features/checkout/data/SqliteOrderRepository.ts` |
+| Ventes | `src/features/checkout/data/SqliteOrderRepository.ts` |
 | Audit | `src/shared/services/audit/AuditService.ts` |
-
----
-
-## Branches / PR
-
-- Administration + serveur source de vérité : `main` (PR #38)
-- Architecture Local/Remote : `cursor/backend-source-of-truth-991e` (PR #39)
-- Compliance-ready : en cours sur la même branche
+| Migration v5 | `src/database/migrations/005_compliance.ts` |
 
 ---
 
 ## Vérification
 
 ```bash
-npm run typecheck
-npm test
+npm run typecheck   # ✅
+npm test            # ✅ (5 suites)
 ```

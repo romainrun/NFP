@@ -1,144 +1,109 @@
-# NFP — NaturallyForme Paiement
+# NFP — Naturally Forme Paiement
 
-Premium offline-first Point of Sale for physical retail (Android tablets + iPhone).
+Application caisse **offline-first** pour magasin physique (tablettes Android + iPhone).  
+Stack : **Expo SDK 54 · React Native · TypeScript strict**.
 
-Built with **Expo · React Native · TypeScript**.
+Le **backend** est la source de vérité métier ; l’app mobile est un client avec cache SQLite, file de synchronisation et préparation conformité POS française.
 
-## Phase 1 (this PR)
+## Documentation
 
-Roadmap steps 1–8 only:
+| Document | Contenu |
+|----------|---------|
+| [docs/README.md](docs/README.md) | Index de toute la documentation |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture Local/Remote, sync, DI |
+| [docs/COMPLIANCE.md](docs/COMPLIANCE.md) | Inaltérabilité, hash chain, audit, snapshots |
+| [docs/CHANGELOG_RECENT.md](docs/CHANGELOG_RECENT.md) | Synthèse des refactors récents |
+| [docs/NFP_APP_AND_SERVER_SPEC.md](docs/NFP_APP_AND_SERVER_SPEC.md) | Spec complète app + API serveur (OVH) |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | CI/CD VPS Metro, Expo Go |
 
-1. Expo TypeScript project
-2. Feature-first clean architecture + DI
-3. React Navigation
-4. Light / dark theme (tablet-first)
-5. SQLite schema + transactional writes
-6. Repository ports (SQLite auth/settings, mock dashboard)
-7. PIN authentication + idle lock
-8. Dashboard shell
+**État actuel :** app `0.1.0` · schéma SQLite **v5** · backend non déployé (app **compliance-ready**).
 
-**Await validation before cart, checkout, payments, inventory UI, reports, or sync.**
+## Expo Go
 
-Architecture decisions: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+Cible **Expo SDK 54** pour Expo Go (aligné avec les autres projets Metro sur le VPS).
 
-**Documentation complète app + spec serveur (ChatGPT / VPS OVH) :** [`docs/NFP_APP_AND_SERVER_SPEC.md`](docs/NFP_APP_AND_SERVER_SPEC.md)
+Si vous voyez *Project is incompatible with this version of Expo Go*, le téléphone et le serveur Metro ne sont pas sur le même SDK.
 
-## Expo Go compatibility
+## CI/CD développement (VPS Metro)
 
-This project targets **Expo SDK 54** so it runs in the store Expo Go app (same as the other VPS Metro projects).
+Chaque push sur `main` déploie sur le VPS Expo Metro (PM2 `nfp-metro`, port **2000**).
 
-If you see *Project is incompatible with this version of Expo Go*, the phone is on a different SDK than the Metro server — keep NFP on SDK 54 or update Expo Go.
-
-## Development CI/CD (VPS Metro)
-
-Every push to `main` deploys automatically to the remote VPS Expo Metro server (PM2 process `nfp-metro` on port **2000**).
-
-Full guide (secrets, VPS bootstrap, PM2, logs, manual redeploy): [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)
+Guide complet : [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 ```text
 git push origin main  →  GitHub Actions  →  SSH  →  deploy.sh  →  PM2 restart
 ```
 
-Required Actions secrets: `HOST`, `PORT`, `USERNAME`, `SSH_KEY`.
+Secrets Actions : `HOST`, `PORT`, `USERNAME`, `SSH_KEY`.
 
-Dev Metro URL (Expo Go):
+URL Metro (Expo Go) :
 
 ```text
 exp://tikilote.re:2000
 ```
 
-## Run (local)
+## Lancer en local
 
 ```bash
 npm install
 npx expo start
 ```
 
-Then open on a tablet emulator / Expo Go (Android) or iOS Simulator.
+## PIN démo (seed offline)
 
-## Demo PINs (seeded offline)
+Tous les employés seed utilisent le PIN **`0000`**. L’écran de connexion propose aussi **Passer** (dev).
 
-All demo employees use PIN **`0000`** during development. The login screen also has a **Passer** button that skips PIN entry (logs in as the selected employee, or Romain by default).
-
-| Code   | Name     | Role    | PIN  |
+| Code   | Nom      | Rôle    | PIN  |
 |--------|----------|---------|------|
 | MANU   | Manuella | admin   | 0000 |
 | ROMAIN | Romain   | admin   | 0000 |
 | MEDDY  | Meddy    | manager | 0000 |
 
-Change these before any production deployment.
+Changer ces PIN et désactiver `allowPinSkip` avant toute production.
 
-## Brand UI
+## Fonctionnalités principales
 
-- Palette Naturally Forme: fond clair `#F8F6F2`, accent or `#C9A457`
-- Typography: **Inter** (Light → Bold)
-- Overlay drawer (ouvrable / fermable) on phone & tablet
+- **Caisse (POS)** : catalogue, scan, panier, remises, promos, encaissement cash/carte/mixte
+- **Ventes** : tickets immuables, hash chain, historique, annulation (void)
+- **Catalogue** : articles, catégories, photos locales, import/export CSV
+- **Inventaire** : mouvements append-only, alertes stock
+- **Clôture de caisse** : comptage, écart, breakdown paiements
+- **Exports** : CSV ventes et catalogue (partage natif)
+- **Paramètres admin** : hub complet (magasin, POS, taxes, tickets, stock, promos, employés, appareils, sync, développeur)
+- **Serveur & sauvegardes** : statut backend, sauvegarde serveur (`POST /backup`) — pas de dump SQLite local
+- **Sync** : `SyncCoordinator` (push file + pull versionné), `ApiClient` prêt
+- **Conformité** : triggers inaltérabilité, snapshots, audit enrichi, diagnostics dev
 
-## Navigation
+## Navigation (menu latéral)
 
-Authenticated screens live in a **drawer menu** (swipe, overlay tap, or ✕ to close):
-
-- Tableau de bord
-- Caisse
-- Historique des ventes
-- Articles / Catégories
-
-## Caisse (POS)
-
-From the drawer or dashboard, open **Caisse**:
-
-- search products or tap quick/favorite tiles
-- scan with camera (**Scanner**) or type barcode / SKU
-- adjust cart quantities, then **Encaisser**
-- pay in cash (with change) or card (offline simulation)
-- sale writes an immutable ticket, payments, stock movements, and receipt hash chain
-
-Seed barcodes for quick scan tests: `3000000000001`, `3000000000002`, `3000000000006`.
-
-## Historique des ventes
-
-Filter by **Aujourd’hui**, **Hier**, or a custom date range.
-Today/yesterday always cover **00h → minuit** (no hour picker).
-Custom range can refine hours. Ticket details open in a dialog.
-
-## Catalogue (articles)
-
-Managers and admins can manage the offline catalog from the dashboard (**Articles**):
-
-- create / edit / soft-deactivate products
-- categories, prices, VAT, cost, favorites, quick products
-- product photos (gallery or camera), stored offline on device
-- search (name / SKU / barcode) and stock adjustments
+Tableau de bord · Caisse · Historique · Clôture · Exports · Articles · Catégories · Inventaire · Promotions · Membres · Paramètres
 
 ## Scripts
 
-| Command | Purpose |
-|---------|---------|
-| `npm start` | Expo dev server |
-| `npm run android` / `ios` / `web` | Platform targets |
-| `npm test` | Unit tests |
-| `npm run typecheck` | Strict TypeScript |
+| Commande | Usage |
+|----------|-------|
+| `npm start` | Serveur Expo |
+| `npm run android` / `ios` / `web` | Plateformes |
+| `npm test` | Tests unitaires |
+| `npm run typecheck` | TypeScript strict |
 
 ## Structure
 
 ```
 src/
-  application/   # Composition root & providers
-  core/          # DI, config, errors, security
-  database/      # SQLite schema, migrations, seed
-  features/      # Feature-first modules
-  navigation/    # Auth + app navigators
-  shared/        # UI, theme, storage, audit
+  application/   # bootstrap.ts, AppProviders
+  core/          # DI, ApiClient, sync, compliance
+  database/      # Schéma v5, migrations 001–005
+  features/      # Modules métier (feature-first)
+  navigation/    # Auth + drawer
+  shared/        # UI, thème, audit
+docs/            # Documentation projet
 ```
 
-## Security foundations (scaffolded)
+## Sécurité (fondations)
 
-- PIN hashed with per-user salt (SHA-256)
-- Secure Store session token (JWT-ready)
-- Append-only `audit_logs`
-- Orders schema prepared for hash-chain + immutability (Article 286 path)
-- Idle auto-logout (15 minutes)
-
-## Next (after validation)
-
-Cart → Checkout → `PaymentProvider` abstraction → Inventory → Customers → Sales history → Reports → Sync engine.
+- PIN : salt + SHA-256 (migration serveur → Argon2 recommandée)
+- Session : Secure Store (JWT-ready)
+- `audit_logs` append-only
+- Tables comptables : immuables (repositories + triggers SQLite v5)
+- Déconnexion auto après inactivité (15 min)

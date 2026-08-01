@@ -1,141 +1,248 @@
-# NFP — Architecture (definitive mobile foundation)
+# NFP — Architecture (foundation mobile)
 
-Single-store professional POS. **Not SaaS.** Backend is always the single source of truth.
+Application caisse **single-store** pour Naturally Forme. **Pas un SaaS.**  
+Le **backend** est la source de vérité ; l’app mobile est un **client offline-first**.
 
-## Principles
+Voir aussi : [COMPLIANCE.md](COMPLIANCE.md) · [CHANGELOG_RECENT.md](CHANGELOG_RECENT.md) · [NFP_APP_AND_SERVER_SPEC.md](NFP_APP_AND_SERVER_SPEC.md)
 
-| Backend | Mobile app |
-|---------|------------|
-| Source of truth | Client UI |
-| Business rules | Offline cache |
-| Admin settings | Sync queue |
-| Audit history | Temporary local events |
-| Backups | Local validation |
+**Version app :** `0.1.0` · **Schéma SQLite :** v5
 
-SQLite stores **cached business data**, **pending operations**, and **temporary offline information** — never authoritative configuration or audit trails.
+---
 
-## Repository pattern
+## Principes
 
-Each domain uses a **Repository orchestrator** with **Local** and **Remote** data sources:
+| Backend (futur) | Application mobile |
+|-----------------|-------------------|
+| Source de vérité métier | UI + validation locale |
+| Règles métier officielles | Cache SQLite |
+| Paramètres admin | File de synchronisation |
+| Audit / archive légale | Événements temporaires + snapshots |
+| Sauvegardes | Diagnostic compliance |
+
+SQLite stocke **cache**, **opérations en attente** et **informations temporaires offline** — jamais la configuration ni l’audit définitifs.
+
+---
+
+## Couches
 
 ```
-Repository (orchestrator)
-    ├── LocalDataSource   → SQLite cache / sync queue
-    └── RemoteDataSource  → Backend API via shared ApiClient
+Écrans / composants (React Native)
+    ↓ hooks, React Query, Zustand
+Repositories (orchestrateurs — ports DI)
+    ↓
+LocalDataSource (SQLite)  +  RemoteDataSource (API)
+    ↓
+ApiClient partagé  →  Backend NFP (à développer)
 ```
 
-The UI resolves repository interfaces via DI. It never knows whether data came from SQLite or the network.
+Règles :
 
-### Implemented orchestrators
+- Les écrans ne appellent pas HTTP directement
+- `bootstrap.ts` enregistre tous les adapters (`core/di/tokens.ts`)
+- Features = domain + data + presentation
+
+---
+
+## Repository pattern (Local + Remote)
+
+```
+Repository orchestrateur
+    ├── LocalDataSource   → cache / queue SQLite
+    └── RemoteDataSource  → API backend
+```
+
+L’UI ne sait pas si la donnée vient du cache ou du réseau.
+
+### Orchestrateurs implémentés
 
 | Repository | Local | Remote |
 |------------|-------|--------|
-| `AdminSettingsRepositoryImpl` | `LocalAdminSettingsDataSource` | `RemoteAdminSettingsDataSource` + `RemoteSyncDataSource` |
+| `AdminSettingsRepositoryImpl` | `LocalAdminSettingsDataSource` | `RemoteAdminSettingsDataSource` |
 | `ActivityRepositoryImpl` | `LocalActivityDataSource` | `RemoteActivityDataSource` |
-| `ServerRepositoryImpl` | settings cache (pending count) | `RemoteServerDataSource` |
-| `LocalSyncQueueDataSource` | `sync_queue` table | pushed via `RemoteSyncDataSource` |
+| `ServerRepositoryImpl` | métadonnées locales | `RemoteServerDataSource` |
+| File sync | `LocalSyncQueueDataSource` | `RemoteSyncDataSource` |
 
-Product, order, cart, and employee SQLite repositories remain local-first until backend endpoints are wired; they enqueue standardized sync operations.
+### Repositories locaux (cache métier + enqueue)
+
+| Repository | Rôle |
+|------------|------|
+| `SqliteOrderRepository` | Ventes immuables, hash chain, snapshots, `SALE_CREATE` / `SALE_CANCEL` |
+| `SqliteCashClosingRepository` | Clôtures immuables, `CASH_CLOSING_CREATE` |
+| `SqliteProductRepository` | Catalogue cache, désactivation sans DELETE |
+| `SqliteUserRepository` | Employés, `is_active` |
+| `SqliteCartRepository` | Panier éphémère |
+
+---
 
 ## ApiClient
 
-Single shared HTTP client (`src/core/http/ApiClient.ts`):
+Fichier : `src/core/http/ApiClient.ts`
 
-- Bearer authentication
-- Token refresh hook (prepared)
-- Retry policy + timeout
-- Request/response logging (dev)
-- Error mapping to `AppError`
+- Bearer token (Secure Store, JWT-ready)
+- Hook refresh token (préparé)
+- Retry + timeout 15s
+- Logging en `__DEV__`
+- Erreurs → `AppError`
 
-All `RemoteDataSource` classes use this client.
+Tous les `RemoteDataSource` passent par ce client.
 
-## Generic offline sync queue
+---
 
-One table: `sync_queue`
+## File de synchronisation
 
-| Field | Role |
-|-------|------|
-| `entityType` | Domain (`sale`, `product`, `settings`, …) |
-| `entityId` | Entity identifier |
-| `operation` | Standardized op (see below) |
-| `payload_json` | Operation payload |
+Table `sync_queue` (schéma v1+, inchangée structurellement) :
+
+| Colonne | Rôle |
+|---------|------|
+| `entity_type` | Domaine (`sale`, `settings`, `cash_closing`, …) |
+| `entity_id` | Identifiant entité |
+| `operation` | Opération standardisée |
+| `payload_json` | Enveloppe sync (voir compliance) |
 | `status` | `pending` / `synced` / `failed` |
-| `attempts` | Retry count |
+| `attempts` | Retries |
 
-### Standard operations (`SyncOperation`)
+### Opérations (`SyncOperation`)
 
-`SALE_CREATE`, `SALE_CANCEL`, `PRODUCT_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_DELETE`, `INVENTORY_UPDATE`, `EMPLOYEE_UPDATE`, `SETTINGS_UPDATE`, `PAYMENT_CREATE`, `PROMOTION_UPDATE`
+`SALE_CREATE`, `SALE_CANCEL`, `PRODUCT_UPDATE`, `PRODUCT_CREATE`, `PRODUCT_DELETE`, `INVENTORY_UPDATE`, `EMPLOYEE_UPDATE`, `SETTINGS_UPDATE`, `PAYMENT_CREATE`, `PROMOTION_UPDATE`, `CASH_CLOSING_CREATE`
 
-New entities enqueue with these operations — **no new sync infrastructure**.
+Nouvelle entité = nouvelle opération dans cette liste, **pas** nouvelle infrastructure sync.
+
+---
 
 ## SyncCoordinator
 
-Central worker (`syncCoordinator.ts`). Screens never duplicate sync logic.
+Fichier : `src/features/sync/services/syncCoordinator.ts`
 
-1. Health check
-2. **Push** — `POST /sync/push` with pending queue items
-3. **Pull** — `POST /sync/pull` with version map (incremental)
-4. Refresh settings + activity caches
-5. Update sync metadata + device registry
-6. Automatic retry on connectivity restore
+Responsabilités centralisées (aucune sync dans les écrans) :
 
-## Version-based synchronization
+1. `sync_started` audit
+2. Health check (`GET /health`)
+3. **Push** — `POST /sync/push`
+4. **Pull** — `POST /sync/pull` avec versions locales
+5. Refresh settings + activité
+6. Mise à jour métadonnées sync + `device_registry`
+7. Audit `sync_finished` / `sync_failed`
 
-Local versions (`sync.versions` in settings cache):
+Au démarrage : `refreshOnStartup()` après chargement du cache.
+
+---
+
+## Synchronisation versionnée
+
+Versions locales (`sync.versions` dans settings cache) :
 
 - `settingsVersion`, `productsVersion`, `inventoryVersion`, `employeesVersion`, `promotionsVersion`, `activityVersion`
 
-Pull request sends all versions; backend returns **only changed data**. Avoids full catalogue download every sync.
+Le pull envoie toutes les versions ; le serveur ne retourne que les **deltas**.
 
-## Cache strategy
+---
 
-**Startup**
+## Stratégie cache
 
-1. Load SQLite cache → show UI immediately
-2. If online → pull + push via SyncCoordinator
-3. Replace local cache (server wins)
-4. UI refreshes via React Query
+### Démarrage
 
-**Offline**
+1. Charger SQLite → UI immédiate
+2. Si réseau : `SyncCoordinator` (push + pull)
+3. Remplacer cache (serveur gagne)
+4. React Query rafraîchit l’UI
 
-- Use cache
-- Queue changes
-- Auto-sync when connectivity returns
+### Offline
 
-## Conflict strategy
+- Lire le cache
+- Enqueue les modifications
+- Sync automatique au retour réseau
 
-`ConflictResolver` — default **server wins**. Custom strategies can be registered per entity type.
+---
 
-## Activity history
+## Conflits
 
-- Backend owns audit trail
-- Offline: temporary local events (`source: local`)
-- After sync: server snapshot replaces authoritative history
-- Never permanent client-only audit database
+`ConflictResolver` (`src/core/sync/ConflictResolver.ts`) — règle par défaut : **server wins**.
 
-## Server & backups
+---
 
-Read-only server info + `POST /backup` for administrators. No local backup/restore.
+## Historique d’activité
+
+- Online : snapshot serveur (`/audit/logs` ou pull)
+- Offline : événements locaux marqués `source: local`
+- Après sync : historique serveur prioritaire
+
+---
+
+## Administration
+
+Hub **Paramètres** (permission `settings.manage`) :
+
+| Écran | Contenu |
+|-------|---------|
+| Magasin, POS, Paiements, Taxes, Tickets | Paramètres sync vers serveur |
+| Stock, Promotions, Employés | Cache + enqueue si applicable |
+| Serveur & sauvegardes | Lecture seule + `POST /backup` |
+| Import catalogue | CSV produits uniquement |
+| Historique | Activité |
+| Sync, Appareils | Statut + forcer sync |
+| Mode développeur | Diagnostics + conformité |
+
+---
 
 ## Import / export
 
-Catalogue CSV only (`ProductImportExportRepository`). Not a backup system.
+`ProductImportExportRepository` — export/import **catalogue CSV** seulement.  
+Pas de dump SQLite, JSON, ventes, clients, ou archive complète.
 
-## Backend endpoints (ready to connect)
+---
 
-| Endpoint | Use |
-|----------|-----|
-| `GET /health` | Connectivity |
-| `POST /sync/push` | Outbound queue |
-| `POST /sync/pull` | Version-based incremental pull |
-| `GET /audit/logs` | Activity history |
-| `POST /backup` | Server backup request |
-| `GET /products`, `POST /sales`, … | Future entity sync |
+## Conformité (résumé)
 
-## Dependency injection
+- Triggers immuabilité (orders, payments, clôtures, audit)
+- Chaîne de hash tickets (payload déterministe)
+- Audit `ComplianceAuditPayload` append-only
+- Snapshots `compliance_snapshots` + `daily_snapshots`
+- Enveloppes sync avec `payloadHash`, `localVersion`
 
-`bootstrap.ts` registers orchestrators and data sources. Tokens in `core/di/tokens.ts`.
+Détails : [COMPLIANCE.md](COMPLIANCE.md)
 
-## Testing
+---
 
-Repository interfaces enable unit tests without SQLite or HTTP.
+## Endpoints backend (à connecter)
+
+| Endpoint | Usage |
+|----------|--------|
+| `GET /health` | Connectivité |
+| `POST /sync/push` | File sortante |
+| `POST /sync/pull` | Pull versionné |
+| `GET /audit/logs` | Historique |
+| `POST /backup` | Sauvegarde serveur (admin) |
+| `GET/POST /products`, `/sales`, `/employees`, `/settings` | Entités métier |
+
+Spécification complète : [NFP_APP_AND_SERVER_SPEC.md](NFP_APP_AND_SERVER_SPEC.md)
+
+---
+
+## Injection de dépendances
+
+`src/application/bootstrap.ts` enregistre :
+
+`Database`, `AuthRepository`, `AdminSettingsRepository`, `ActivityHistoryRepository`, `SyncRepository`, `RemoteSyncDataSource`, `ServerInfoRepository`, `ComplianceRepository`, `ComplianceValidationService`, `OrderRepository`, …
+
+---
+
+## Migrations SQLite
+
+| Version | Fichier | Contenu |
+|---------|---------|---------|
+| v1 | `001_initial.ts` | Schéma de base |
+| v2 | `002_cash_closings.ts` | Clôtures caisse |
+| v3 | `003_employee_notes.ts` | Notes employés |
+| v4 | `004_admin_fields.ts` | Admin, device_registry, sync_logs |
+| v5 | `005_compliance.ts` | Snapshots compliance + triggers immuabilité |
+
+---
+
+## Tests
+
+```bash
+npm run typecheck
+npm test
+```
+
+Interfaces repository → tests sans SQLite ni HTTP.

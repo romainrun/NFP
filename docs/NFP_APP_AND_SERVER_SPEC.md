@@ -4,7 +4,9 @@
 > Site vitrine : https://nf.tikilote.re/  
 > Ce document décrit **tout ce qui existe dans l’app mobile** et propose une **architecture serveur** pour un VPS OVH (endpoints, sécurité, outils, sync).
 
-**Version app :** `0.1.0` · **Schéma SQLite :** v3 · **Dernière mise à jour doc :** août 2026
+**Version app :** `0.1.0` · **Schéma SQLite :** v5 · **Dernière mise à jour doc :** août 2026
+
+> Voir aussi : [README.md](README.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [COMPLIANCE.md](COMPLIANCE.md) · [CHANGELOG_RECENT.md](CHANGELOG_RECENT.md)
 
 ---
 
@@ -39,7 +41,7 @@
 |--------|-------------|
 | **Cible** | Magasin physique Naturally Forme — caisse tablette + iPhone |
 | **Mode** | **Offline-first** : toute la vente fonctionne sans réseau |
-| **Cloud** | Prévu : sync des ventes, catalogue central, multi-magasins (pas encore codé côté HTTP) |
+| **Cloud** | Client HTTP + `SyncCoordinator` codés ; backend API à déployer sur VPS |
 | **Monnaie** | EUR, montants en **centimes** (`*_cents` integer) |
 | **TVA** | France retail : 0, 2.1, 5.5, 10, 20 % (TTC sur produits) |
 | **Langue UI** | Français |
@@ -71,7 +73,7 @@
 | DI | Container manuel + tokens string (`src/core/di/`) |
 | Fonts | Montserrat (@expo-google-fonts) |
 | Sécurité locale | expo-secure-store (session), SHA-256 PIN |
-| HTTP | **axios présent dans package.json mais non utilisé** |
+| HTTP | `ApiClient` (`src/core/http/ApiClient.ts`) — retry, timeout, Bearer, refresh hook |
 
 ### Scripts
 
@@ -92,7 +94,7 @@ src/
   features/        # modules métier (auth, cart, checkout, products, …)
   navigation/      # Root, Auth, App, MainDrawer, side menu
   shared/          # composants UI, theme, audit, storage, utils
-docs/              # ARCHITECTURE.md, DEPLOYMENT.md, ce fichier
+docs/              # ARCHITECTURE, COMPLIANCE, CHANGELOG_RECENT, DEPLOYMENT, ce fichier
 ```
 
 ---
@@ -106,18 +108,38 @@ Chaque feature suit en général :
 ```
 features/<feature>/
   domain/          # types, règles pures
-  data/            # *Repository.ts (interface) + Sqlite*Repository.ts
+  data/            # ports + Sqlite*Repository et/ou *RepositoryImpl
   presentation/    # screens, components, hooks
 ```
+
+### Backend = source de vérité, app = client offline-first
+
+```
+Écrans → Repositories (orchestrateurs) → LocalDataSource + RemoteDataSource → ApiClient
+```
+
+SQLite = **cache**, **file sync**, **snapshots temporaires** — pas la config ni l’audit définitif.
+
+Détails : [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ### Composition root
 
 `src/application/bootstrap.ts` :
 
-1. Ouvre SQLite + migrations + seed
-2. Instancie tous les repositories SQLite
+1. Ouvre SQLite + migrations (v5) + seed
+2. Instancie repositories locaux + orchestrateurs Local/Remote
 3. Enregistre dans le container DI (`TOKENS`)
 4. Hydrate le store settings (nom magasin, thème)
+5. Optionnel : refresh sync au démarrage si backend joignable
+
+### Orchestrateurs Local + Remote
+
+| Repository | Local | Remote |
+|------------|-------|--------|
+| `AdminSettingsRepositoryImpl` | `LocalAdminSettingsDataSource` | `RemoteAdminSettingsDataSource` |
+| `ActivityRepositoryImpl` | `LocalActivityDataSource` | `RemoteActivityDataSource` |
+| `ServerRepositoryImpl` | métadonnées locales | `RemoteServerDataSource` |
+| File sync | `LocalSyncQueueDataSource` | `RemoteSyncDataSource` |
 
 ### Tokens DI (`src/core/di/tokens.ts`)
 
@@ -134,10 +156,18 @@ features/<feature>/
 | PromotionRepository | SqlitePromotionRepository |
 | DashboardRepository | SqliteDashboardRepository |
 | SettingsRepository | SqliteSettingsRepository |
-| SyncRepository | SqliteSyncRepository |
+| SyncRepository | LocalSyncQueueDataSource |
+| RemoteSyncDataSource | RemoteSyncDataSource |
+| AdminSettingsRepository | AdminSettingsRepositoryImpl |
+| ActivityHistoryRepository | ActivityRepositoryImpl |
+| ServerInfoRepository | ServerRepositoryImpl |
+| ImportExportRepository | ProductImportExportRepository |
+| DeviceRepository | SqliteDeviceRepository |
 | NoteRepository | SqliteNoteRepository |
+| ComplianceRepository | SqliteComplianceRepository |
+| ComplianceValidationService | ComplianceValidationService |
 | PaymentProvider | LocalPaymentProvider |
-| AuditService | SqliteAuditService |
+| AuditService | AuditService |
 | SecureStorage | ExpoSecureStorage |
 | KeyValueStorage | MemoryKeyValueStorage |
 
@@ -285,13 +315,24 @@ Actions rapides : Ouvrir la caisse, Historique.
 - CRUD : code, nom, rôle, PIN, actif
 - Protection dernier admin
 
-### 5.14 Paramètres
+### 5.14 Paramètres (hub admin)
 
-- Nom magasin, adresse, téléphone, SIRET
-- Thème : système / clair / sombre
-- Horaires d’ouverture (7 jours)
-- Widgets dashboard on/off
-- Compteur sync pending (lecture seule)
+Hub **Paramètres** pour petit magasin unique :
+
+- **Magasin** : nom, adresse, téléphone, SIRET, horaires
+- **POS** : comportement caisse
+- **Paiements** : méthodes actives
+- **Taxes** : taux TVA
+- **Tickets** : mise en page ticket
+- **Stock** : alertes, oversell
+- **Promotions** : règles produit
+- **Employés** : CRUD + PIN
+- **Appareils** : deviceId, logs sync
+- **Sync** : URL backend, compteur pending, bouton sync maintenant
+- **Serveur & sauvegardes** : statut API, latence, `POST /backup` (pas de dump SQLite local)
+- **Import/export** : catalogue CSV uniquement
+- **Historique d’activité** : journal actions admin
+- **Développeur** : diagnostics conformité (lecture seule)
 
 ### 5.15 Notes d’équipe (Dashboard)
 
@@ -433,8 +474,8 @@ action, entity_type, entity_id, payload_json, device_id, app_version, created_at
 |---------|-------|
 | entity_type | ex. `order` |
 | entity_id | UUID entité |
-| operation | ex. `create` |
-| payload_json | JSON |
+| operation | `SALE_CREATE`, `SALE_CANCEL`, `CASH_CLOSING_CREATE`, `SETTINGS_UPDATE`, … |
+| payload_json | JSON enveloppe (deviceId, payloadHash, localVersion) |
 | status | pending \| synced \| failed |
 | attempts, last_error | |
 
@@ -445,6 +486,26 @@ user_id, period_start/end, opening/counted/expected/gap cents, total_cents, orde
 ### `employee_notes` (migration v3)
 
 author_id, recipient_id (NULL = équipe), body, created_at
+
+### `compliance_snapshots` (migration v5)
+
+snapshot_type, entity_id, payload_json, payload_hash, device_id, employee_id, app_version, created_at, synced
+
+Snapshots append-only des entités comptables (vente, void, clôture) pour audit et sync.
+
+### `daily_snapshots` (migration v5)
+
+business_date (UNIQUE), status, opening/closing cash, orders_count, sales_amount_cents, vat_totals_json, payment_breakdown_json, employee_ids_json, snapshot_hash, payload_json, closed_at
+
+Journalier métier — ouverture/fermeture de journée (auto-open première vente : à compléter).
+
+### Triggers inaltérabilité (migration v5)
+
+- `orders`, `order_lines`, `payments` : **DELETE interdit**
+- `orders` : UPDATE monétaire interdit (seul `status` → `voided` permis)
+- `cash_closings` : DELETE interdit
+
+Doc : [COMPLIANCE.md](COMPLIANCE.md)
 
 ### `reports` (**non utilisée**)
 
@@ -498,27 +559,27 @@ author_id, recipient_id (NULL = équipe), body, created_at
    - INSERT order + lines + payments
    - Décrément stock + `inventory_movements` type `sale`
    - Vide panier
-5. Audit `sale`
-6. Enqueue sync `order/create`
+5. Audit `sale` + snapshot conformité
+6. Enqueue sync `SALE_CREATE`
 
 ### Annulation (`voidOrder`)
 
 - Permission `sales.void`
-- status → `voided`
+- status → `voided` (seul UPDATE monétaire permis sur `orders`)
 - Restaure stock
-- Audit `void`
-- **Pas encore sync serveur pour void**
+- Audit `void` + snapshot + enqueue `SALE_CANCEL`
 
 ### Chaîne de hash tickets (Article 286 prep)
 
+Implémentation : `src/core/compliance/receiptHash.ts`
+
 ```text
-payload = JSON.stringify({
-  receiptNumber, totalCents, userId, createdAt,
-  lines: [{ productId, qty, total }]
-})
-receiptHash = SHA256(previousHash + "|" + payload)
-premier ticket : previousHash = null → chaîne commence avec "GENESIS"
+payload = JSON déterministe (receiptNumber, totaux, lignes triées, deviceId, …)
+receiptHash = SHA256(previousHash + "|" + canonicalPayload)
+premier ticket : previousHash = "GENESIS"
 ```
+
+Validation locale : `ComplianceValidationService` · diagnostics : Paramètres → Développeur → Conformité
 
 ### Clôture caisse
 
@@ -571,62 +632,68 @@ gap = countedCash - expectedCash
 
 ## 11. File de synchronisation (état actuel)
 
-### Ce qui est enqueue aujourd’hui
+### Worker central : `SyncCoordinator`
 
-**Uniquement** après vente réussie :
+Fichier : `src/features/sync/services/syncCoordinator.ts`
 
-```json
-{
-  "entityType": "order",
-  "entityId": "<orderId>",
-  "operation": "create",
-  "payload": {
-    "orderId": "uuid",
-    "receiptNumber": 42,
-    "totalCents": 5990,
-    "createdAt": "2026-07-31T12:00:00.000Z"
-  }
-}
-```
+1. Health check backend (`GET /health`)
+2. `listPending()` → `POST /sync/push` (batch)
+3. `markSynced` / `markFailed` par événement
+4. `GET /sync/pull` avec versions (`SyncVersions`)
+5. Refresh caches admin settings + activité
 
-### Ce qui devrait être enqueue (recommandation serveur)
+Mode `sync.simulateOffline` : skip réseau (tests UI).
 
-| entityType | operation | Quand |
-|------------|-----------|-------|
-| `order` | `create` | Vente |
-| `order` | `void` | Annulation |
-| `cash_closing` | `create` | Clôture |
-| `product` | `create` / `update` | Catalogue (optionnel, pull préférable) |
-| `inventory_movement` | `create` | Ajustement stock |
-| `employee_note` | `create` | Note équipe |
+### Opérations enqueue aujourd’hui
 
-### Worker app (à implémenter)
+| Opération | Entité | Quand |
+|-----------|--------|-------|
+| `SALE_CREATE` | `sale` | Vente complétée |
+| `SALE_CANCEL` | `sale` | Annulation ticket |
+| `CASH_CLOSING_CREATE` | `cash_closing` | Clôture caisse |
+| `SETTINGS_UPDATE` | `settings` | Changement paramètres admin |
 
-1. `listPending()` → POST batch au serveur
-2. Idempotence par `orderId` / `receiptNumber` + `device_id`
-3. `markSynced(id)` ou `markFailed(id, error)`
-4. Retry avec backoff + `attempts` max
+### Enveloppe sync (compliance-ready)
+
+Chaque payload inclut `deviceId`, `payloadHash`, `localVersion` — voir `src/core/compliance/syncPayload.ts`.
+
+### À étendre (recommandation)
+
+| Opération | Quand |
+|-----------|-------|
+| `PRODUCT_CREATE` / `UPDATE` | Catalogue (pull préférable côté serveur) |
+| `INVENTORY_UPDATE` | Ajustement stock |
+| `EMPLOYEE_UPDATE` | Employé modifié |
+| Note équipe | Sync optionnel |
+
+### Ce qui reste côté backend
+
+- Déployer API `/health`, `/sync/push`, `/sync/pull`
+- Idempotence par `entityId` + `deviceId`
+- Vérification chaîne `receiptHash` serveur
 
 ---
 
 ## 12. Audit et conformité tickets
 
+Doc complète : [COMPLIANCE.md](COMPLIANCE.md)
+
 ### Actions audit loggées
 
-`login`, `logout`, `login_failed`, `sale`, `void`, `product_create`, `product_update`, `product_deactivate`, `inventory_change`, `category_change`, `user_change`
+`login`, `logout`, `login_failed`, `sale`, `void`, `product_create`, `product_update`, `product_deactivate`, `inventory_change`, `category_change`, `user_change`, `sync_started`, `sync_completed`, `cash_closing`, `settings_change`, …
 
-### Champs audit
+### Payload conformité (`ComplianceAuditPayload`)
 
-```typescript
-{
-  userId?: string;
-  action: AuditAction;
-  entityType?: string;
-  entityId?: string;
-  payload?: Record<string, unknown>;
-  // + device_id, app_version, created_at auto
-}
-```
+Append-only dans `audit_logs` avec `device_id`, `app_version`, hash payload optionnel.
+
+### Couches conformité
+
+| Couche | Fichiers |
+|--------|----------|
+| Hash & device | `src/core/compliance/receiptHash.ts`, `deviceContext.ts`, `syncPayload.ts` |
+| Persistance | `SqliteComplianceRepository`, migration v5 |
+| Validation | `ComplianceValidationService` |
+| UI dev | `AdminDeveloperScreen` → section Conformité |
 
 ---
 
@@ -634,17 +701,20 @@ gap = countedCash - expectedCash
 
 | ✅ Implémenté | ❌ Pas encore |
 |-------------|---------------|
-| POS complet offline | HTTP client / sync worker |
-| Paiements mixtes | JWT / refresh tokens |
-| Clôture caisse persistée | Restauration session au boot |
-| Sync queue (enqueue) | Consumers sync + markSynced |
-| Notes équipe | API serveur |
-| Gift card / avoir (UI) | Vraie validation gift card serveur |
-| Void ticket local | Refunds table + UI |
-| Customers table | Fidélité / avoir client |
-| Exports CSV locaux | Backoffice web |
-| Hash chain tickets | Vérification serveur chaîne |
-| Permissions RBAC | RBAC serveur aligné |
+| POS complet offline | Backend API déployé (OVH) |
+| Paiements mixtes | JWT / refresh tokens production |
+| Clôture caisse + enqueue sync | Vérification hash côté serveur |
+| `SyncCoordinator` + `ApiClient` | Session restaurée au cold start |
+| Hub admin complet | Backoffice web |
+| Serveur & sauvegardes (UI) | `POST /backup` réel sur VPS |
+| Import/export CSV catalogue | Pull catalogue images cloud |
+| Void + `SALE_CANCEL` enqueue | Refunds table + UI |
+| Hash chain + triggers v5 | Daily snapshot auto-open jour |
+| Snapshots conformité | Gift card validation serveur |
+| Notes équipe | Sync notes |
+| Customers table (schéma) | Fidélité / avoir client UI |
+| Exports CSV locaux | RBAC serveur aligné |
+| Permissions RBAC locale | Multi-magasin |
 
 ---
 
@@ -1052,19 +1122,19 @@ Content-Type: application/json
 3. **Les ventes poussent** (push) avec idempotence
 4. **Pas de blocage caisse** si API down
 
-### Flux app (à coder)
+### Flux app (implémenté côté client)
 
 ```text
-[Vente locale] → sync_queue pending
-     ↓ (réseau OK)
+[Vente locale] → sync_queue pending (SALE_CREATE)
+     ↓ (réseau OK, SyncCoordinator)
 POST /sync/push
      ↓
 accepted → markSynced
 rejected → markFailed + message UI Settings
      ↓
-GET /sync/pull (toutes les 15 min ou au login)
+GET /sync/pull (versions SyncVersions)
      ↓
-Upsert products/categories en SQLite local
+Upsert cache local (settings, produits, …)
 ```
 
 ### Catalogue images
@@ -1162,14 +1232,16 @@ S3_ENDPOINT=https://s3.gra.io.cloud.ovh.net
 
 | Fichier | Contenu |
 |---------|---------|
-| `src/database/schema.ts` | Schéma SQL initial |
-| `src/database/migrations/*` | v2 cash_closings, v3 employee_notes |
-| `src/features/checkout/data/SqliteOrderRepository.ts` | Vente, void, hash |
+| `src/database/schema.ts` | Schéma initial (v5) |
+| `src/database/migrations/*` | 001 initial, 002 cash_closings, 003 employee_notes, 004 admin_fields, 005 compliance |
+| `src/features/checkout/data/SqliteOrderRepository.ts` | Vente, void, hash, sync enqueue |
 | `src/features/cart/data/SqliteCartRepository.ts` | Panier, stock |
+| `src/features/sync/services/syncCoordinator.ts` | Worker sync central |
+| `src/core/http/ApiClient.ts` | Client HTTP |
+| `src/features/compliance/` | Snapshots, validation |
 | `src/features/authentication/domain/permissions.ts` | RBAC |
-| `src/features/sync/data/SqliteSyncRepository.ts` | Queue |
-| `src/shared/services/audit/AuditService.ts` | Audit |
-| `docs/ARCHITECTURE.md` | Architecture détaillée |
+| `docs/ARCHITECTURE.md` | Architecture Local/Remote |
+| `docs/COMPLIANCE.md` | Conformité POS française |
 | `docs/DEPLOYMENT.md` | CI/CD Metro VPS |
 
 ## Annexe C — Prompt suggéré pour ChatGPT (serveur)
